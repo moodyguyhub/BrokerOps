@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: broker
+          POSTGRES_PASSWORD: broker
+          POSTGRES_DB: broker
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      opa:
+        image: openpolicyagent/opa:latest
+        ports:
+          - 8181:8181
+        options: >-
+          --health-cmd "wget -q -O - http://localhost:8181/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build all packages
+        run: pnpm -r build
+
+      - name: Load OPA policy
+        run: |
+          curl -X PUT http://localhost:8181/v1/policies/broker \
+            -H "Content-Type: text/plain" \
+            --data-binary @policies/order.rego
+
+      - name: Run policy tests
+        run: pnpm --filter @broker/tests test
+
+      - name: Apply DB migrations
+        run: |
+          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/sql/001_init.sql
+
+  policy-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Check Rego syntax
+        run: opa check policies/
+
+      - name: Format check
+        run: opa fmt --diff policies/
