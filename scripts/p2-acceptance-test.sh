@@ -320,8 +320,10 @@ log "Tests Failed: $TESTS_FAILED"
 log "Log File:     $LOG_FILE"
 
 # Write JSON summary for CI consumption
+# Schema versioned for backward compatibility (see PPE Learning Tip)
 cat > "$SUMMARY_FILE" << EOF
 {
+  "schema_version": "1.0.0",
   "timestamp": "$TIMESTAMP",
   "git_commit": "$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')",
   "tests_run": $TESTS_RUN,

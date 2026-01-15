@@ -84,3 +84,101 @@ jobs:
 
       - name: Format check
         run: opa fmt --diff policies/
+
+  # P2 Acceptance Test - Integration proof with audit artifacts
+  p2-acceptance:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: broker
+          POSTGRES_PASSWORD: broker
+          POSTGRES_DB: broker
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      opa:
+        image: openpolicyagent/opa:latest
+        ports:
+          - 8181:8181
+        options: >-
+          --health-cmd "wget -q -O - http://localhost:8181/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build all packages
+        run: pnpm -r build
+
+      - name: Load OPA policy
+        run: |
+          curl -X PUT http://localhost:8181/v1/policies/broker \
+            -H "Content-Type: text/plain" \
+            --data-binary @policies/order.rego
+
+      - name: Apply DB migrations
+        run: |
+          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/sql/001_init.sql
+          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/db/migrations/002_shadow_ledger.sql
+          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/db/migrations/003_economics.sql
+          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/db/migrations/004_p2_lifecycle.sql
+
+      - name: Start services
+        run: |
+          # Start all services in background
+          node services/risk-gate/dist/index.js &
+          node services/audit-writer/dist/index.js &
+          node services/order-api/dist/index.js &
+          node services/economics/dist/index.js &
+          node services/webhooks/dist/index.js &
+          # Wait for services to be ready
+          sleep 5
+          # Health checks
+          curl -sf http://localhost:7001/health || exit 1
+          curl -sf http://localhost:7004/health || exit 1
+          curl -sf http://localhost:7006/health || exit 1
+
+      - name: Run P2 acceptance tests
+        run: ./scripts/p2-acceptance-test.sh
+
+      - name: Validate JSON contract
+        run: |
+          # Verify schema_version is present (contract compliance)
+          jq -e '.schema_version' test-results/p2-acceptance-latest.json
+          # Fail if success != true
+          jq -e '.success == true' test-results/p2-acceptance-latest.json
+
+      - name: Upload P2 proof artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2-acceptance-proof-${{ github.run_number }}
+          path: |
+            test-results/p2-acceptance-latest.json
+            test-results/p2-acceptance-*.log
+          retention-days: 90
