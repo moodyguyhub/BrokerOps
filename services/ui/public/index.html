@@ -658,6 +658,12 @@
       return resp.json();
     }
     
+    // P1: Fetch saved exposure KPI
+    async function fetchSavedExposure(hours = 24) {
+      const resp = await fetch(`/api/economics/saved-exposure?hours=${hours}`);
+      return resp.json();
+    }
+    
     async function fetchPendingOverrides() {
       try {
         const resp = await fetch('/api/overrides/pending');
@@ -712,9 +718,10 @@
     }
 
     async function renderEvaluations() {
-      const [data, econSummary, pendingOverrides] = await Promise.all([
+      const [data, econSummary, savedExposureData, pendingOverrides] = await Promise.all([
         fetchTraces(),
         fetchEconomicsSummary().catch(() => ({})),
+        fetchSavedExposure(24).catch(() => ({ saved_exposure: 0, change_percent: 0, blocked_count: 0 })),
         fetchPendingOverrides().catch(() => ({ count: 0 }))
       ]);
 
@@ -731,7 +738,10 @@
       const blockedTraces = last24h.filter(t => t.outcome === 'BLOCKED');
       const authorizedTraces = last24h.filter(t => t.outcome === 'AUTHORIZED' || t.outcome === 'ACCEPTED');
       const overrideTraces = last24h.filter(t => t.hasOverride);
-      const savedExposure = econSummary.estimatedLostRevenue || 0;
+      // P1: Use saved exposure from dedicated endpoint
+      const savedExposure = savedExposureData.saved_exposure || 0;
+      const savedExposureChange = savedExposureData.change_percent || 0;
+      const blockedCount = savedExposureData.blocked_count || blockedTraces.length;
       const pendingCount = pendingOverrides.count || 0;
 
       const inbound = totalEvals24h;
@@ -739,8 +749,9 @@
       const manualReview = overrideTraces.length;
       const blocked = blockedTraces.length - overrideTraces.length;
 
-      const savedTrend = savedExposure > 0 ? `+$${savedExposure.toLocaleString()}` : `-$${Math.abs(savedExposure).toLocaleString()}`;
-      const savedTrendColor = savedExposure > 0 ? 'text-emerald-600' : 'text-red-600';
+      // Format trend indicator
+      const savedTrendArrow = savedExposureChange >= 0 ? '↑' : '↓';
+      const savedTrendColor = savedExposureChange >= 0 ? 'text-emerald-600' : 'text-red-600';
 
       app.innerHTML = `
         <div class="mb-6 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-center gap-3">
@@ -755,12 +766,13 @@
             <div class="mt-2 text-2xl font-semibold font-mono text-slate-900">${totalEvals24h}</div>
             <div class="mt-1 text-xs text-slate-500">Total guardrail checks</div>
           </div>
-          <div class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <div class="text-xs uppercase text-slate-500">Saved Exposure (24h)</div>
-            <div class="mt-2 text-2xl font-semibold font-mono text-emerald-600">$${savedExposure.toLocaleString()}</div>
+          <div class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-emerald-200 bg-emerald-50">
+            <div class="text-xs uppercase text-emerald-700">Saved Exposure (24h)</div>
+            <div class="mt-2 text-2xl font-semibold font-mono text-emerald-700">$${savedExposure.toLocaleString()}</div>
             <div class="mt-1 flex items-center gap-2 text-xs ${savedTrendColor}">
-              <span class="font-mono">${savedTrend}</span>
-              <span class="text-slate-500">risk saved</span>
+              <span class="font-mono">${savedTrendArrow} ${Math.abs(savedExposureChange).toFixed(1)}%</span>
+              <span class="text-emerald-600">vs prev 24h</span>
+              <span class="text-slate-500">(${blockedCount} blocked)</span>
             </div>
           </div>
           <div class="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200">
@@ -933,34 +945,7 @@
           ${breachData ? renderBreachVisualization(breachData, s) : ''}
         </div>
 
-        ${(econ.estimatedLostRevenue || econ.totalRevenue) ? `
-        <div class="mt-6 rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
-          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <h2 class="text-sm font-semibold text-slate-900">Economic Impact</h2>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-            ${s.outcome === 'BLOCKED' ? `
-            <div class="rounded-md bg-emerald-50 p-3 ring-1 ring-emerald-200">
-              <div class="text-xs uppercase text-emerald-700">Saved Exposure</div>
-              <div class="mt-2 text-lg font-semibold font-mono text-emerald-700">$${(econ.estimatedLostRevenue || 0).toFixed(2)}</div>
-            </div>
-            ` : `
-            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div class="text-xs uppercase text-slate-500">Gross Revenue</div>
-              <div class="mt-2 text-lg font-semibold font-mono text-emerald-700">$${(econ.totalRevenue || 0).toFixed(2)}</div>
-            </div>
-            `}
-            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div class="text-xs uppercase text-slate-500">Total Costs</div>
-              <div class="mt-2 text-lg font-semibold font-mono text-red-600">$${(econ.totalCosts || 0).toFixed(2)}</div>
-            </div>
-            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div class="text-xs uppercase text-slate-500">Net Impact</div>
-              <div class="mt-2 text-lg font-semibold font-mono text-slate-900">$${((econ.totalRevenue || 0) - (econ.totalCosts || 0)).toFixed(2)}</div>
-            </div>
-          </div>
-        </div>
-        ` : ''}
+        ${renderSnapshotEconomics(s, econ)}
 
         ${s.order ? `
         <div class="mt-6 rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
@@ -1070,6 +1055,87 @@
             <span>Limit: ${breach.limit.toLocaleString()}</span>
             <span>Attempt: ${breach.attempted.toLocaleString()}</span>
           </div>
+        </div>
+      `;
+    }
+    
+    // P1: Render Snapshot Economics section
+    function renderSnapshotEconomics(summary, econ) {
+      // Get snapshot economics from audit chain events if available
+      const snapshotEconomics = summary.snapshotEconomics || null;
+      const order = summary.order || {};
+      
+      // Calculate notional from order if snapshot not available
+      const price = snapshotEconomics?.decision_time_price ?? order.price ?? null;
+      const qty = snapshotEconomics?.qty ?? order.qty ?? 0;
+      const notional = snapshotEconomics?.notional ?? (price && qty ? price * qty : null);
+      const priceSource = snapshotEconomics?.price_source ?? (price ? 'FIRM' : 'UNAVAILABLE');
+      
+      const isBlocked = summary.outcome === 'BLOCKED';
+      const savedExposure = snapshotEconomics?.saved_exposure ?? (isBlocked ? notional : null);
+      const projectedDelta = snapshotEconomics?.projected_exposure_delta ?? (!isBlocked ? notional : null);
+      const exposurePre = snapshotEconomics?.exposure_pre;
+      const exposurePost = snapshotEconomics?.exposure_post;
+      
+      // If no price available, show minimal card
+      if (!price && !notional) {
+        return `
+        <div class="mt-6 rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-900">Snapshot Economics</h2>
+            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Price Unavailable</span>
+          </div>
+          <div class="p-4 text-sm text-slate-500">
+            Economics unavailable — market order without reference price.
+          </div>
+        </div>
+        `;
+      }
+      
+      return `
+        <div class="mt-6 rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-900">Snapshot Economics</h2>
+            <span class="inline-flex items-center rounded-full ${priceSource === 'FIRM' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'} px-2.5 py-1 text-xs font-semibold">${priceSource}</span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
+            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div class="text-xs uppercase text-slate-500">Decision Price</div>
+              <div class="mt-2 text-lg font-semibold font-mono text-slate-900">$${price?.toFixed(2) ?? 'N/A'}</div>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div class="text-xs uppercase text-slate-500">Quantity</div>
+              <div class="mt-2 text-lg font-semibold font-mono text-slate-900">${qty.toLocaleString()}</div>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div class="text-xs uppercase text-slate-500">Notional</div>
+              <div class="mt-2 text-lg font-semibold font-mono text-slate-900">$${notional?.toLocaleString() ?? 'N/A'}</div>
+            </div>
+            ${isBlocked ? `
+            <div class="rounded-md bg-emerald-50 p-3 ring-1 ring-emerald-200">
+              <div class="text-xs uppercase text-emerald-700">Saved Exposure</div>
+              <div class="mt-2 text-lg font-semibold font-mono text-emerald-700">$${savedExposure?.toLocaleString() ?? 'N/A'}</div>
+            </div>
+            ` : `
+            <div class="rounded-md bg-indigo-50 p-3 ring-1 ring-indigo-200">
+              <div class="text-xs uppercase text-indigo-700">Projected Δ</div>
+              <div class="mt-2 text-lg font-semibold font-mono text-indigo-700">+$${projectedDelta?.toLocaleString() ?? 'N/A'}</div>
+            </div>
+            `}
+          </div>
+          ${exposurePre !== undefined && exposurePre !== null ? `
+          <div class="border-t border-slate-200 px-4 py-3">
+            <div class="flex items-center gap-4 text-sm">
+              <span class="text-slate-500">Exposure Pre:</span>
+              <span class="font-mono text-slate-700">$${exposurePre.toLocaleString()}</span>
+              ${exposurePost !== undefined && exposurePost !== null ? `
+              <span class="text-slate-400">→</span>
+              <span class="text-slate-500">Post:</span>
+              <span class="font-mono text-slate-700">$${exposurePost.toLocaleString()}</span>
+              ` : ''}
+            </div>
+          </div>
+          ` : ''}
         </div>
       `;
     }

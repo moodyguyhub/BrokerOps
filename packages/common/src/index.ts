@@ -40,8 +40,24 @@ export {
   type DecisionComponent,
   type AuditChainComponent,
   type EconomicsComponent,
+  type EconomicsComponentV2,
+  type EvidenceSnapshotEconomics,
+  type EvidencePolicyContext,
   type OperatorIdentityComponent
 } from "./evidence-pack.js";
+
+// Re-export Snapshot Economics (P1)
+export {
+  computeSnapshotEconomics,
+  aggregateSavedExposure,
+  verifySnapshotDeterminism,
+  formatSnapshotEconomics,
+  type SnapshotEconomics,
+  type SnapshotEconomicsInput,
+  type SnapshotEconomicsResult,
+  type PolicyLimitContext,
+  type PriceSource
+} from "./snapshot-economics.js";
 
 export const TraceId = z.string().min(8);
 

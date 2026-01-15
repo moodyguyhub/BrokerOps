@@ -208,6 +208,67 @@ app.get("/economics/trace/:traceId", async (req, res) => {
   res.json({ traceId, events, summary });
 });
 
+// 4. Saved Exposure KPI (P1) - Total blocked notional
+app.get("/economics/saved-exposure", async (req, res) => {
+  // Time window filter (default: last 24h)
+  const hoursBack = parseInt(req.query.hours as string) || 24;
+  const sinceTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+  
+  // Total saved exposure (sum of blocked notional)
+  const totals = await pool.query(`
+    SELECT 
+      COALESCE(SUM(estimated_lost_revenue), 0) as saved_exposure,
+      COUNT(*) as blocked_count
+    FROM economic_events
+    WHERE event_type = 'TRADE_BLOCKED'
+      AND created_at >= $1
+  `, [sinceTime]);
+
+  // Previous period for comparison
+  const previousSinceTime = new Date(Date.now() - 2 * hoursBack * 60 * 60 * 1000).toISOString();
+  const previousEndTime = sinceTime;
+  
+  const previousTotals = await pool.query(`
+    SELECT 
+      COALESCE(SUM(estimated_lost_revenue), 0) as saved_exposure
+    FROM economic_events
+    WHERE event_type = 'TRADE_BLOCKED'
+      AND created_at >= $1
+      AND created_at < $2
+  `, [previousSinceTime, previousEndTime]);
+
+  const current = parseFloat(totals.rows[0].saved_exposure);
+  const previous = parseFloat(previousTotals.rows[0].saved_exposure);
+  const change = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+
+  // By policy breakdown
+  const byPolicy = await pool.query(`
+    SELECT 
+      policy_id,
+      COALESCE(SUM(estimated_lost_revenue), 0) as saved_exposure,
+      COUNT(*) as count
+    FROM economic_events
+    WHERE event_type = 'TRADE_BLOCKED'
+      AND created_at >= $1
+    GROUP BY policy_id
+    ORDER BY saved_exposure DESC
+  `, [sinceTime]);
+
+  res.json({
+    saved_exposure: current,
+    blocked_count: parseInt(totals.rows[0].blocked_count),
+    currency: 'USD',
+    period_hours: hoursBack,
+    change_percent: Math.round(change * 10) / 10,
+    previous_period: previous,
+    by_policy: byPolicy.rows.map(r => ({
+      policy_id: r.policy_id ?? 'UNKNOWN',
+      saved_exposure: parseFloat(r.saved_exposure),
+      count: parseInt(r.count)
+    }))
+  });
+});
+
 // Health check
 app.get("/health", async (_, res) => {
   const r = await pool.query("SELECT 1 as ok");

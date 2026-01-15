@@ -5,7 +5,9 @@ import {
   type RiskDecision, 
   emitWebhook,
   issueDecisionToken,
-  getCompactSignature
+  getCompactSignature,
+  computeSnapshotEconomics,
+  type SnapshotEconomics
 } from "@broker/common";
 
 const app = express();
@@ -14,6 +16,7 @@ app.use(express.json());
 const RISK_GATE_URL = process.env.RISK_GATE_URL ?? "http://localhost:7002";
 const AUDIT_URL = process.env.AUDIT_URL ?? "http://localhost:7003";
 const RECONSTRUCTION_URL = process.env.RECONSTRUCTION_URL ?? "http://localhost:7004";
+const ECONOMICS_URL = process.env.ECONOMICS_URL ?? "http://localhost:7005";
 
 async function audit(traceId: string, eventType: string, payload: any) {
   const r = await fetch(`${AUDIT_URL}/append`, {
@@ -42,10 +45,39 @@ async function decideRisk(order: any): Promise<RiskDecision> {
   return r.json() as Promise<RiskDecision>;
 }
 
+// Record snapshot economics to economics service
+async function recordSnapshotEconomics(
+  traceId: string, 
+  decision: 'ALLOW' | 'BLOCK', 
+  economics: SnapshotEconomics,
+  policyId?: string
+) {
+  try {
+    const eventType = decision === 'BLOCK' ? 'TRADE_BLOCKED' : 'TRADE_EXECUTED';
+    await fetch(`${ECONOMICS_URL}/economics/event`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        traceId,
+        type: eventType,
+        grossRevenue: decision === 'ALLOW' ? 0 : 0,
+        estimatedLostRevenue: economics.saved_exposure ?? 0,
+        currency: 'USD',
+        source: 'order-api',
+        policyId
+      })
+    });
+  } catch (err) {
+    console.error(`Economics recording failed for ${traceId}:`, err);
+    // Non-blocking - economics recording failure shouldn't block order flow
+  }
+}
+
 app.post("/orders", async (req, res) => {
   const traceId = req.header("x-trace-id") ?? newTraceId();
   const clientId = req.header("x-client-id") ?? "default-client";
   const audience = req.header("x-audience") ?? "trading-platform";
+  const decisionTime = new Date().toISOString();
 
   const parsed = OrderRequestSchema.safeParse(req.body);
   await audit(traceId, "order.requested", { raw: req.body, valid: parsed.success });
@@ -59,8 +91,24 @@ app.post("/orders", async (req, res) => {
   const decision = await decideRisk(order);
   await audit(traceId, "risk.decision", decision);
 
-  // Calculate projected exposure for shadow ledger
-  const projectedExposure = (order.qty ?? 0) * (order.price ?? 0);
+  // P1: Compute snapshot economics at decision time
+  const snapshotResult = computeSnapshotEconomics({
+    qty: order.qty ?? 0,
+    price: order.price,
+    referencePrice: (order as any).referencePrice, // Platform may provide for market orders
+    decision: decision.decision === "BLOCK" ? "BLOCK" : "ALLOW",
+    decision_time: decisionTime,
+    exposure_pre: null, // TODO: Get from shadow ledger when integrated
+    policy_context: (decision as any).ruleId ? {
+      limit_type: (decision as any).reasonCode,
+      limit_value: undefined
+    } : undefined
+  });
+
+  const snapshotEconomics = snapshotResult.economics;
+
+  // Calculate projected exposure for shadow ledger (legacy field)
+  const projectedExposure = snapshotEconomics.notional ?? 0;
 
   if (decision.decision === "BLOCK") {
     // Issue BLOCKED Decision Token
@@ -82,17 +130,24 @@ app.post("/orders", async (req, res) => {
       projectedExposure
     });
 
+    // Audit with snapshot economics
     await audit(traceId, "order.blocked", { 
       ...decision, 
       order,
       decisionToken: token.payload,
-      decision_signature: getCompactSignature(token)
+      decision_signature: getCompactSignature(token),
+      snapshot_economics: snapshotEconomics
     });
+
+    // Record economics (non-blocking)
+    recordSnapshotEconomics(traceId, 'BLOCK', snapshotEconomics, (decision as any).ruleId);
+
     await emitWebhook("trace.completed", traceId, { 
       status: "BLOCKED", 
       ...decision, 
       order,
-      decision_signature: getCompactSignature(token)
+      decision_signature: getCompactSignature(token),
+      snapshot_economics: snapshotEconomics
     });
 
     return res.status(403).json({ 
@@ -100,7 +155,8 @@ app.post("/orders", async (req, res) => {
       status: "BLOCKED", 
       ...decision,
       decision_signature: getCompactSignature(token),
-      decision_token: token
+      decision_token: token,
+      snapshot_economics: snapshotEconomics
     });
   }
 
@@ -123,17 +179,24 @@ app.post("/orders", async (req, res) => {
     projectedExposure
   });
 
+  // Audit with snapshot economics
   await audit(traceId, "order.authorized", { 
     ...decision, 
     order,
     decisionToken: token.payload,
-    decision_signature: getCompactSignature(token)
+    decision_signature: getCompactSignature(token),
+    snapshot_economics: snapshotEconomics
   });
+
+  // Record economics (non-blocking)
+  recordSnapshotEconomics(traceId, 'ALLOW', snapshotEconomics, (decision as any).ruleId);
+
   await emitWebhook("trace.completed", traceId, { 
     status: "AUTHORIZED", 
     ...decision, 
     order,
-    decision_signature: getCompactSignature(token)
+    decision_signature: getCompactSignature(token),
+    snapshot_economics: snapshotEconomics
   });
 
   // Gate issues Decision Token - trading platform is execution master
@@ -143,6 +206,7 @@ app.post("/orders", async (req, res) => {
     ...decision,
     decision_signature: getCompactSignature(token),
     decision_token: token,
+    snapshot_economics: snapshotEconomics,
     gate_note: "Decision Token issued. Trading platform remains execution master."
   });
 });

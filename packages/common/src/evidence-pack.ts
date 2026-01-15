@@ -118,7 +118,7 @@ export interface AuditEvent {
 }
 
 /**
- * Economics component
+ * Economics component (legacy v1)
  */
 export interface EconomicsComponent {
   traceId: string;
@@ -136,6 +136,58 @@ export interface EconomicsComponent {
     source: string;
     timestamp: string;
   }[];
+}
+
+/**
+ * Snapshot Economics for Evidence Pack (P1)
+ */
+export interface EvidenceSnapshotEconomics {
+  decision_time: string;
+  decision_time_price: number | null;
+  qty: number;
+  notional: number | null;
+  projected_exposure_delta: number | null;
+  saved_exposure: number | null;
+  price_source: 'FIRM' | 'INDICATIVE' | 'REFERENCE' | 'UNAVAILABLE';
+  price_unavailable: boolean;
+  exposure_pre: number | null;
+  exposure_post: number | null;
+  currency: 'USD';
+}
+
+/**
+ * Policy limit context for evidence
+ */
+export interface EvidencePolicyContext {
+  limit_type?: string;
+  limit_value?: number;
+  current_value?: number;
+  breach_amount?: number;
+}
+
+/**
+ * Economics component v2 (P1 - Snapshot Economics)
+ */
+export interface EconomicsComponentV2 {
+  version: "2.0";
+  traceId: string;
+  timestamp: string;
+  
+  // Snapshot economics (P1)
+  snapshot: EvidenceSnapshotEconomics;
+  
+  // Policy context (if applicable)
+  policy_context?: EvidencePolicyContext;
+  
+  // Legacy summary (backward compat)
+  summary?: {
+    grossRevenue: number;
+    fees: number;
+    costs: number;
+    estimatedLostRevenue: number;
+    netImpact: number;
+    currency: string;
+  };
 }
 
 /**
@@ -162,7 +214,7 @@ export interface EvidencePackV1 {
     policySnapshot: PolicySnapshotComponent;
     decision: DecisionComponent;
     auditChain: AuditChainComponent;
-    economics?: EconomicsComponent;
+    economics?: EconomicsComponent | EconomicsComponentV2;
     operatorIdentity?: OperatorIdentityComponent;
   };
 }

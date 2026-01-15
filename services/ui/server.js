@@ -60,6 +60,27 @@ app.get("/api/economics/summary", async (req, res) => {
   }
 });
 
+// P1: Saved Exposure KPI endpoint
+app.get("/api/economics/saved-exposure", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.economics}/economics/saved-exposure`);
+    if (req.query.hours) url.searchParams.set("hours", String(req.query.hours));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    // Return zero if endpoint not available yet
+    res.json({ 
+      saved_exposure: 0, 
+      blocked_count: 0, 
+      currency: 'USD',
+      period_hours: 24,
+      change_percent: 0,
+      by_policy: []
+    });
+  }
+});
+
 app.get("/api/webhooks", async (req, res) => {
   try {
     const resp = await fetch(`${API_URLS.webhooks}/webhooks`);
