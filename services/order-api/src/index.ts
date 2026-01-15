@@ -53,6 +53,36 @@ app.post("/orders", async (req, res) => {
   return res.json({ traceId, status: "ACCEPTED", ...decision });
 });
 
+// P2: Operator Override (Human-in-the-Loop)
+app.post("/override/:traceId", async (req, res) => {
+  const { traceId } = req.params;
+  const { operatorId, reason, newDecision } = req.body ?? {};
+
+  if (!operatorId || !reason) {
+    return res.status(400).json({ error: "operatorId and reason required" });
+  }
+
+  if (!newDecision || !["ALLOW", "BLOCK"].includes(newDecision)) {
+    return res.status(400).json({ error: "newDecision must be ALLOW or BLOCK" });
+  }
+
+  const overrideEvent = {
+    operatorId,
+    reason,
+    newDecision,
+    timestamp: new Date().toISOString(),
+    overrideType: "manual"
+  };
+
+  await audit(traceId, "operator.override", overrideEvent);
+
+  return res.json({ 
+    traceId, 
+    status: "OVERRIDE_RECORDED",
+    ...overrideEvent
+  });
+});
+
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 const port = process.env.PORT ? Number(process.env.PORT) : 7001;
