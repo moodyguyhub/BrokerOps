@@ -60,6 +60,8 @@ node services/audit-writer/dist/index.js &
 node services/order-api/dist/index.js &
 node services/reconstruction-api/dist/index.js &
 node services/economics/dist/index.js &
+node services/webhooks/dist/index.js &
+node services/ui/server.js &
 
 sleep 2
 
@@ -70,6 +72,8 @@ curl -sf http://localhost:7002/health > /dev/null && success "risk-gate :7002" |
 curl -sf http://localhost:7003/health > /dev/null && success "audit-writer :7003" || error "audit-writer"
 curl -sf http://localhost:7004/health > /dev/null && success "reconstruction-api :7004" || error "reconstruction-api"
 curl -sf http://localhost:7005/health > /dev/null && success "economics :7005" || error "economics"
+curl -sf http://localhost:7006/health > /dev/null && success "webhooks :7006" || error "webhooks"
+curl -sf http://localhost:3000/health > /dev/null && success "ui :3000" || error "ui"
 curl -sf http://localhost:8181/health > /dev/null && success "OPA :8181" || error "OPA"
 
 # ============================================================================
@@ -210,6 +214,18 @@ echo "    ✓ What it cost/earned (economic impact attached)"
 echo "    ✓ That the audit trail is tamper-evident (hash chain verified)"
 echo ""
 echo -e "${YELLOW}This is governance as code + decision economics.${NC}"
+echo ""
+
+# ============================================================================
+header "UI Dashboard Available"
+# ============================================================================
+
+echo -e "${GREEN}Open in browser:${NC}  http://localhost:3000"
+echo ""
+echo "  Dashboard features:"
+echo "    • Recent traces list with status badges"
+echo "    • Trace bundle viewer with hash chain"
+echo "    • Webhook delivery log"
 echo ""
 
 # Keep services running for exploration
