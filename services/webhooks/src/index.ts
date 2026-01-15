@@ -258,14 +258,40 @@ app.get("/health", async (_, res) => {
 });
 
 // --- P2: Lifecycle Event Ingestion (Event Gateway) ---
+// DEC-P2-EVENT-GATEWAY: Webhooks service is the lifecycle event gateway
 
 const idempotencyStore = new IdempotencyStore(pool);
+
+// Risk mitigation: API key validation for event endpoints
+// Production: use vault-rotated keys, HMAC signatures, mutual TLS
+const EVENT_API_KEY_HEADER = 'x-broker-api-key';
+const validateEventApiKey = (req: any): boolean => {
+  const key = req.headers[EVENT_API_KEY_HEADER];
+  const expected = process.env.EVENT_API_KEY;
+  // Dev mode: allow if no key configured
+  if (!expected) return true;
+  return key === expected;
+};
+
+// Risk mitigation: Clock skew - always record both asserted and received timestamps
+const captureTimestamps = (event: any) => ({
+  asserted_at: event.event_timestamp ?? event.source_timestamp ?? null,
+  received_at: new Date().toISOString()
+});
 
 /**
  * POST /events/execution - Ingest execution.reported events
  * Idempotency: exec:{exec_id}
  */
 app.post("/events/execution", async (req, res) => {
+  // Risk: AuthN check
+  if (!validateEventApiKey(req)) {
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or missing API key' });
+  }
+
+  const timestamps = captureTimestamps(req.body);
+  res.setHeader('X-Broker-Received-At', timestamps.received_at);
+
   const parsed = ExecutionReportedSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(422).json({ 
@@ -299,12 +325,13 @@ app.post("/events/execution", async (req, res) => {
   }
 
   try {
-    // Store the execution event
+    // Store the execution event (with clock skew protection)
     await pool.query(`
       INSERT INTO lifecycle_events (
         event_type, event_id, idempotency_key, decision_token,
-        symbol, side, qty, price, source, raw_payload, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        symbol, side, qty, price, source, raw_payload, 
+        asserted_at, received_at, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
     `, [
       event.event_type,
       event.event_id,
@@ -315,7 +342,9 @@ app.post("/events/execution", async (req, res) => {
       event.fill_qty,
       event.fill_price,
       event.source,
-      JSON.stringify(event)
+      JSON.stringify(event),
+      timestamps.asserted_at,
+      timestamps.received_at
     ]);
 
     // Mark idempotency as success
@@ -344,6 +373,14 @@ app.post("/events/execution", async (req, res) => {
  * Idempotency: close:{close_id}
  */
 app.post("/events/position-closed", async (req, res) => {
+  // Risk: AuthN check
+  if (!validateEventApiKey(req)) {
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or missing API key' });
+  }
+
+  const timestamps = captureTimestamps(req.body);
+  res.setHeader('X-Broker-Received-At', timestamps.received_at);
+
   const parsed = PositionClosedSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(422).json({ 
@@ -374,8 +411,9 @@ app.post("/events/position-closed", async (req, res) => {
     await pool.query(`
       INSERT INTO lifecycle_events (
         event_type, event_id, idempotency_key, decision_token,
-        symbol, side, qty, price, realized_pnl, pnl_source, raw_payload, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+        symbol, side, qty, price, realized_pnl, pnl_source, raw_payload,
+        asserted_at, received_at, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
     `, [
       event.event_type,
       event.event_id,
@@ -387,7 +425,9 @@ app.post("/events/position-closed", async (req, res) => {
       event.exit_price,
       event.realized_pnl,
       event.pnl_source,
-      JSON.stringify(event)
+      JSON.stringify(event),
+      timestamps.asserted_at,
+      timestamps.received_at
     ]);
 
     await idempotencyStore.complete(idempotencyKey, 'SUCCESS', {
@@ -415,6 +455,14 @@ app.post("/events/position-closed", async (req, res) => {
  * Idempotency: recon:{trade_date}:{symbol}:{account_id}
  */
 app.post("/events/reconciliation", async (req, res) => {
+  // Risk: AuthN check
+  if (!validateEventApiKey(req)) {
+    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or missing API key' });
+  }
+
+  const timestamps = captureTimestamps(req.body);
+  res.setHeader('X-Broker-Received-At', timestamps.received_at);
+
   const parsed = EconomicsReconciledSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(422).json({ 

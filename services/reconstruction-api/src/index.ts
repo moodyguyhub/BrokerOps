@@ -8,7 +8,8 @@ import {
   extractAuditChain,
   extractOperatorIdentity,
   serializeEvidencePack,
-  type EconomicsComponent
+  type EconomicsComponent,
+  type EvidenceRealizedEconomics
 } from "@broker/common";
 const { Pool } = pg;
 
@@ -405,6 +406,8 @@ app.get("/trace/:traceId/evidence-pack", async (req, res) => {
     
     // Fetch economics if available
     let economics: EconomicsComponent | undefined;
+    let realizedEconomics: EvidenceRealizedEconomics | undefined;
+    
     try {
       const econRes = await fetch(`${ECONOMICS_URL}/economics/trace/${traceId}`);
       if (econRes.ok) {
@@ -431,6 +434,61 @@ app.get("/trace/:traceId/evidence-pack", async (req, res) => {
       }
     } catch {
       // Economics service might not be available
+    }
+    
+    // P2-G2: Fetch realized economics from lifecycle_events (execution + close events)
+    try {
+      // Get the decision_token from audit events for this trace
+      const decisionEvent = events.rows.find(e => 
+        e.event_type === 'order.authorized' || e.event_type === 'order.accepted'
+      );
+      const decisionToken = decisionEvent?.payload_json?.decision_token;
+      
+      if (decisionToken) {
+        // Fetch execution events
+        const execRes = await pool.query(`
+          SELECT * FROM lifecycle_events 
+          WHERE decision_token = $1 AND event_type = 'execution.reported'
+          ORDER BY created_at ASC
+        `, [decisionToken]);
+        
+        // Fetch close events
+        const closeRes = await pool.query(`
+          SELECT * FROM lifecycle_events 
+          WHERE decision_token = $1 AND event_type = 'position.closed'
+          ORDER BY created_at DESC LIMIT 1
+        `, [decisionToken]);
+        
+        // Fetch reconciliation if exists
+        const reconRes = await pool.query(`
+          SELECT * FROM realized_economics 
+          WHERE decision_token = $1
+          ORDER BY created_at DESC LIMIT 1
+        `, [decisionToken]);
+        
+        const execEvent = execRes.rows[0];
+        const closeEvent = closeRes.rows[0];
+        const reconEvent = reconRes.rows[0];
+        
+        if (execEvent || closeEvent) {
+          realizedEconomics = {
+            fill_price: execEvent?.price ?? closeEvent?.raw_payload?.exit_price,
+            fill_qty: execEvent?.qty ?? closeEvent?.qty,
+            fill_timestamp: execEvent?.raw_payload?.fill_timestamp ?? execEvent?.created_at,
+            realized_pnl: closeEvent?.realized_pnl ?? reconEvent?.authoritative_pnl,
+            pnl_status: reconEvent ? 'FINAL' : (closeEvent ? 'PROVISIONAL' : 'PROJECTED'),
+            pnl_source: reconEvent ? 'BACKOFFICE' : (closeEvent?.pnl_source ?? 'PLATFORM'),
+            final_pnl: reconEvent?.authoritative_pnl,
+            finalized_at: reconEvent?.created_at,
+            platform_pnl: closeEvent?.realized_pnl ?? reconEvent?.platform_pnl,
+            discrepancy: reconEvent?.discrepancy,
+            discrepancy_percent: reconEvent?.discrepancy_percent
+          };
+        }
+      }
+    } catch (err) {
+      // Lifecycle events table might not exist yet - continue without realized economics
+      console.debug("Realized economics fetch failed (expected if P2 tables not migrated):", err);
     }
     
     // Build minimal trace bundle for extraction
@@ -465,7 +523,7 @@ app.get("/trace/:traceId/evidence-pack", async (req, res) => {
     const auditChain = extractAuditChain(traceBundle);
     const operatorIdentity = extractOperatorIdentity(traceBundle);
     
-    // Build evidence pack
+    // Build evidence pack (with P2 realized economics)
     const pack = buildEvidencePack(
       traceId,
       {
@@ -473,11 +531,12 @@ app.get("/trace/:traceId/evidence-pack", async (req, res) => {
         decision,
         auditChain,
         economics,
-        operatorIdentity
+        operatorIdentity,
+        realizedEconomics  // P2-G2: Include realized economics if available
       },
       {
         generatorName: "BrokerOps Reconstruction API",
-        generatorVersion: "1.0.0",
+        generatorVersion: "2.0.0",  // Bumped for P2
         commitHash: process.env.GIT_COMMIT ?? "unknown"
       }
     );

@@ -46,7 +46,12 @@ docker compose up -d --wait 2>/dev/null || docker compose up -d
 sleep 2
 
 log "Applying database migrations..."
-docker exec -i broker-postgres psql -U broker -d broker < infra/sql/001_init.sql 2>/dev/null || true
+for migration in infra/sql/*.sql infra/db/migrations/*.sql; do
+  if [ -f "$migration" ]; then
+    log "  Applying $migration..."
+    docker exec -i broker-postgres psql -U broker -d broker < "$migration" 2>/dev/null || true
+  fi
+done
 
 log "Building all services..."
 pnpm -r build 2>/dev/null

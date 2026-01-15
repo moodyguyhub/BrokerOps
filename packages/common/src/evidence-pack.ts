@@ -294,6 +294,7 @@ export function buildEvidencePack(
     auditChain: AuditChainComponent;
     economics?: EconomicsComponent;
     operatorIdentity?: OperatorIdentityComponent;
+    realizedEconomics?: EvidenceRealizedEconomics;  // P2-G2: Realized economics
   },
   options?: {
     generatorName?: string;
@@ -302,12 +303,30 @@ export function buildEvidencePack(
     signingKey?: string;
   }
 ): EvidencePackV1 {
+  // P2-G2: If we have realizedEconomics, merge into economics as v2
+  let economicsComponent = components.economics;
+  if (components.realizedEconomics && components.economics) {
+    // Upgrade to v2 format with realized data
+    economicsComponent = {
+      ...components.economics,
+      realized: components.realizedEconomics
+    } as any;
+  } else if (components.realizedEconomics && !components.economics) {
+    // Create minimal v2 with just realized
+    economicsComponent = {
+      traceId,
+      summary: { grossRevenue: 0, fees: 0, costs: 0, estimatedLostRevenue: 0, netImpact: 0, currency: 'USD' },
+      events: [],
+      realized: components.realizedEconomics
+    } as any;
+  }
+
   // Calculate component hashes
   const componentHashes: EvidenceManifestV1["componentHashes"] = {
     policy_snapshot: hashComponent(components.policySnapshot),
     decision: hashComponent(components.decision),
     audit_chain: hashComponent(components.auditChain),
-    economics: components.economics ? hashComponent(components.economics) : undefined,
+    economics: economicsComponent ? hashComponent(economicsComponent) : undefined,
     operator_identity: components.operatorIdentity ? hashComponent(components.operatorIdentity) : undefined
   };
   
@@ -334,7 +353,13 @@ export function buildEvidencePack(
   
   return {
     manifest,
-    components
+    components: {
+      policySnapshot: components.policySnapshot,
+      decision: components.decision,
+      auditChain: components.auditChain,
+      economics: economicsComponent,  // Use upgraded v2 with realized if available
+      operatorIdentity: components.operatorIdentity
+    }
   };
 }
 

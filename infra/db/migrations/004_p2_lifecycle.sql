@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS lifecycle_events (
   realized_pnl NUMERIC,
   pnl_source VARCHAR(16),
   raw_payload JSONB NOT NULL,
+  -- Clock skew protection: store both asserted (from event) and received (server)
+  asserted_at TIMESTAMPTZ,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
   CONSTRAINT lifecycle_events_unique_id UNIQUE (event_id)
