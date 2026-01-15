@@ -166,15 +166,44 @@ export interface EvidencePolicyContext {
 }
 
 /**
- * Economics component v2 (P1 - Snapshot Economics)
+ * Realized economics from P2 lifecycle events
+ */
+export interface EvidenceRealizedEconomics {
+  // Execution
+  fill_price?: number;
+  fill_qty?: number;
+  fill_timestamp?: string;
+  
+  // P&L
+  realized_pnl?: number;
+  pnl_status: 'PROJECTED' | 'PROVISIONAL' | 'FINAL';
+  pnl_source?: 'PLATFORM' | 'BACKOFFICE';
+  
+  // Finalization (T+1)
+  final_pnl?: number;
+  finalized_at?: string;
+  
+  // Accuracy
+  platform_pnl?: number;
+  discrepancy?: number;
+  discrepancy_percent?: number;
+  projection_accuracy?: number;  // 1 - |realized - projected| / projected
+  slippage_bps?: number;         // Execution slippage in basis points
+}
+
+/**
+ * Economics component v2 (P1 - Snapshot Economics + P2 Realized)
  */
 export interface EconomicsComponentV2 {
   version: "2.0";
   traceId: string;
   timestamp: string;
   
-  // Snapshot economics (P1)
+  // Snapshot economics (P1 - decision time)
   snapshot: EvidenceSnapshotEconomics;
+  
+  // Realized economics (P2 - post-execution)
+  realized?: EvidenceRealizedEconomics;
   
   // Policy context (if applicable)
   policy_context?: EvidencePolicyContext;

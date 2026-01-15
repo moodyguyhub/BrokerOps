@@ -61,7 +61,7 @@ export interface ExposureEvent {
   traceId: string;
   clientId: string;
   symbol: string;
-  eventType: "AUTHORIZED" | "BLOCKED" | "FILLED" | "CANCELLED" | "POSITION_CLOSED";
+  eventType: "AUTHORIZED" | "BLOCKED" | "FILLED" | "CANCELLED" | "POSITION_CLOSED" | "EXPIRED" | "EXECUTED";
   side?: "BUY" | "SELL";
   quantity?: number;
   price?: number;
@@ -70,6 +70,9 @@ export interface ExposureEvent {
   exposureAfter?: number;
   decisionSignature?: string;
   policyVersion?: string;
+  // P2: Realized economics
+  realizedPnl?: number;
+  pnlStatus?: "PROVISIONAL" | "FINAL";
 }
 
 /**
@@ -514,7 +517,7 @@ export class ShadowLedger {
         settled AS (
           SELECT DISTINCT trace_id
           FROM exposure_events
-          WHERE event_type IN ('FILLED', 'CANCELLED', 'EXPIRED')
+          WHERE event_type IN ('FILLED', 'CANCELLED', 'EXPIRED', 'EXECUTED')
         )
         SELECT ah.*
         FROM authorized_holds ah
@@ -540,6 +543,287 @@ export class ShadowLedger {
         createdAt: row.created_at,
         ageSeconds: Math.round(parseFloat(row.age_seconds))
       }));
+    } finally {
+      client.release();
+    }
+  }
+
+  // --- P2: Lifecycle Event Handlers ---
+
+  /**
+   * Record execution of an authorized order (P2.2)
+   * Transitions: AUTHORIZED_HOLD → EXECUTED
+   * Converts pending exposure to realized position
+   */
+  async recordExecuted(
+    traceId: string,
+    clientId: string,
+    symbol: string,
+    side: "BUY" | "SELL",
+    fillQty: number,
+    fillPrice: number,
+    source: "PLATFORM" | "BACKOFFICE"
+  ): Promise<{ exposureBefore: number; exposureAfter: number }> {
+    const client = await this.pool.connect();
+    try {
+      // Get current state
+      const currentState = await client.query(`
+        SELECT pending_exposure, gross_exposure, net_exposure
+        FROM shadow_ledger
+        WHERE client_id = $1 AND symbol = $2
+      `, [clientId, symbol]);
+
+      const current = currentState.rows[0] || { pending_exposure: 0, gross_exposure: 0, net_exposure: 0 };
+      const exposureBefore = parseFloat(current.pending_exposure);
+      const fillNotional = fillQty * fillPrice;
+
+      // Convert pending to realized: reduce pending, increase gross
+      await client.query(`
+        UPDATE shadow_ledger
+        SET pending_exposure = GREATEST(0, pending_exposure - $1),
+            gross_exposure = gross_exposure + $1,
+            net_exposure = net_exposure + $2,
+            avg_cost_basis = CASE 
+              WHEN net_quantity + $3 != 0 THEN 
+                (avg_cost_basis * net_quantity + $4 * $3) / (net_quantity + $3)
+              ELSE 0
+            END,
+            net_quantity = net_quantity + $3,
+            updated_at = NOW()
+        WHERE client_id = $5 AND symbol = $6
+      `, [
+        fillNotional,
+        side === 'BUY' ? fillNotional : -fillNotional,
+        side === 'BUY' ? fillQty : -fillQty,
+        fillPrice,
+        clientId,
+        symbol
+      ]);
+
+      // Get prev hash for chain
+      const prevHashResult = await client.query(`
+        SELECT hash FROM exposure_events
+        WHERE client_id = $1
+        ORDER BY id DESC LIMIT 1
+      `, [clientId]);
+      
+      const prevHash = prevHashResult.rows[0]?.hash ?? null;
+      const newHash = createHash("sha256")
+        .update(`${prevHash ?? "genesis"}:${traceId}:${clientId}:${symbol}:EXECUTED:${fillNotional}`)
+        .digest("hex");
+
+      // Log execution event
+      await client.query(`
+        INSERT INTO exposure_events (
+          trace_id, client_id, symbol, event_type, side, quantity, price,
+          exposure_delta, exposure_before, exposure_after, prev_hash, hash
+        ) VALUES ($1, $2, $3, 'EXECUTED', $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        traceId, clientId, symbol, side, fillQty, fillPrice,
+        fillNotional, exposureBefore, exposureBefore - fillNotional + fillNotional,
+        prevHash, newHash
+      ]);
+
+      return {
+        exposureBefore,
+        exposureAfter: parseFloat(current.gross_exposure) + fillNotional
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Record position closure with realized P&L (P2.2)
+   * Transitions: EXECUTED → CLOSED
+   * Returns exposure to baseline, records P&L
+   */
+  async recordPositionClosed(
+    traceId: string,
+    clientId: string,
+    symbol: string,
+    closeQty: number,
+    exitPrice: number,
+    realizedPnl: number,
+    pnlStatus: "PROVISIONAL" | "FINAL"
+  ): Promise<{ exposureBefore: number; exposureAfter: number; realizedPnl: number }> {
+    const client = await this.pool.connect();
+    try {
+      // Get current position
+      const currentState = await client.query(`
+        SELECT net_quantity, avg_cost_basis, gross_exposure, net_exposure
+        FROM shadow_ledger
+        WHERE client_id = $1 AND symbol = $2
+      `, [clientId, symbol]);
+
+      const current = currentState.rows[0] || { net_quantity: 0, avg_cost_basis: 0, gross_exposure: 0, net_exposure: 0 };
+      const exposureBefore = parseFloat(current.gross_exposure);
+      const closeNotional = closeQty * exitPrice;
+      
+      // Determine side based on current position (closing = opposite)
+      const side = parseFloat(current.net_quantity) > 0 ? 'SELL' : 'BUY';
+
+      // Reduce position and exposure
+      await client.query(`
+        UPDATE shadow_ledger
+        SET gross_exposure = GREATEST(0, gross_exposure - $1),
+            net_exposure = net_exposure - $2,
+            net_quantity = net_quantity - $3,
+            updated_at = NOW()
+        WHERE client_id = $4 AND symbol = $5
+      `, [
+        closeNotional,
+        side === 'SELL' ? closeNotional : -closeNotional,
+        side === 'SELL' ? closeQty : -closeQty,
+        clientId,
+        symbol
+      ]);
+
+      // Get prev hash
+      const prevHashResult = await client.query(`
+        SELECT hash FROM exposure_events
+        WHERE client_id = $1
+        ORDER BY id DESC LIMIT 1
+      `, [clientId]);
+      
+      const prevHash = prevHashResult.rows[0]?.hash ?? null;
+      const newHash = createHash("sha256")
+        .update(`${prevHash ?? "genesis"}:${traceId}:${clientId}:${symbol}:POSITION_CLOSED:${-closeNotional}:${realizedPnl}`)
+        .digest("hex");
+
+      // Log closure event with P&L
+      await client.query(`
+        INSERT INTO exposure_events (
+          trace_id, client_id, symbol, event_type, side, quantity, price,
+          exposure_delta, exposure_before, exposure_after, 
+          realized_pnl, pnl_status, prev_hash, hash
+        ) VALUES ($1, $2, $3, 'POSITION_CLOSED', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `, [
+        traceId, clientId, symbol, side, closeQty, exitPrice,
+        -closeNotional, exposureBefore, exposureBefore - closeNotional,
+        realizedPnl, pnlStatus, prevHash, newHash
+      ]);
+
+      return {
+        exposureBefore,
+        exposureAfter: exposureBefore - closeNotional,
+        realizedPnl
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Update P&L status from PROVISIONAL to FINAL after back-office reconciliation (P2.4)
+   */
+  async finalizeRealizedPnl(
+    traceId: string,
+    clientId: string,
+    symbol: string,
+    authoritativePnl: number,
+    originalPnl: number
+  ): Promise<{ discrepancy: number; updated: boolean }> {
+    const client = await this.pool.connect();
+    try {
+      const discrepancy = authoritativePnl - originalPnl;
+
+      // Update the POSITION_CLOSED event with FINAL status
+      const result = await client.query(`
+        UPDATE exposure_events
+        SET pnl_status = 'FINAL',
+            realized_pnl = $1,
+            pnl_discrepancy = $2
+        WHERE trace_id = $3 
+          AND client_id = $4 
+          AND symbol = $5 
+          AND event_type = 'POSITION_CLOSED'
+          AND pnl_status = 'PROVISIONAL'
+      `, [authoritativePnl, discrepancy, traceId, clientId, symbol]);
+
+      return {
+        discrepancy,
+        updated: (result.rowCount ?? 0) > 0
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get lifecycle state for a decision token (P2)
+   */
+  async getDecisionLifecycle(traceId: string): Promise<{
+    state: "PENDING" | "EXECUTED" | "CLOSED" | "CANCELLED" | "EXPIRED" | "UNKNOWN";
+    events: ExposureEvent[];
+    realizedPnl?: number;
+    pnlStatus?: "PROVISIONAL" | "FINAL";
+  }> {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT 
+          event_type, side, quantity, price, exposure_delta,
+          exposure_before, exposure_after, realized_pnl, pnl_status,
+          created_at
+        FROM exposure_events
+        WHERE trace_id = $1
+        ORDER BY id ASC
+      `, [traceId]);
+
+      if (result.rows.length === 0) {
+        return { state: "UNKNOWN", events: [] };
+      }
+
+      const events: ExposureEvent[] = result.rows.map(row => ({
+        traceId,
+        clientId: '',
+        symbol: '',
+        eventType: row.event_type,
+        side: row.side,
+        quantity: row.quantity,
+        price: row.price ? parseFloat(row.price) : undefined,
+        exposureDelta: parseFloat(row.exposure_delta),
+        exposureBefore: row.exposure_before ? parseFloat(row.exposure_before) : undefined,
+        exposureAfter: row.exposure_after ? parseFloat(row.exposure_after) : undefined,
+        realizedPnl: row.realized_pnl ? parseFloat(row.realized_pnl) : undefined,
+        pnlStatus: row.pnl_status
+      }));
+
+      // Determine state from latest event
+      const latestEvent = result.rows[result.rows.length - 1];
+      let state: "PENDING" | "EXECUTED" | "CLOSED" | "CANCELLED" | "EXPIRED" | "UNKNOWN";
+      
+      switch (latestEvent.event_type) {
+        case 'AUTHORIZED':
+          state = 'PENDING';
+          break;
+        case 'EXECUTED':
+        case 'FILLED':
+          state = 'EXECUTED';
+          break;
+        case 'POSITION_CLOSED':
+          state = 'CLOSED';
+          break;
+        case 'CANCELLED':
+          state = 'CANCELLED';
+          break;
+        case 'EXPIRED':
+          state = 'EXPIRED';
+          break;
+        default:
+          state = 'UNKNOWN';
+      }
+
+      // Get final P&L if position was closed
+      const closedEvent = result.rows.find(r => r.event_type === 'POSITION_CLOSED');
+
+      return {
+        state,
+        events,
+        realizedPnl: closedEvent?.realized_pnl ? parseFloat(closedEvent.realized_pnl) : undefined,
+        pnlStatus: closedEvent?.pnl_status
+      };
     } finally {
       client.release();
     }

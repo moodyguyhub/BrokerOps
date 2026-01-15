@@ -2,6 +2,16 @@ import express from "express";
 import crypto from "crypto";
 import pg from "pg";
 import { z } from "zod";
+import {
+  IdempotencyStore,
+  ExecutionReportedSchema,
+  PositionClosedSchema,
+  EconomicsReconciledSchema,
+  LifecycleEventSchema,
+  generateIdempotencyKey,
+  extractSourceSystem,
+  type LifecycleEvent
+} from "@broker/common";
 
 const { Pool } = pg;
 
@@ -245,6 +255,272 @@ app.get("/webhooks/deliveries", async (req, res) => {
 // Health check
 app.get("/health", async (_, res) => {
   res.json({ ok: true, webhookCount: webhooks.size });
+});
+
+// --- P2: Lifecycle Event Ingestion (Event Gateway) ---
+
+const idempotencyStore = new IdempotencyStore(pool);
+
+/**
+ * POST /events/execution - Ingest execution.reported events
+ * Idempotency: exec:{exec_id}
+ */
+app.post("/events/execution", async (req, res) => {
+  const parsed = ExecutionReportedSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(422).json({ 
+      error: "Validation failed", 
+      event_type: "execution.reported",
+      details: parsed.error.format() 
+    });
+  }
+
+  const event = parsed.data;
+  const idempotencyKey = {
+    source_system: extractSourceSystem(event),
+    event_type: event.event_type,
+    event_id: event.exec_id
+  };
+
+  // Check idempotency
+  const check = await idempotencyStore.checkAndReserve(idempotencyKey, event);
+  
+  if (!check.should_process) {
+    // Duplicate - return previous result
+    if (check.payload_mismatch) {
+      console.warn(`Payload mismatch for ${event.exec_id} - same exec_id, different payload`);
+    }
+    return res.status(409).json({
+      status: "duplicate",
+      first_seen_at: check.first_seen_at,
+      previous_result: check.previous_result,
+      payload_mismatch: check.payload_mismatch
+    });
+  }
+
+  try {
+    // Store the execution event
+    await pool.query(`
+      INSERT INTO lifecycle_events (
+        event_type, event_id, idempotency_key, decision_token,
+        symbol, side, qty, price, source, raw_payload, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+    `, [
+      event.event_type,
+      event.event_id,
+      event.idempotency_key,
+      event.decision_token,
+      event.symbol,
+      event.side,
+      event.fill_qty,
+      event.fill_price,
+      event.source,
+      JSON.stringify(event)
+    ]);
+
+    // Mark idempotency as success
+    await idempotencyStore.complete(idempotencyKey, 'SUCCESS', {
+      decision_token: event.decision_token,
+      exec_id: event.exec_id
+    });
+
+    res.status(200).json({
+      status: "accepted",
+      event_id: event.event_id,
+      decision_token: event.decision_token
+    });
+
+  } catch (err) {
+    await idempotencyStore.complete(idempotencyKey, 'FAILED', {
+      error: String(err)
+    });
+    console.error("Failed to process execution event:", err);
+    res.status(500).json({ error: "Processing failed" });
+  }
+});
+
+/**
+ * POST /events/position-closed - Ingest position.closed events
+ * Idempotency: close:{close_id}
+ */
+app.post("/events/position-closed", async (req, res) => {
+  const parsed = PositionClosedSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(422).json({ 
+      error: "Validation failed", 
+      event_type: "position.closed",
+      details: parsed.error.format() 
+    });
+  }
+
+  const event = parsed.data;
+  const idempotencyKey = {
+    source_system: extractSourceSystem(event),
+    event_type: event.event_type,
+    event_id: event.close_id
+  };
+
+  const check = await idempotencyStore.checkAndReserve(idempotencyKey, event);
+  
+  if (!check.should_process) {
+    return res.status(409).json({
+      status: "duplicate",
+      first_seen_at: check.first_seen_at,
+      previous_result: check.previous_result
+    });
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO lifecycle_events (
+        event_type, event_id, idempotency_key, decision_token,
+        symbol, side, qty, price, realized_pnl, pnl_source, raw_payload, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+    `, [
+      event.event_type,
+      event.event_id,
+      event.idempotency_key,
+      event.decision_token,
+      event.symbol,
+      event.side,
+      event.qty,
+      event.exit_price,
+      event.realized_pnl,
+      event.pnl_source,
+      JSON.stringify(event)
+    ]);
+
+    await idempotencyStore.complete(idempotencyKey, 'SUCCESS', {
+      decision_token: event.decision_token,
+      close_id: event.close_id,
+      realized_pnl: event.realized_pnl
+    });
+
+    res.status(200).json({
+      status: "accepted",
+      event_id: event.event_id,
+      decision_token: event.decision_token,
+      realized_pnl: event.realized_pnl
+    });
+
+  } catch (err) {
+    await idempotencyStore.complete(idempotencyKey, 'FAILED', { error: String(err) });
+    console.error("Failed to process position.closed event:", err);
+    res.status(500).json({ error: "Processing failed" });
+  }
+});
+
+/**
+ * POST /events/reconciliation - Ingest economics.reconciled events (T+1)
+ * Idempotency: recon:{trade_date}:{symbol}:{account_id}
+ */
+app.post("/events/reconciliation", async (req, res) => {
+  const parsed = EconomicsReconciledSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(422).json({ 
+      error: "Validation failed", 
+      event_type: "economics.reconciled",
+      details: parsed.error.format() 
+    });
+  }
+
+  const event = parsed.data;
+  const idempotencyKey = {
+    source_system: 'backoffice',
+    event_type: event.event_type,
+    event_id: `${event.trade_date}:${event.symbol}:${event.account_id}`
+  };
+
+  const check = await idempotencyStore.checkAndReserve(idempotencyKey, event);
+  
+  if (!check.should_process) {
+    return res.status(409).json({
+      status: "duplicate",
+      first_seen_at: check.first_seen_at,
+      previous_result: check.previous_result
+    });
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO lifecycle_events (
+        event_type, event_id, idempotency_key, decision_token,
+        symbol, realized_pnl, pnl_source, raw_payload, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+    `, [
+      event.event_type,
+      event.event_id,
+      event.idempotency_key,
+      event.decision_tokens.join(','),
+      event.symbol,
+      event.authoritative_pnl,
+      'BACKOFFICE',
+      JSON.stringify(event)
+    ]);
+
+    await idempotencyStore.complete(idempotencyKey, 'SUCCESS', {
+      decision_tokens: event.decision_tokens,
+      authoritative_pnl: event.authoritative_pnl,
+      discrepancy: event.discrepancy
+    });
+
+    res.status(200).json({
+      status: "accepted",
+      event_id: event.event_id,
+      decision_tokens: event.decision_tokens,
+      authoritative_pnl: event.authoritative_pnl
+    });
+
+  } catch (err) {
+    await idempotencyStore.complete(idempotencyKey, 'FAILED', { error: String(err) });
+    console.error("Failed to process reconciliation event:", err);
+    res.status(500).json({ error: "Processing failed" });
+  }
+});
+
+/**
+ * GET /events/idempotency/stats - Idempotency store statistics
+ */
+app.get("/events/idempotency/stats", async (req, res) => {
+  const hours = parseInt(req.query.hours as string) || 24;
+  const stats = await idempotencyStore.getStats(hours);
+  res.json(stats);
+});
+
+/**
+ * GET /events/lifecycle/:decisionToken - Get lifecycle events for a decision
+ */
+app.get("/events/lifecycle/:decisionToken", async (req, res) => {
+  const { decisionToken } = req.params;
+  
+  try {
+    const result = await pool.query(`
+      SELECT 
+        event_type, event_id, symbol, side, qty, price, 
+        realized_pnl, pnl_source, created_at, raw_payload
+      FROM lifecycle_events
+      WHERE decision_token = $1 OR decision_token LIKE $2
+      ORDER BY created_at ASC
+    `, [decisionToken, `%${decisionToken}%`]);
+
+    res.json({
+      decision_token: decisionToken,
+      events: result.rows.map(row => ({
+        event_type: row.event_type,
+        event_id: row.event_id,
+        symbol: row.symbol,
+        side: row.side,
+        qty: row.qty,
+        price: row.price ? parseFloat(row.price) : undefined,
+        realized_pnl: row.realized_pnl ? parseFloat(row.realized_pnl) : undefined,
+        pnl_source: row.pnl_source,
+        created_at: row.created_at,
+        details: row.raw_payload
+      }))
+    });
+  } catch {
+    res.json({ decision_token: decisionToken, events: [] });
+  }
 });
 
 // Load webhooks from DB on startup

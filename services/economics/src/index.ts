@@ -310,5 +310,206 @@ app.get("/health", async (_, res) => {
   res.json({ ok: r.rows?.[0]?.ok === 1 });
 });
 
+// --- P2.3: Provisional P&L (Platform Layer) ---
+
+/**
+ * POST /economics/realized - Record provisional P&L from platform
+ */
+app.post("/economics/realized", async (req, res) => {
+  const { decision_token, trace_id, fill_price, fill_qty, realized_pnl, source } = req.body;
+
+  if (!decision_token || !trace_id) {
+    return res.status(400).json({ error: "Missing decision_token or trace_id" });
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO realized_economics (
+        decision_token, trace_id, fill_price, fill_qty, fill_timestamp,
+        realized_pnl, pnl_status, pnl_source, platform_pnl
+      ) VALUES ($1, $2, $3, $4, NOW(), $5, 'PROVISIONAL', $6, $5)
+      ON CONFLICT (decision_token) DO UPDATE SET
+        fill_price = COALESCE($3, realized_economics.fill_price),
+        fill_qty = COALESCE($4, realized_economics.fill_qty),
+        fill_timestamp = NOW(),
+        realized_pnl = $5,
+        pnl_source = $6,
+        platform_pnl = $5,
+        updated_at = NOW()
+    `, [decision_token, trace_id, fill_price, fill_qty, realized_pnl, source ?? 'PLATFORM']);
+
+    res.json({
+      status: "recorded",
+      decision_token,
+      pnl_status: "PROVISIONAL",
+      realized_pnl
+    });
+  } catch (err) {
+    console.error("Failed to record realized P&L:", err);
+    res.status(500).json({ error: "Recording failed" });
+  }
+});
+
+/**
+ * GET /economics/realized/:decisionToken - Get realized economics for a decision
+ */
+app.get("/economics/realized/:decisionToken", async (req, res) => {
+  const { decisionToken } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        decision_token, trace_id, fill_price, fill_qty, fill_timestamp,
+        realized_pnl, pnl_status, pnl_source, final_pnl, finalized_at,
+        platform_pnl, discrepancy, discrepancy_percent, created_at, updated_at
+      FROM realized_economics
+      WHERE decision_token = $1
+    `, [decisionToken]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No realized economics found" });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      decision_token: row.decision_token,
+      trace_id: row.trace_id,
+      fill_price: row.fill_price ? parseFloat(row.fill_price) : null,
+      fill_qty: row.fill_qty,
+      fill_timestamp: row.fill_timestamp,
+      realized_pnl: row.realized_pnl ? parseFloat(row.realized_pnl) : null,
+      pnl_status: row.pnl_status,
+      pnl_source: row.pnl_source,
+      final_pnl: row.final_pnl ? parseFloat(row.final_pnl) : null,
+      finalized_at: row.finalized_at,
+      platform_pnl: row.platform_pnl ? parseFloat(row.platform_pnl) : null,
+      discrepancy: row.discrepancy ? parseFloat(row.discrepancy) : null,
+      discrepancy_percent: row.discrepancy_percent ? parseFloat(row.discrepancy_percent) : null
+    });
+  } catch {
+    res.status(500).json({ error: "Query failed" });
+  }
+});
+
+// --- P2.4: Back-office Finalization (Settlement Layer) ---
+
+/**
+ * POST /economics/finalize - Finalize P&L from back-office (T+1)
+ */
+app.post("/economics/finalize", async (req, res) => {
+  const { decision_token, authoritative_pnl, trade_date, adjustment_reason } = req.body;
+
+  if (!decision_token || authoritative_pnl === undefined) {
+    return res.status(400).json({ error: "Missing decision_token or authoritative_pnl" });
+  }
+
+  try {
+    // Get current state
+    const current = await pool.query(`
+      SELECT platform_pnl, pnl_status
+      FROM realized_economics
+      WHERE decision_token = $1
+    `, [decision_token]);
+
+    if (current.rows.length === 0) {
+      // Create new record if no provisional exists
+      await pool.query(`
+        INSERT INTO realized_economics (
+          decision_token, trace_id, final_pnl, finalized_at,
+          pnl_status, pnl_source
+        ) VALUES ($1, $1, $2, NOW(), 'FINAL', 'BACKOFFICE')
+      `, [decision_token, authoritative_pnl]);
+
+      return res.json({
+        status: "created",
+        decision_token,
+        pnl_status: "FINAL",
+        final_pnl: authoritative_pnl,
+        discrepancy: null
+      });
+    }
+
+    const platformPnl = current.rows[0].platform_pnl ? parseFloat(current.rows[0].platform_pnl) : 0;
+    const discrepancy = authoritative_pnl - platformPnl;
+    const discrepancyPercent = platformPnl !== 0 ? (discrepancy / platformPnl) * 100 : 0;
+
+    await pool.query(`
+      UPDATE realized_economics
+      SET final_pnl = $2,
+          finalized_at = NOW(),
+          pnl_status = 'FINAL',
+          discrepancy = $3,
+          discrepancy_percent = $4,
+          updated_at = NOW()
+      WHERE decision_token = $1
+    `, [decision_token, authoritative_pnl, discrepancy, discrepancyPercent]);
+
+    // Log if significant discrepancy (>1%)
+    if (Math.abs(discrepancyPercent) > 1) {
+      console.warn(`P&L discrepancy for ${decision_token}: platform=${platformPnl}, backoffice=${authoritative_pnl}, diff=${discrepancy} (${discrepancyPercent.toFixed(2)}%)`);
+    }
+
+    res.json({
+      status: "finalized",
+      decision_token,
+      pnl_status: "FINAL",
+      final_pnl: authoritative_pnl,
+      platform_pnl: platformPnl,
+      discrepancy,
+      discrepancy_percent: Math.round(discrepancyPercent * 100) / 100
+    });
+  } catch (err) {
+    console.error("Failed to finalize P&L:", err);
+    res.status(500).json({ error: "Finalization failed" });
+  }
+});
+
+/**
+ * GET /economics/accuracy - P&L accuracy metrics
+ */
+app.get("/economics/accuracy", async (req, res) => {
+  const hoursBack = parseInt(req.query.hours as string) || 24;
+  const sinceTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_finalized,
+        COUNT(*) FILTER (WHERE ABS(discrepancy_percent) <= 1) as within_1pct,
+        COUNT(*) FILTER (WHERE ABS(discrepancy_percent) > 1 AND ABS(discrepancy_percent) <= 5) as within_5pct,
+        COUNT(*) FILTER (WHERE ABS(discrepancy_percent) > 5) as over_5pct,
+        AVG(ABS(discrepancy_percent)) as avg_discrepancy_pct,
+        SUM(ABS(discrepancy)) as total_discrepancy_usd
+      FROM realized_economics
+      WHERE pnl_status = 'FINAL'
+        AND finalized_at >= $1
+    `, [sinceTime]);
+
+    const row = result.rows[0];
+    const total = parseInt(row.total_finalized);
+
+    res.json({
+      period_hours: hoursBack,
+      total_finalized: total,
+      accuracy_breakdown: {
+        within_1pct: parseInt(row.within_1pct),
+        within_1pct_pct: total > 0 ? Math.round((parseInt(row.within_1pct) / total) * 1000) / 10 : 0,
+        within_5pct: parseInt(row.within_5pct),
+        over_5pct: parseInt(row.over_5pct)
+      },
+      avg_discrepancy_percent: row.avg_discrepancy_pct ? parseFloat(row.avg_discrepancy_pct).toFixed(2) : 0,
+      total_discrepancy_usd: row.total_discrepancy_usd ? parseFloat(row.total_discrepancy_usd) : 0
+    });
+  } catch {
+    res.json({
+      period_hours: hoursBack,
+      total_finalized: 0,
+      accuracy_breakdown: { within_1pct: 0, within_1pct_pct: 0, within_5pct: 0, over_5pct: 0 },
+      avg_discrepancy_percent: 0,
+      total_discrepancy_usd: 0
+    });
+  }
+});
+
 const port = process.env.PORT ? Number(process.env.PORT) : 7005;
 app.listen(port, () => console.log(`economics service listening on :${port}`));

@@ -43,6 +43,7 @@ export {
   type EconomicsComponentV2,
   type EvidenceSnapshotEconomics,
   type EvidencePolicyContext,
+  type EvidenceRealizedEconomics,
   type OperatorIdentityComponent
 } from "./evidence-pack.js";
 
@@ -65,6 +66,34 @@ export {
   type CoverageStats,
   type AggregatedSavedExposure
 } from "./snapshot-economics.js";
+
+// Re-export Idempotency Store (P2.1)
+export {
+  IdempotencyStore,
+  hashPayload,
+  formatIdempotencyKey,
+  IDEMPOTENCY_STORE_MIGRATION,
+  type IdempotencyKey,
+  type IdempotencyRecord,
+  type IdempotencyCheckResult
+} from "./idempotency-store.js";
+
+// Re-export Lifecycle Events (P2)
+export {
+  ExecutionReportedSchema,
+  PositionClosedSchema,
+  EconomicsReconciledSchema,
+  LifecycleEventSchema,
+  generateIdempotencyKey,
+  extractSourceSystem,
+  type ExecutionReportedEvent,
+  type PositionClosedEvent,
+  type EconomicsReconciledEvent,
+  type LifecycleEvent,
+  type PnLStatus,
+  type RealizedEconomics,
+  type ExtendedEconomics
+} from "./lifecycle-events.js";
 
 export const TraceId = z.string().min(8);
 
