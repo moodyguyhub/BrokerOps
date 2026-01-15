@@ -77,6 +77,29 @@ app.post("/decide", async (req, res) => {
   res.json(decision);
 });
 
+// P2: Policy Playground - dry run evaluation (no persistence, no audit)
+app.post("/evaluate", async (req, res) => {
+  // Validate schema
+  const parsed = OrderRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.json({ 
+      decision: "BLOCK", 
+      reasonCode: "INVALID_ORDER_SCHEMA", 
+      policyVersion: FALLBACK_POLICY_VERSION,
+      dryRun: true,
+      validationErrors: parsed.error.errors
+    });
+  }
+
+  // Query OPA (same as /decide but marked as dry run)
+  const decision = await queryOpa(parsed.data);
+  res.json({
+    ...decision,
+    dryRun: true,
+    evaluatedAt: new Date().toISOString()
+  });
+});
+
 app.get("/health", async (_, res) => {
   try {
     const opaRes = await fetch(`${OPA_URL}/health`);

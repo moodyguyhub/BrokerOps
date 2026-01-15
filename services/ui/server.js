@@ -5,12 +5,14 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.use(express.json());
 
 // API proxy configuration
 const API_URLS = {
   reconstruction: process.env.RECONSTRUCTION_URL ?? "http://localhost:7004",
   economics: process.env.ECONOMICS_URL ?? "http://localhost:7005",
-  webhooks: process.env.WEBHOOKS_URL ?? "http://localhost:7006"
+  webhooks: process.env.WEBHOOKS_URL ?? "http://localhost:7006",
+  riskGate: process.env.RISK_GATE_URL ?? "http://localhost:7002"
 };
 
 // Serve static files
@@ -47,6 +49,16 @@ app.get("/api/economics/trace/:traceId", async (req, res) => {
   }
 });
 
+app.get("/api/economics/summary", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.economics}/economics/summary`);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch economics summary", estimatedLostRevenue: 0 });
+  }
+});
+
 app.get("/api/webhooks", async (req, res) => {
   try {
     const resp = await fetch(`${API_URLS.webhooks}/webhooks`);
@@ -68,6 +80,26 @@ app.get("/api/webhooks/deliveries", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch deliveries" });
   }
+});
+
+// P2: Policy Playground - dry run evaluation
+app.post("/api/risk/evaluate", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.riskGate}/evaluate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
+    });
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to evaluate policy" });
+  }
+});
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "ui" });
 });
 
 // SPA fallback

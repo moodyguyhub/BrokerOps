@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrokerOps - Governance Dashboard</title>
+  <title>BrokerOps — Decision Governance & Risk Ledger</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -17,6 +17,7 @@
       --danger: #ef4444;
       --warning: #f59e0b;
       --border: #334155;
+      --purple: #a855f7;
     }
     
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,7 +51,7 @@
       color: var(--accent);
     }
     
-    .logo span { color: var(--text-muted); font-weight: 400; }
+    .logo span { color: var(--text-muted); font-weight: 400; font-size: 0.9rem; }
     
     nav { display: flex; gap: 8px; }
     
@@ -67,6 +68,47 @@
     
     nav button:hover { background: var(--bg-hover); color: var(--text); }
     nav button.active { background: var(--accent); border-color: var(--accent); color: white; }
+    
+    /* KPI Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .kpi-card.primary {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+      border-color: var(--success);
+    }
+    
+    .kpi-card .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .kpi-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .kpi-card.primary .value { color: var(--success); }
+    .kpi-card .subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
     
     /* Cards */
     .card {
@@ -112,6 +154,7 @@
     .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
     .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
     .badge-info { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: var(--purple); }
     
     /* Buttons */
     .btn {
@@ -148,6 +191,241 @@
     
     .summary-item label {
       display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    
+    .summary-item .value {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    /* Breach visualization */
+    .breach-viz {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .breach-viz .breach-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .breach-viz .breach-bar {
+      height: 24px;
+      background: rgba(239, 68, 68, 0.2);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .breach-viz .breach-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+      border-radius: 4px;
+    }
+    
+    .breach-viz .breach-marker {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 3px;
+      background: white;
+    }
+    
+    .breach-viz .breach-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    /* Hash chain visual */
+    .hash-chain {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+    }
+    
+    .hash-chain .event {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-left: 3px solid var(--border);
+      margin-left: 12px;
+      position: relative;
+    }
+    
+    .hash-chain .event::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      width: 12px;
+      height: 12px;
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+    }
+    
+    .hash-chain .event:hover { background: var(--bg-hover); }
+    
+    .hash-chain .event-type { min-width: 180px; color: var(--accent); font-weight: 500; }
+    .hash-chain .hash { color: var(--text-muted); }
+    .hash-chain .arrow { color: var(--text-muted); margin: 0 8px; }
+    
+    .hash-chain-expanded {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    
+    .hash-chain-expanded .chain-node {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+    }
+    
+    .hash-chain-expanded .chain-connector {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 4px;
+      font-size: 18px;
+    }
+    
+    /* Integrity banner */
+    .integrity-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .integrity-banner:hover { transform: translateY(-2px); }
+    
+    .integrity-banner.verified { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); }
+    .integrity-banner.failed { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
+    
+    .integrity-banner .icon { font-size: 24px; }
+    .integrity-banner .click-hint { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    
+    .empty h3 { color: var(--text); margin-bottom: 8px; }
+    
+    /* Back button */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    
+    /* JSON viewer - collapsed by default */
+    .json-section { margin-top: 16px; }
+    .json-toggle {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      width: 100%;
+      text-align: left;
+    }
+    .json-toggle:hover { background: var(--bg-hover); color: var(--text); }
+    .json-viewer {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 8px;
+      display: none;
+    }
+    .json-viewer.expanded { display: block; }
+    
+    /* Playground */
+    .playground-input {
+      width: 100%;
+      min-height: 150px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--text);
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .playground-input:focus { outline: none; border-color: var(--accent); }
+    
+    .playground-result {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+    
+    .verdict {
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .verdict.allow { color: var(--success); }
+    .verdict.block { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="logo">BrokerOps <span>Decision Governance & Risk Ledger</span></div>
+      <nav>
+        <button onclick="navigate('evaluations')" id="nav-evaluations">Evaluations</button>
+        <button onclick="navigate('playground')" id="nav-playground">Policy Playground</button>
+        <button onclick="navigate('webhooks')" id="nav-webhooks">Integrations</button>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="container" id="app">
+    <div class="loading">Loading...</div>
+  </main>
       color: var(--text-muted);
       font-size: 12px;
       text-transform: uppercase;
@@ -251,13 +529,32 @@
 
   <script>
     // State
-    let currentPage = 'traces';
+    let currentPage = 'evaluations';
     let currentTraceId = null;
+    let showHashChainExpanded = false;
+    let showRawJson = false;
+    
+    // Policy thresholds (for breach visualization)
+    const POLICY_THRESHOLDS = {
+      qty_limit: { field: 'qty', limit: 1000, label: 'Quantity Limit' },
+      symbol_gme: { field: 'qty', limit: 10, symbol: 'GME', label: 'GME Restriction' },
+      penny_stock: { field: 'qty', limit: 100, priceThreshold: 1.0, label: 'Penny Stock Limit' }
+    };
+    
+    // Human-readable policy explanations
+    const POLICY_EXPLANATIONS = {
+      'QTY_LIMIT_EXCEEDED': 'Order quantity exceeds the maximum allowed per transaction',
+      'SYMBOL_RESTRICTION': 'This symbol has trading restrictions in place',
+      'PENNY_STOCK_RESTRICTION': 'Penny stock orders are limited to protect against volatility',
+      'OK': 'Order meets all policy requirements'
+    };
 
     // Navigation
     function navigate(page, params = {}) {
       currentPage = page;
       currentTraceId = params.traceId || null;
+      showHashChainExpanded = false;
+      showRawJson = false;
       
       // Update nav
       document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
@@ -282,6 +579,11 @@
       const resp = await fetch(`/api/economics/trace/${traceId}`);
       return resp.json();
     }
+    
+    async function fetchEconomicsSummary() {
+      const resp = await fetch('/api/economics/summary');
+      return resp.json();
+    }
 
     async function fetchWebhooks() {
       const resp = await fetch('/api/webhooks');
@@ -292,6 +594,15 @@
       const resp = await fetch('/api/webhooks/deliveries?limit=50');
       return resp.json();
     }
+    
+    async function testPolicy(order) {
+      const resp = await fetch('/api/risk/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order)
+      });
+      return resp.json();
+    }
 
     // Render functions
     async function render() {
@@ -299,10 +610,12 @@
       app.innerHTML = '<div class="loading">Loading...</div>';
 
       try {
-        if (currentPage === 'traces' && currentTraceId) {
+        if (currentPage === 'evaluations' && currentTraceId) {
           await renderBundle();
-        } else if (currentPage === 'traces') {
-          await renderTraces();
+        } else if (currentPage === 'evaluations') {
+          await renderEvaluations();
+        } else if (currentPage === 'playground') {
+          await renderPlayground();
         } else if (currentPage === 'webhooks') {
           await renderWebhooks();
         }
@@ -311,52 +624,96 @@
       }
     }
 
-    async function renderTraces() {
-      const data = await fetchTraces();
+    async function renderEvaluations() {
+      const [data, econSummary] = await Promise.all([
+        fetchTraces(),
+        fetchEconomicsSummary().catch(() => ({}))
+      ]);
+      
       const app = document.getElementById('app');
       
-      if (!data.traces || data.traces.length === 0) {
+      // Calculate KPIs
+      const traces = data.traces || [];
+      const totalEvals = traces.length;
+      const blockedCount = traces.filter(t => t.outcome === 'BLOCKED').length;
+      const overrideCount = traces.filter(t => t.hasOverride).length;
+      const savedExposure = econSummary.estimatedLostRevenue || 0;
+      
+      if (totalEvals === 0) {
         app.innerHTML = `
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="label">Total Evaluations</div>
+              <div class="value">0</div>
+            </div>
+            <div class="kpi-card primary">
+              <div class="label">Saved Exposure</div>
+              <div class="value">$0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="label">Manual Interventions</div>
+              <div class="value">0</div>
+            </div>
+          </div>
           <div class="empty">
-            <h3>No traces yet</h3>
-            <p>Submit an order to see traces appear here.</p>
+            <h3>No evaluations yet</h3>
+            <p>Submit an order to see policy evaluations appear here.</p>
+            <p style="margin-top: 16px;">Or try the <a href="#" onclick="navigate('playground'); return false;">Policy Playground</a> to test policies without creating records.</p>
           </div>
         `;
         return;
       }
 
       app.innerHTML = `
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="label">Total Evaluations</div>
+            <div class="value">${totalEvals}</div>
+            <div class="subtext">Recent activity</div>
+          </div>
+          <div class="kpi-card primary">
+            <div class="label">Saved Exposure</div>
+            <div class="value">$${savedExposure.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div class="subtext">${blockedCount} policy-blocked decisions</div>
+          </div>
+          <div class="kpi-card">
+            <div class="label">Manual Interventions</div>
+            <div class="value">${overrideCount}</div>
+            <div class="subtext">Dual-control overrides</div>
+          </div>
+        </div>
+        
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Recent Traces</h2>
-            <span style="color: var(--text-muted)">${data.count} traces</span>
+            <h2 class="card-title">Recent Evaluations</h2>
+            <span style="color: var(--text-muted)">${data.count} records</span>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Trace ID</th>
-                <th>Outcome</th>
-                <th>Reason</th>
-                <th>Override</th>
+                <th>ID</th>
+                <th>Verdict</th>
+                <th>Policy Reason</th>
+                <th>Intervention</th>
                 <th>Events</th>
                 <th>Time</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              ${data.traces.map(t => `
+              ${traces.map(t => `
                 <tr>
                   <td><code style="color: var(--accent)">${t.traceId.slice(0, 8)}...</code></td>
                   <td>
                     <span class="badge ${t.outcome === 'ACCEPTED' ? 'badge-success' : t.outcome === 'BLOCKED' ? 'badge-danger' : 'badge-warning'}">
-                      ${t.outcome}
+                      ${t.outcome === 'ACCEPTED' ? 'Auto-Approved' : t.outcome === 'BLOCKED' ? 'Policy-Blocked' : t.outcome}
                     </span>
                   </td>
-                  <td>${t.reasonCode || '-'} ${t.ruleId ? `<span style="color: var(--text-muted)">(${t.ruleId})</span>` : ''}</td>
-                  <td>${t.hasOverride ? '<span class="badge badge-info">Yes</span>' : '-'}</td>
+                  <td>${humanizeReason(t.reasonCode)} ${t.ruleId ? `<span style="color: var(--text-muted)">(${t.ruleId})</span>` : ''}</td>
+                  <td>${t.hasOverride ? '<span class="badge badge-purple">Override</span>' : '<span style="color: var(--text-muted)">—</span>'}</td>
                   <td>${t.eventCount}</td>
                   <td style="color: var(--text-muted)">${formatTime(t.startedAt)}</td>
-                  <td><button class="btn btn-sm" onclick="navigate('traces', {traceId: '${t.traceId}'})">View</button></td>
+                  <td><button class="btn btn-sm" onclick="navigate('evaluations', {traceId: '${t.traceId}'})">View Record</button></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -376,7 +733,7 @@
       if (bundle.error) {
         const isIntegrityFailure = bundle.error === 'AUDIT_CHAIN_INTEGRITY_FAILURE';
         app.innerHTML = `
-          <a href="#" class="back-link" onclick="navigate('traces'); return false;">← Back to Traces</a>
+          <a href="#" class="back-link" onclick="navigate('evaluations'); return false;">← Back to Evaluations</a>
           <div class="integrity-banner failed">
             <span class="icon">⚠️</span>
             <div>
@@ -390,66 +747,66 @@
 
       const s = bundle.summary;
       const econ = economics.summary || {};
+      
+      // Calculate breach data for visualization
+      const breachData = calculateBreach(s);
 
       app.innerHTML = `
-        <a href="#" class="back-link" onclick="navigate('traces'); return false;">← Back to Traces</a>
+        <a href="#" class="back-link" onclick="navigate('evaluations'); return false;">← Back to Evaluations</a>
         
-        <div class="integrity-banner ${bundle.integrityVerified ? 'verified' : 'failed'}">
-          <span class="icon">${bundle.integrityVerified ? '✓' : '⚠️'}</span>
+        <div class="integrity-banner ${bundle.integrityVerified ? 'verified' : 'failed'}" onclick="toggleHashChain()">
+          <span class="icon">${bundle.integrityVerified ? '🔒' : '⚠️'}</span>
           <div>
-            <strong>${bundle.integrityVerified ? 'Hash Chain Verified' : 'Integrity Check Failed'}</strong>
-            <p style="color: var(--text-muted)">Audit trail is ${bundle.integrityVerified ? 'tamper-evident and intact' : 'potentially compromised'}</p>
+            <strong>${bundle.integrityVerified ? 'Integrity Verified' : 'Integrity Check Failed'}</strong>
+            <p style="color: var(--text-muted)">Cryptographic hash chain is ${bundle.integrityVerified ? 'intact and tamper-evident' : 'potentially compromised'}</p>
           </div>
+          <span class="click-hint">Click to ${showHashChainExpanded ? 'hide' : 'view'} proof →</span>
         </div>
+        
+        ${showHashChainExpanded ? renderHashChainProof(bundle.hashChain) : ''}
         
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Trace Summary</h2>
+            <h2 class="card-title">Decision Record</h2>
             <code style="color: var(--text-muted)">${currentTraceId}</code>
           </div>
           
           <div class="summary-grid">
             <div class="summary-item">
-              <label>Outcome</label>
+              <label>Verdict</label>
               <div class="value">
                 <span class="badge ${s.outcome === 'ACCEPTED' ? 'badge-success' : 'badge-danger'}" style="font-size: 16px; padding: 6px 14px;">
-                  ${s.outcome}
+                  ${s.outcome === 'ACCEPTED' ? 'Auto-Approved' : 'Policy-Blocked'}
                 </span>
               </div>
             </div>
             <div class="summary-item">
-              <label>Decision</label>
-              <div class="value">${s.decision}</div>
+              <label>Final Decision</label>
+              <div class="value">${s.decision === 'ALLOW' ? 'Allowed' : 'Denied'}</div>
             </div>
             <div class="summary-item">
-              <label>Reason Code</label>
-              <div class="value" style="font-size: 1rem;">${s.reasonCode}</div>
+              <label>Policy Reason</label>
+              <div class="value" style="font-size: 1rem;">${humanizeReason(s.reasonCode)}</div>
             </div>
             <div class="summary-item">
-              <label>Rule ID</label>
-              <div class="value" style="font-size: 1rem;">${s.ruleId || '-'}</div>
+              <label>Rule Triggered</label>
+              <div class="value" style="font-size: 1rem;">${s.ruleId || 'None'}</div>
             </div>
             <div class="summary-item">
               <label>Policy Version</label>
               <div class="value" style="font-size: 1rem;">${s.policyVersion}</div>
             </div>
             <div class="summary-item">
-              <label>Override</label>
+              <label>Intervention</label>
               <div class="value">
                 ${s.hasOverride 
-                  ? `<span class="badge badge-info">Yes</span> by ${s.overrideBy}` 
+                  ? `<span class="badge badge-purple">Override</span> by ${s.overrideBy}` 
                   : '<span style="color: var(--text-muted)">None</span>'}
               </div>
             </div>
-            <div class="summary-item">
-              <label>Events</label>
-              <div class="value">${s.eventCount}</div>
-            </div>
-            <div class="summary-item">
-              <label>Time</label>
-              <div class="value" style="font-size: 0.9rem;">${formatTime(s.firstEvent)}</div>
-            </div>
           </div>
+          
+          ${breachData ? renderBreachVisualization(breachData, s) : ''}
         </div>
         
         ${(econ.estimatedLostRevenue || econ.totalRevenue) ? `
@@ -458,17 +815,24 @@
             <h2 class="card-title">Economic Impact</h2>
           </div>
           <div class="summary-grid">
+            ${s.outcome === 'BLOCKED' ? `
+            <div class="summary-item" style="background: rgba(34, 197, 94, 0.1); border: 1px solid var(--success);">
+              <label style="color: var(--success);">Saved Exposure</label>
+              <div class="value" style="color: var(--success)">$${(econ.estimatedLostRevenue || 0).toFixed(2)}</div>
+            </div>
+            ` : `
             <div class="summary-item">
               <label>Gross Revenue</label>
               <div class="value" style="color: var(--success)">$${(econ.totalRevenue || 0).toFixed(2)}</div>
             </div>
+            `}
             <div class="summary-item">
               <label>Total Costs</label>
               <div class="value" style="color: var(--danger)">$${(econ.totalCosts || 0).toFixed(2)}</div>
             </div>
             <div class="summary-item">
-              <label>Estimated Lost Revenue</label>
-              <div class="value" style="color: var(--warning)">$${(econ.estimatedLostRevenue || 0).toFixed(2)}</div>
+              <label>Net Impact</label>
+              <div class="value">$${((econ.totalRevenue || 0) - (econ.totalCosts || 0)).toFixed(2)}</div>
             </div>
           </div>
         </div>
@@ -504,13 +868,13 @@
         
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Hash Chain</h2>
+            <h2 class="card-title">Audit Trail</h2>
             <span style="color: var(--text-muted)">${bundle.hashChain?.length || 0} events</span>
           </div>
           <div class="hash-chain">
             ${(bundle.hashChain || []).map(e => `
               <div class="event">
-                <span class="event-type">${e.eventType}</span>
+                <span class="event-type">${humanizeEventType(e.eventType)}</span>
                 <span class="hash">${e.hash.slice(0, 16)}...</span>
               </div>
             `).join('')}
@@ -518,12 +882,220 @@
         </div>
         
         <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">Raw Bundle JSON</h2>
+          <div class="json-section">
+            <button class="json-toggle" onclick="toggleRawJson()">
+              ${showRawJson ? '▼' : '▶'} Raw JSON (Developer View)
+            </button>
+            <div class="json-viewer ${showRawJson ? 'expanded' : ''}">${JSON.stringify(bundle, null, 2)}</div>
           </div>
-          <div class="json-viewer">${JSON.stringify(bundle, null, 2)}</div>
         </div>
       `;
+    }
+    
+    function renderHashChainProof(hashChain) {
+      if (!hashChain || hashChain.length === 0) return '';
+      
+      return `
+        <div class="card" style="background: rgba(59, 130, 246, 0.1); border-color: var(--accent);">
+          <div class="card-header">
+            <h2 class="card-title">🔗 Hash Chain Proof</h2>
+            <span style="color: var(--text-muted)">Each event is cryptographically linked to the previous</span>
+          </div>
+          <div class="hash-chain-expanded">
+            ${hashChain.map((e, i) => `
+              ${i > 0 ? '<div class="chain-connector">↓</div>' : ''}
+              <div class="chain-node">
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; color: var(--accent); margin-bottom: 4px;">${humanizeEventType(e.eventType)}</div>
+                  <div style="font-family: monospace; font-size: 11px; color: var(--text-muted);">
+                    Hash: ${e.hash.slice(0, 24)}...
+                  </div>
+                  ${e.prevHash ? `
+                  <div style="font-family: monospace; font-size: 11px; color: var(--text-muted);">
+                    Prev: ${e.prevHash.slice(0, 24)}...
+                  </div>
+                  ` : '<div style="font-size: 11px; color: var(--success);">← Genesis (Chain Start)</div>'}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted);">${formatTime(e.timestamp)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    function calculateBreach(summary) {
+      if (!summary.order || !summary.ruleId) return null;
+      
+      const threshold = POLICY_THRESHOLDS[summary.ruleId];
+      if (!threshold) return null;
+      
+      const attempted = summary.order[threshold.field];
+      const limit = threshold.limit;
+      const breachPercent = ((attempted - limit) / limit * 100).toFixed(1);
+      
+      return {
+        limit,
+        attempted,
+        breachPercent,
+        label: threshold.label
+      };
+    }
+    
+    function renderBreachVisualization(breach, summary) {
+      if (summary.outcome === 'ACCEPTED') return '';
+      
+      const maxDisplay = breach.limit * 1.5;
+      const limitPct = (breach.limit / maxDisplay * 100);
+      const attemptPct = Math.min((breach.attempted / maxDisplay * 100), 100);
+      
+      return `
+        <div class="breach-viz">
+          <div class="breach-header">
+            <span style="font-weight: 600;">${breach.label}</span>
+            <span class="badge badge-danger">+${breach.breachPercent}% over limit</span>
+          </div>
+          <div class="breach-bar">
+            <div class="breach-fill" style="width: ${attemptPct}%"></div>
+            <div class="breach-marker" style="left: ${limitPct}%"></div>
+          </div>
+          <div class="breach-labels">
+            <span>0</span>
+            <span style="position: relative; left: ${limitPct - 50}%;">Limit: ${breach.limit.toLocaleString()}</span>
+            <span>Attempt: ${breach.attempted.toLocaleString()}</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function renderPlayground() {
+      const app = document.getElementById('app');
+      
+      const sampleOrder = {
+        clientOrderId: "test-001",
+        symbol: "AAPL",
+        side: "BUY",
+        qty: 100,
+        price: 150.00
+      };
+      
+      app.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">🧪 Policy Playground</h2>
+            <span style="color: var(--text-muted);">Test policies without creating records</span>
+          </div>
+          <p style="color: var(--text-muted); margin-bottom: 16px;">
+            Enter an order JSON below to see how the policy engine would evaluate it. 
+            <strong>No data is persisted</strong> — this is a dry run.
+          </p>
+          
+          <textarea id="playground-input" class="playground-input">${JSON.stringify(sampleOrder, null, 2)}</textarea>
+          
+          <div style="margin-top: 16px;">
+            <button class="btn" onclick="runPlayground()">Evaluate Policy</button>
+            <button class="btn" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); margin-left: 8px;" onclick="loadSampleBlocked()">Load Blocked Example</button>
+          </div>
+          
+          <div id="playground-result"></div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Active Policies</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Rule ID</th>
+                <th>Condition</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>qty_limit</code></td>
+                <td>Quantity &gt; 1,000</td>
+                <td><span class="badge badge-danger">Block</span></td>
+              </tr>
+              <tr>
+                <td><code>symbol_gme</code></td>
+                <td>Symbol = GME AND Quantity &gt; 10</td>
+                <td><span class="badge badge-danger">Block</span></td>
+              </tr>
+              <tr>
+                <td><code>penny_stock</code></td>
+                <td>Price &lt; $1.00 AND Quantity &gt; 100</td>
+                <td><span class="badge badge-danger">Block</span></td>
+              </tr>
+              <tr>
+                <td><code>allow_default</code></td>
+                <td>No blocking rules match</td>
+                <td><span class="badge badge-success">Allow</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    
+    async function runPlayground() {
+      const input = document.getElementById('playground-input').value;
+      const resultDiv = document.getElementById('playground-result');
+      
+      try {
+        const order = JSON.parse(input);
+        resultDiv.innerHTML = '<div class="loading">Evaluating...</div>';
+        
+        const result = await testPolicy(order);
+        
+        const isAllowed = result.decision === 'ALLOW' || result.allow === true;
+        const reasonCode = result.reasonCode || result.reason_code || 'UNKNOWN';
+        const ruleId = result.ruleId || result.rule_id || '-';
+        
+        resultDiv.innerHTML = `
+          <div class="playground-result">
+            <div class="verdict ${isAllowed ? 'allow' : 'block'}">
+              ${isAllowed ? '✓ WOULD ALLOW' : '✗ WOULD BLOCK'}
+            </div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <label>Policy Reason</label>
+                <div class="value" style="font-size: 1rem;">${humanizeReason(reasonCode)}</div>
+              </div>
+              <div class="summary-item">
+                <label>Rule Triggered</label>
+                <div class="value" style="font-size: 1rem;">${ruleId}</div>
+              </div>
+              <div class="summary-item">
+                <label>Explanation</label>
+                <div style="color: var(--text-muted); font-size: 14px;">${POLICY_EXPLANATIONS[reasonCode] || 'Policy evaluation complete'}</div>
+              </div>
+            </div>
+            <p style="text-align: center; color: var(--text-muted); margin-top: 16px; font-size: 13px;">
+              ⚡ This was a dry run — no audit record was created
+            </p>
+          </div>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `
+          <div class="playground-result" style="border: 1px solid var(--danger);">
+            <p style="color: var(--danger);">Error: ${err.message}</p>
+            <p style="color: var(--text-muted); font-size: 13px;">Make sure the JSON is valid.</p>
+          </div>
+        `;
+      }
+    }
+    
+    function loadSampleBlocked() {
+      const blockedExample = {
+        clientOrderId: "test-blocked",
+        symbol: "GME",
+        side: "BUY",
+        qty: 500,
+        price: 25.00
+      };
+      document.getElementById('playground-input').value = JSON.stringify(blockedExample, null, 2);
     }
 
     async function renderWebhooks() {
@@ -537,19 +1109,19 @@
       app.innerHTML = `
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Registered Webhooks</h2>
+            <h2 class="card-title">Registered Integrations</h2>
             <span style="color: var(--text-muted)">${webhooks.length} webhook(s)</span>
           </div>
           ${webhooks.length === 0 ? `
             <div class="empty" style="padding: 30px">
-              <p>No webhooks registered yet.</p>
+              <p>No integrations registered yet.</p>
               <p style="font-size: 13px; margin-top: 8px;">Use the API: POST /webhooks with {url, events}</p>
             </div>
           ` : `
             <table>
               <thead>
                 <tr>
-                  <th>URL</th>
+                  <th>Endpoint</th>
                   <th>Events</th>
                   <th>Created</th>
                   <th>Status</th>
@@ -583,7 +1155,7 @@
               <thead>
                 <tr>
                   <th>Event</th>
-                  <th>Trace ID</th>
+                  <th>Evaluation ID</th>
                   <th>Status</th>
                   <th>Time</th>
                 </tr>
@@ -593,7 +1165,7 @@
                   <tr>
                     <td><span class="badge badge-info">${d.eventType}</span></td>
                     <td>
-                      <a href="#" onclick="navigate('traces', {traceId: '${d.traceId}'}); return false;">
+                      <a href="#" onclick="navigate('evaluations', {traceId: '${d.traceId}'}); return false;">
                         <code>${d.traceId?.slice(0, 8) || '-'}...</code>
                       </a>
                     </td>
@@ -619,9 +1191,46 @@
       const d = new Date(iso);
       return d.toLocaleString();
     }
+    
+    function humanizeReason(code) {
+      const map = {
+        'QTY_LIMIT_EXCEEDED': 'Quantity Limit',
+        'SYMBOL_RESTRICTION': 'Symbol Restricted',
+        'PENNY_STOCK_RESTRICTION': 'Penny Stock Rule',
+        'OK': 'Passed',
+        'UNKNOWN': 'Unknown'
+      };
+      return map[code] || code;
+    }
+    
+    function humanizeEventType(type) {
+      const map = {
+        'order.requested': 'Order Submitted',
+        'risk.decision': 'Policy Evaluated',
+        'order.accepted': 'Auto-Approved',
+        'order.blocked': 'Policy-Blocked',
+        'override.requested': 'Override Requested',
+        'override.approved': 'Override Approved',
+        'operator.override': 'Manual Override'
+      };
+      return map[type] || type;
+    }
+    
+    function toggleHashChain() {
+      showHashChainExpanded = !showHashChainExpanded;
+      render();
+    }
+    
+    function toggleRawJson() {
+      showRawJson = !showRawJson;
+      const viewer = document.querySelector('.json-viewer');
+      const toggle = document.querySelector('.json-toggle');
+      if (viewer) viewer.classList.toggle('expanded', showRawJson);
+      if (toggle) toggle.innerHTML = `${showRawJson ? '▼' : '▶'} Raw JSON (Developer View)`;
+    }
 
     // Init
-    navigate('traces');
+    navigate('evaluations');
   </script>
 </body>
 </html>
