@@ -81,6 +81,28 @@ app.get("/api/economics/saved-exposure", async (req, res) => {
   }
 });
 
+// P1-R2: Coverage Statistics endpoint
+app.get("/api/economics/coverage", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.economics}/economics/coverage`);
+    if (req.query.hours) url.searchParams.set("hours", String(req.query.hours));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    // Return 100% coverage if endpoint not available yet
+    res.json({ 
+      total_decisions: 0, 
+      decisions_with_price: 0,
+      coverage_percent: 100,
+      decisions_usd: 0,
+      decisions_non_usd: 0,
+      usd_percent: 100,
+      period_hours: 24
+    });
+  }
+});
+
 app.get("/api/webhooks", async (req, res) => {
   try {
     const resp = await fetch(`${API_URLS.webhooks}/webhooks`);

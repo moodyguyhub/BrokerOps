@@ -212,12 +212,12 @@ describe("P1 Acceptance Criteria - Snapshot Economics", () => {
       const total = aggregateSavedExposure([blocked1, blocked2, blocked3]);
       
       // 15000 + 10000 + 20000 = 45000
-      assert.strictEqual(total, 45000);
+      assert.strictEqual(total.saved_exposure, 45000);
     });
 
     it("should handle empty array", () => {
       const total = aggregateSavedExposure([]);
-      assert.strictEqual(total, 0);
+      assert.strictEqual(total.saved_exposure, 0);
     });
 
     it("should handle null saved_exposure values", () => {
@@ -234,7 +234,7 @@ describe("P1 Acceptance Criteria - Snapshot Economics", () => {
       }).economics;
       
       const total = aggregateSavedExposure([blockedNoPrice, blockedWithPrice]);
-      assert.strictEqual(total, 10000); // Only the one with price
+      assert.strictEqual(total.saved_exposure, 10000); // Only the one with price
     });
   });
 
@@ -301,6 +301,168 @@ describe("P1 Acceptance Criteria - Snapshot Economics", () => {
       assert.ok(result.policy_context);
       assert.strictEqual(result.policy_context.limit_type, "QTY_LIMIT_EXCEEDED");
       assert.strictEqual(result.policy_context.limit_value, 1000);
+    });
+  });
+});
+
+/**
+ * P1 Hardening Tests - Price Trust & Currency Validation
+ * 
+ * Verifies:
+ * 1. P1-R1: Price assertion fields present when price provided with assertion metadata
+ * 2. P1-R2: Coverage stats computed correctly
+ * 3. P1-R3: Currency validation warns on non-USD
+ * 4. Non-USD excluded from saved exposure aggregation
+ */
+describe("P1 Hardening - Price Trust & Currency Validation", () => {
+  
+  const { validateCurrency, computeCoverageStats } = common;
+
+  describe("P1-R1: Price Trust Boundary", () => {
+    it("should include price_asserted_by when provided", () => {
+      const result = computeSnapshotEconomics({
+        qty: 100,
+        price: 150.00,
+        decision: "BLOCK",
+        price_asserted_by: "MARKET_DATA_SERVICE",
+        price_asserted_at: "2026-01-15T12:00:00.000Z"
+      });
+      
+      assert.strictEqual(result.economics.price_asserted_by, "MARKET_DATA_SERVICE");
+      assert.strictEqual(result.economics.price_asserted_at, "2026-01-15T12:00:00.000Z");
+    });
+
+    it("should include price_signature when provided", () => {
+      const result = computeSnapshotEconomics({
+        qty: 100,
+        price: 150.00,
+        decision: "ALLOW",
+        price_asserted_by: "BLOOMBERG",
+        price_asserted_at: "2026-01-15T12:00:00.000Z",
+        price_signature: "sha256:abc123..."
+      });
+      
+      assert.strictEqual(result.economics.price_signature, "sha256:abc123...");
+    });
+
+    it("should leave assertion fields undefined when not provided", () => {
+      const result = computeSnapshotEconomics({
+        qty: 100,
+        price: 150.00,
+        decision: "ALLOW"
+      });
+      
+      assert.strictEqual(result.economics.price_asserted_by, undefined);
+      assert.strictEqual(result.economics.price_asserted_at, undefined);
+      assert.strictEqual(result.economics.price_signature, undefined);
+    });
+  });
+
+  describe("P1-R2: Coverage Statistics", () => {
+    it("should compute coverage percentage correctly", () => {
+      // Create proper economics objects
+      const decisions = [
+        computeSnapshotEconomics({ qty: 100, price: 150.00, decision: "BLOCK" }).economics,
+        computeSnapshotEconomics({ qty: 100, price: 200.00, decision: "BLOCK" }).economics,
+        computeSnapshotEconomics({ qty: 100, price: null, decision: "BLOCK" }).economics,
+        computeSnapshotEconomics({ qty: 100, price: 175.00, decision: "BLOCK" }).economics
+      ];
+      
+      const stats = computeCoverageStats(decisions);
+      
+      assert.strictEqual(stats.total_decisions, 4);
+      assert.strictEqual(stats.decisions_with_price, 3);
+      assert.strictEqual(stats.coverage_percent, 75);
+    });
+
+    it("should compute USD percentage", () => {
+      const decisions = [
+        computeSnapshotEconomics({ qty: 100, price: 150.00, decision: "BLOCK" }).economics,
+        computeSnapshotEconomics({ qty: 100, price: 200.00, decision: "BLOCK", currency: "EUR" }).economics,
+        computeSnapshotEconomics({ qty: 100, price: 175.00, decision: "BLOCK" }).economics
+      ];
+      
+      const stats = computeCoverageStats(decisions);
+      
+      assert.strictEqual(stats.decisions_usd, 2);
+      assert.strictEqual(stats.decisions_non_usd, 1);
+      assert.strictEqual(stats.usd_percent, (2 / 3) * 100);
+    });
+
+    it("should handle empty decisions array", () => {
+      const stats = computeCoverageStats([]);
+      
+      assert.strictEqual(stats.total_decisions, 0);
+      assert.strictEqual(stats.decisions_with_price, 0);
+      assert.strictEqual(stats.coverage_percent, 0);
+    });
+  });
+
+  describe("P1-R3: Currency Validation (Warn-Only)", () => {
+    it("should support USD currency", () => {
+      const validation = validateCurrency("USD");
+      
+      assert.strictEqual(validation.supported, true);
+      assert.strictEqual(validation.warning, undefined);
+    });
+
+    it("should warn on non-USD currency but not reject", () => {
+      const validation = validateCurrency("EUR");
+      
+      assert.strictEqual(validation.supported, false);
+      assert.strictEqual(validation.original_currency, "EUR");
+      assert.ok(validation.warning);
+      assert.ok(validation.warning.includes("EUR"));
+    });
+
+    it("should warn on GBP currency", () => {
+      const validation = validateCurrency("GBP");
+      
+      assert.strictEqual(validation.supported, false);
+      assert.ok(validation.warning);
+      assert.ok(validation.warning.includes("excluded from"));
+    });
+
+    it("should include currency_validation in economics", () => {
+      const result = computeSnapshotEconomics({
+        qty: 100,
+        price: 150.00,
+        decision: "BLOCK",
+        currency: "EUR"
+      });
+      
+      assert.ok(result.economics.currency_validation);
+      assert.strictEqual(result.economics.currency_validation.supported, false);
+      assert.strictEqual(result.economics.currency_validation.original_currency, "EUR");
+    });
+  });
+
+  describe("Non-USD Excluded from Aggregation", () => {
+    it("should exclude non-USD from saved exposure aggregation", () => {
+      const economics = [
+        computeSnapshotEconomics({ qty: 100, price: 100.00, decision: "BLOCK" }).economics, // 10000 USD
+        computeSnapshotEconomics({ qty: 100, price: 200.00, decision: "BLOCK", currency: "EUR" }).economics, // 20000 EUR - excluded
+        computeSnapshotEconomics({ qty: 100, price: 150.00, decision: "BLOCK" }).economics  // 15000 USD
+      ];
+      
+      const result = aggregateSavedExposure(economics);
+      
+      // Only USD should be aggregated
+      assert.strictEqual(result.saved_exposure, 25000); // 10000 + 15000
+      assert.strictEqual(result.excluded_count, 1);
+    });
+
+    it("should include all USD decisions", () => {
+      const economics = [
+        computeSnapshotEconomics({ qty: 100, price: 50.00, decision: "BLOCK" }).economics,   // 5000
+        computeSnapshotEconomics({ qty: 100, price: 100.00, decision: "BLOCK" }).economics,  // 10000
+        computeSnapshotEconomics({ qty: 100, price: 150.00, decision: "BLOCK" }).economics   // 15000
+      ];
+      
+      const result = aggregateSavedExposure(economics);
+      
+      assert.strictEqual(result.saved_exposure, 30000);
+      assert.strictEqual(result.blocked_count, 3);
     });
   });
 });

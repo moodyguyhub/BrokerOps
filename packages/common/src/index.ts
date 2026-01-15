@@ -46,17 +46,24 @@ export {
   type OperatorIdentityComponent
 } from "./evidence-pack.js";
 
-// Re-export Snapshot Economics (P1)
+// Re-export Snapshot Economics (P1 + P1 Hardening)
 export {
   computeSnapshotEconomics,
   aggregateSavedExposure,
   verifySnapshotDeterminism,
   formatSnapshotEconomics,
+  validateCurrency,
+  computeCoverageStats,
   type SnapshotEconomics,
   type SnapshotEconomicsInput,
   type SnapshotEconomicsResult,
   type PolicyLimitContext,
-  type PriceSource
+  type PriceSource,
+  type PriceAssertion,
+  type SupportedCurrency,
+  type CurrencyValidation,
+  type CoverageStats,
+  type AggregatedSavedExposure
 } from "./snapshot-economics.js";
 
 export const TraceId = z.string().min(8);

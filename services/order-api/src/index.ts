@@ -91,7 +91,13 @@ app.post("/orders", async (req, res) => {
   const decision = await decideRisk(order);
   await audit(traceId, "risk.decision", decision);
 
-  // P1: Compute snapshot economics at decision time
+  // P1 Hardening: Extract price assertion metadata from request headers
+  const priceAssertedBy = req.header("x-price-asserted-by") ?? "platform-default";
+  const priceAssertedAt = req.header("x-price-asserted-at") ?? decisionTime;
+  const priceSignature = req.header("x-price-signature");
+  const orderCurrency = (order as any).currency ?? "USD";
+
+  // P1: Compute snapshot economics at decision time with price assertion
   const snapshotResult = computeSnapshotEconomics({
     qty: order.qty ?? 0,
     price: order.price,
@@ -102,7 +108,13 @@ app.post("/orders", async (req, res) => {
     policy_context: (decision as any).ruleId ? {
       limit_type: (decision as any).reasonCode,
       limit_value: undefined
-    } : undefined
+    } : undefined,
+    // P1-R1: Price trust boundary
+    price_asserted_by: priceAssertedBy,
+    price_asserted_at: priceAssertedAt,
+    price_signature: priceSignature,
+    // P1-R3: Currency validation
+    currency: orderCurrency
   });
 
   const snapshotEconomics = snapshotResult.economics;

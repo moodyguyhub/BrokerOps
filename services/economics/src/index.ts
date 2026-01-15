@@ -269,6 +269,41 @@ app.get("/economics/saved-exposure", async (req, res) => {
   });
 });
 
+// 5. Coverage Statistics (P1-R2) - Price coverage %
+app.get("/economics/coverage", async (req, res) => {
+  // Time window filter (default: last 24h)
+  const hoursBack = parseInt(req.query.hours as string) || 24;
+  const sinceTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+  
+  // Total decisions (TRADE_EXECUTED + TRADE_BLOCKED)
+  const totals = await pool.query(`
+    SELECT 
+      COUNT(*) as total_decisions,
+      COUNT(*) FILTER (WHERE estimated_lost_revenue > 0 OR gross_revenue > 0) as decisions_with_value,
+      COUNT(*) FILTER (WHERE currency = 'USD') as decisions_usd,
+      COUNT(*) FILTER (WHERE currency != 'USD') as decisions_non_usd
+    FROM economic_events
+    WHERE event_type IN ('TRADE_EXECUTED', 'TRADE_BLOCKED')
+      AND created_at >= $1
+  `, [sinceTime]);
+
+  const total = parseInt(totals.rows[0].total_decisions);
+  const withValue = parseInt(totals.rows[0].decisions_with_value);
+  const usd = parseInt(totals.rows[0].decisions_usd);
+  const nonUsd = parseInt(totals.rows[0].decisions_non_usd);
+
+  res.json({
+    total_decisions: total,
+    decisions_with_price: withValue,
+    coverage_percent: total > 0 ? Math.round((withValue / total) * 1000) / 10 : 0,
+    decisions_usd: usd,
+    decisions_non_usd: nonUsd,
+    usd_percent: total > 0 ? Math.round((usd / total) * 1000) / 10 : 100,
+    period_hours: hoursBack,
+    warning: nonUsd > 0 ? `${nonUsd} non-USD decisions excluded from aggregation` : undefined
+  });
+});
+
 // Health check
 app.get("/health", async (_, res) => {
   const r = await pool.query("SELECT 1 as ok");
