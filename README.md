@@ -1,6 +1,6 @@
 # BrokerOps
 
-[![CI](https://github.com/YOUR_USERNAME/BrokerOps/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/BrokerOps/actions/workflows/ci.yml)
+[![CI](https://github.com/moodyguyhub/BrokerOps/actions/workflows/ci.yml/badge.svg)](https://github.com/moodyguyhub/BrokerOps/actions/workflows/ci.yml)
 
 **Brokerage Operations Governance Platform**
 
@@ -56,7 +56,7 @@ BrokerOps provides **governance-as-code** for brokerage operations:
 
 ```bash
 # Clone and run the full demo
-git clone https://github.com/YOUR_USERNAME/BrokerOps.git
+git clone https://github.com/moodyguyhub/BrokerOps.git
 cd BrokerOps
 pnpm install
 ./scripts/demo.sh
