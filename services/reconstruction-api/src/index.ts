@@ -260,6 +260,119 @@ app.get("/trace/:traceId/bundle", async (req, res) => {
   res.json(bundle);
 });
 
+// ============================================================================
+// Entity-Centric Read Views (Audit UX)
+// ============================================================================
+
+// GET /overrides/pending - Returns traces with pending override requests
+app.get("/overrides/pending", async (req, res) => {
+  const r = await pool.query(`
+    WITH requested AS (
+      SELECT DISTINCT trace_id, payload_json, created_at
+      FROM audit_events 
+      WHERE event_type = 'override.requested'
+    ),
+    resolved AS (
+      SELECT DISTINCT trace_id
+      FROM audit_events 
+      WHERE event_type IN ('override.approved', 'override.rejected')
+    )
+    SELECT r.trace_id, r.payload_json, r.created_at
+    FROM requested r
+    LEFT JOIN resolved res ON r.trace_id = res.trace_id
+    WHERE res.trace_id IS NULL
+    ORDER BY r.created_at DESC
+    LIMIT 100
+  `);
+
+  res.json({
+    count: r.rowCount ?? 0,
+    pendingOverrides: r.rows.map(row => ({
+      traceId: row.trace_id,
+      requestedBy: row.payload_json?.requestedBy,
+      reason: row.payload_json?.reason,
+      newDecision: row.payload_json?.newDecision,
+      requestedAt: row.created_at
+    }))
+  });
+});
+
+// GET /overrides/recent - Returns recent override activity (all statuses)
+app.get("/overrides/recent", async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  
+  const r = await pool.query(`
+    SELECT 
+      trace_id,
+      event_type,
+      payload_json,
+      created_at
+    FROM audit_events
+    WHERE event_type IN ('override.requested', 'override.approved', 'override.rejected', 'operator.override')
+    ORDER BY created_at DESC
+    LIMIT $1
+  `, [limit]);
+
+  res.json({
+    count: r.rowCount ?? 0,
+    overrides: r.rows.map(row => ({
+      traceId: row.trace_id,
+      eventType: row.event_type,
+      status: row.event_type === 'override.approved' ? 'APPROVED' :
+              row.event_type === 'override.rejected' ? 'REJECTED' :
+              row.event_type === 'override.requested' ? 'PENDING' : 'LEGACY',
+      operator: row.payload_json?.requestedBy || row.payload_json?.approvedBy || row.payload_json?.rejectedBy || row.payload_json?.operatorId,
+      reason: row.payload_json?.reason,
+      timestamp: row.created_at
+    }))
+  });
+});
+
+// GET /evaluations/by-account/:accountId - Evaluations for a specific account
+// Note: Uses order.clientOrderId prefix as account identifier (convention: ACCT-XXX-*)
+app.get("/evaluations/by-account/:accountId", async (req, res) => {
+  const accountId = req.params.accountId;
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  
+  // Search for traces where order.requested payload has clientOrderId starting with accountId
+  const r = await pool.query(`
+    WITH account_traces AS (
+      SELECT DISTINCT trace_id
+      FROM audit_events
+      WHERE event_type = 'order.requested'
+        AND (
+          payload_json->'raw'->>'clientOrderId' LIKE $1
+          OR payload_json->>'clientOrderId' LIKE $1
+        )
+    )
+    SELECT 
+      ae.trace_id,
+      MIN(ae.created_at) as started_at,
+      COUNT(*) as event_count,
+      MAX(CASE WHEN ae.event_type = 'order.accepted' THEN 'ACCEPTED' 
+               WHEN ae.event_type = 'order.blocked' THEN 'BLOCKED' 
+               ELSE NULL END) as outcome,
+      MAX(CASE WHEN ae.event_type = 'risk.decision' THEN ae.payload_json->>'reasonCode' ELSE NULL END) as reason_code
+    FROM audit_events ae
+    INNER JOIN account_traces at ON ae.trace_id = at.trace_id
+    GROUP BY ae.trace_id
+    ORDER BY MIN(ae.created_at) DESC
+    LIMIT $2
+  `, [`${accountId}%`, limit]);
+
+  res.json({
+    accountId,
+    count: r.rowCount ?? 0,
+    evaluations: r.rows.map(row => ({
+      traceId: row.trace_id,
+      startedAt: row.started_at,
+      eventCount: parseInt(row.event_count),
+      outcome: row.outcome ?? "PENDING",
+      reasonCode: row.reason_code
+    }))
+  });
+});
+
 app.get("/health", async (_, res) => {
   const r = await pool.query("SELECT 1 as ok");
   res.json({ ok: r.rows?.[0]?.ok === 1 });

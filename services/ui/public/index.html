@@ -120,6 +120,54 @@
       margin-top: 4px;
     }
     
+    /* Tooltips */
+    .tooltip-trigger {
+      position: relative;
+      cursor: help;
+    }
+    
+    .tooltip-trigger .tooltip {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a2e;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+      z-index: 100;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+    
+    .tooltip-trigger .tooltip.wide {
+      white-space: normal;
+      width: 200px;
+      text-align: center;
+    }
+    
+    .tooltip-trigger:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .tooltip-trigger .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1a1a2e;
+    }
+    
     /* Governance Funnel */
     .funnel-widget {
       background: var(--bg-card);
@@ -707,8 +755,9 @@
       return resp.json();
     }
     
+    // Dry-run policy evaluation (no persistence)
     async function testPolicy(order) {
-      const resp = await fetch('/api/risk/evaluate', {
+      const resp = await fetch('/api/dry-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order)
@@ -777,22 +826,26 @@
         </div>
         
         <div class="kpi-row">
-          <div class="kpi-card">
+          <div class="kpi-card tooltip-trigger">
+            <div class="tooltip wide">Total number of orders evaluated by guardrails in the last 24 hours</div>
             <div class="label">Evaluations (24h)</div>
             <div class="value">${totalEvals24h}</div>
             <div class="subtext">Total policy checks</div>
           </div>
-          <div class="kpi-card primary">
+          <div class="kpi-card primary tooltip-trigger">
+            <div class="tooltip wide">Sum of attempted notional for policy-blocked evaluations (24h). Represents exposure avoided by guardrails.</div>
             <div class="label">Saved Exposure (24h)</div>
             <div class="value">$${savedExposure.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
             <div class="subtext">${blockedTraces.length} blocked decisions</div>
           </div>
-          <div class="kpi-card ${pendingCount > 0 ? 'warning' : ''}">
+          <div class="kpi-card ${pendingCount > 0 ? 'warning' : ''} tooltip-trigger">
+            <div class="tooltip wide">Override requests awaiting second-operator approval (dual-control)</div>
             <div class="label">Pending Overrides</div>
             <div class="value">${pendingCount}</div>
             <div class="subtext">Awaiting approval</div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card tooltip-trigger">
+            <div class="tooltip wide">Percentage of evaluations that required manual intervention via dual-control override</div>
             <div class="label">Override Rate</div>
             <div class="value">${totalEvals24h > 0 ? ((overrideTraces.length / totalEvals24h) * 100).toFixed(1) : 0}%</div>
             <div class="subtext">${overrideTraces.length} manual interventions</div>
@@ -802,24 +855,29 @@
         <div class="funnel-widget">
           <div class="funnel-title">
             <span>📊</span> Governance Funnel (24h)
+            <span style="font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: auto;">Stages are mutually exclusive</span>
           </div>
           <div class="funnel-stages">
-            <div class="funnel-stage inbound">
+            <div class="funnel-stage inbound tooltip-trigger">
+              <div class="tooltip">All orders submitted to guardrails</div>
               <div class="count">${inbound}</div>
               <div class="stage-label">Inbound</div>
             </div>
             <div class="funnel-arrow">→</div>
-            <div class="funnel-stage approved">
+            <div class="funnel-stage approved tooltip-trigger">
+              <div class="tooltip wide">Orders that passed all guardrails without human intervention</div>
               <div class="count">${autoApproved}</div>
               <div class="stage-label">Auto-Approved</div>
             </div>
             <div class="funnel-arrow">→</div>
-            <div class="funnel-stage review">
+            <div class="funnel-stage review tooltip-trigger">
+              <div class="tooltip wide">Orders overridden via dual-control approval (initially blocked, then allowed)</div>
               <div class="count">${manualReview}</div>
               <div class="stage-label">Manual Review</div>
             </div>
             <div class="funnel-arrow">→</div>
-            <div class="funnel-stage blocked">
+            <div class="funnel-stage blocked tooltip-trigger">
+              <div class="tooltip wide">Orders blocked by guardrails with no override applied</div>
               <div class="count">${Math.max(0, blocked)}</div>
               <div class="stage-label">Blocked</div>
             </div>
@@ -1202,12 +1260,19 @@
         const isAllowed = result.decision === 'ALLOW' || result.allow === true;
         const reasonCode = result.reasonCode || result.reason_code || 'UNKNOWN';
         const ruleId = result.ruleId || result.rule_id || '-';
+        const policyVersion = result.policyVersion || 'policy.v0.2';
         
-        // Calculate preview economics
-        const notional = (order.qty || 0) * (order.price || 0);
+        // Use preview economics from response (already calculated server-side)
+        const previewEcon = result.previewEconomics || {};
+        const attemptNotional = previewEcon.attemptNotional || (order.qty || 0) * (order.price || 0);
+        const savedExposure = previewEcon.savedExposure || 0;
+        const simulationCost = previewEcon.simulationCost ?? 0;
         
         resultDiv.innerHTML = `
-          <div class="playground-result">
+          <div class="playground-result" style="border: 2px dashed var(--border); position: relative;">
+            <div style="position: absolute; top: -12px; left: 16px; background: var(--bg); padding: 0 8px; font-size: 11px; text-transform: uppercase; color: var(--warning); font-weight: 600;">
+              🧪 Simulation (No Ledger Write)
+            </div>
             <div class="verdict ${isAllowed ? 'allow' : 'block'}">
               ${isAllowed ? '✓ WOULD ALLOW' : '✗ WOULD BLOCK'}
             </div>
@@ -1220,19 +1285,32 @@
                 <label>Rule Triggered</label>
                 <div class="value" style="font-size: 1rem;">${ruleId}</div>
               </div>
-              ${!isAllowed && notional > 0 ? `
               <div class="summary-item">
-                <label>Preview: Saved Exposure</label>
-                <div class="value" style="font-size: 1rem; color: var(--success);">$${notional.toLocaleString()}</div>
+                <label>Policy Version</label>
+                <div class="value" style="font-size: 1rem;">${policyVersion}</div>
+              </div>
+              <div class="summary-item">
+                <label>Attempt Notional</label>
+                <div class="value" style="font-size: 1rem;">$${attemptNotional.toLocaleString()}</div>
+              </div>
+              ${!isAllowed ? `
+              <div class="summary-item" style="background: rgba(34, 197, 94, 0.1); border: 1px solid var(--success);">
+                <label style="color: var(--success);">Preview: Saved Exposure</label>
+                <div class="value" style="font-size: 1rem; color: var(--success);">$${savedExposure.toLocaleString()}</div>
               </div>
               ` : ''}
+              <div class="summary-item">
+                <label>Simulation Cost</label>
+                <div class="value" style="font-size: 1rem; color: var(--text-muted);">$${simulationCost}</div>
+              </div>
             </div>
             <p style="margin-top: 16px; color: var(--text-muted); font-size: 13px;">
               ${PolicyTranslator.explanations[reasonCode] || 'Guardrail evaluation complete'}
             </p>
-            <p style="text-align: center; color: var(--text-muted); margin-top: 16px; font-size: 13px;">
-              ⚡ This was a dry run — no audit record was created
-            </p>
+            <div style="text-align: center; margin-top: 20px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px;">
+              <span style="color: var(--warning); font-weight: 600;">⚡ DRY RUN</span>
+              <span style="color: var(--text-muted);"> — No audit record created, no data persisted</span>
+            </div>
           </div>
         `;
       } catch (err) {

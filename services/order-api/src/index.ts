@@ -256,6 +256,80 @@ app.post("/override/:traceId", async (req, res) => {
   });
 });
 
+// ============================================================================
+// DRY-RUN: Policy evaluation without persistence (Policy Playground)
+// ============================================================================
+app.post("/dry-run", async (req, res) => {
+  // Validate schema first
+  const parsed = OrderRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      dryRun: true,
+      decision: "BLOCK",
+      reasonCode: "INVALID_ORDER_SCHEMA",
+      policyVersion: "validation",
+      validationErrors: parsed.error.flatten(),
+      previewEconomics: null
+    });
+  }
+
+  const order = parsed.data;
+  
+  // Query risk-gate's evaluate endpoint (no audit writes)
+  try {
+    const evalRes = await fetch(`${RISK_GATE_URL}/evaluate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(order)
+    });
+    
+    if (!evalRes.ok) {
+      return res.status(500).json({
+        dryRun: true,
+        decision: "BLOCK",
+        reasonCode: "POLICY_ENGINE_UNAVAILABLE",
+        policyVersion: "error"
+      });
+    }
+    
+    const evaluation = await evalRes.json() as any;
+    
+    // Calculate preview economics (no persistence)
+    const attemptNotional = (order.qty ?? 0) * (order.price ?? 0);
+    const previewEconomics = {
+      attemptNotional,
+      savedExposure: evaluation.decision === "BLOCK" ? attemptNotional : 0,
+      simulationCost: 0,
+      note: "Preview only — no ledger write"
+    };
+    
+    return res.json({
+      dryRun: true,
+      decision: evaluation.decision,
+      allow: evaluation.decision === "ALLOW",
+      reasonCode: evaluation.reasonCode,
+      ruleId: evaluation.ruleId ?? null,
+      policyVersion: evaluation.policyVersion,
+      order: {
+        symbol: order.symbol,
+        side: order.side,
+        qty: order.qty,
+        price: order.price
+      },
+      previewEconomics,
+      evaluatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Dry-run evaluation error:", err);
+    return res.status(500).json({
+      dryRun: true,
+      decision: "BLOCK",
+      reasonCode: "EVALUATION_ERROR",
+      policyVersion: "error"
+    });
+  }
+});
+
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 const port = process.env.PORT ? Number(process.env.PORT) : 7001;

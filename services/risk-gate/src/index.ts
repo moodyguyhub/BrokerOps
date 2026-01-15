@@ -77,7 +77,7 @@ app.post("/decide", async (req, res) => {
   res.json(decision);
 });
 
-// P2: Policy Playground - dry run evaluation (no persistence, no audit)
+// Policy evaluation endpoint (used by /dry-run - no persistence, no audit)
 app.post("/evaluate", async (req, res) => {
   // Validate schema
   const parsed = OrderRequestSchema.safeParse(req.body);
@@ -91,11 +91,26 @@ app.post("/evaluate", async (req, res) => {
     });
   }
 
-  // Query OPA (same as /decide but marked as dry run)
+  // Query OPA for policy evaluation
   const decision = await queryOpa(parsed.data);
+  
+  // Calculate preview economics
+  const order = parsed.data;
+  const attemptNotional = (order.qty ?? 0) * (order.price ?? 0);
+  
   res.json({
     ...decision,
     dryRun: true,
+    order: {
+      symbol: order.symbol,
+      side: order.side,
+      qty: order.qty,
+      price: order.price
+    },
+    previewEconomics: {
+      attemptNotional,
+      savedExposure: decision.decision === "BLOCK" ? attemptNotional : 0
+    },
     evaluatedAt: new Date().toISOString()
   });
 });

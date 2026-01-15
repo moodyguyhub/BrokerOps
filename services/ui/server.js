@@ -12,7 +12,8 @@ const API_URLS = {
   reconstruction: process.env.RECONSTRUCTION_URL ?? "http://localhost:7004",
   economics: process.env.ECONOMICS_URL ?? "http://localhost:7005",
   webhooks: process.env.WEBHOOKS_URL ?? "http://localhost:7006",
-  riskGate: process.env.RISK_GATE_URL ?? "http://localhost:7002"
+  riskGate: process.env.RISK_GATE_URL ?? "http://localhost:7002",
+  orderApi: process.env.ORDER_API_URL ?? "http://localhost:7001"
 };
 
 // Serve static files
@@ -82,7 +83,7 @@ app.get("/api/webhooks/deliveries", async (req, res) => {
   }
 });
 
-// P2: Policy Playground - dry run evaluation
+// P2: Policy Playground - dry run evaluation (via risk-gate direct)
 app.post("/api/risk/evaluate", async (req, res) => {
   try {
     const resp = await fetch(`${API_URLS.riskGate}/evaluate`, {
@@ -94,6 +95,33 @@ app.post("/api/risk/evaluate", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: "Failed to evaluate policy" });
+  }
+});
+
+// Policy Playground - full dry-run via order-api (includes preview economics)
+app.post("/api/dry-run", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/dry-run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to run dry-run evaluation", dryRun: true });
+  }
+});
+
+// Pending overrides endpoint (returns count for KPI)
+app.get("/api/overrides/pending", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.reconstruction}/overrides/pending`);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    // Return 0 if endpoint not available yet
+    res.json({ count: 0, pendingOverrides: [] });
   }
 });
 
