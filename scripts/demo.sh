@@ -49,7 +49,7 @@ log "Applying database migrations..."
 docker exec -i broker-postgres psql -U broker -d broker < infra/sql/001_init.sql 2>/dev/null || true
 
 log "Building all services..."
-pnpm -r build --silent
+pnpm -r build 2>/dev/null
 
 log "Starting services..."
 pkill -f "node services/" 2>/dev/null || true
