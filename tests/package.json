@@ -3,8 +3,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "test": "node --test --test-reporter spec dist/policy/opa_decision.test.js",
+    "test": "node --test --test-reporter spec dist/policy/*.test.js",
     "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@broker/common": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

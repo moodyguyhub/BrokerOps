@@ -310,6 +310,62 @@ export function verifyEvidencePack(pack: EvidencePackV1): {
 }
 
 /**
+ * Verify Evidence Pack policy snapshot matches Decision Token hash (P0-R3)
+ * This ensures the evidence pack contains the exact policy used at decision time
+ */
+export function verifyPolicyConsistency(
+  pack: EvidencePackV1,
+  decisionTokenPolicyHash?: string
+): {
+  consistent: boolean;
+  packPolicyHash: string;
+  tokenPolicyHash: string | null;
+  error?: string;
+} {
+  const packPolicyHash = pack.components.policySnapshot.policyHash;
+  
+  // If no decision token hash provided, try to extract from audit chain
+  let tokenPolicyHash = decisionTokenPolicyHash ?? null;
+  
+  if (!tokenPolicyHash) {
+    // Look for policy_snapshot_hash in decision events
+    const decisionEvent = pack.components.auditChain.events.find(
+      e => e.eventType === "risk.decision" || 
+           e.eventType === "order.authorized" || 
+           e.eventType === "order.blocked"
+    );
+    
+    if (decisionEvent?.payload) {
+      const payload = decisionEvent.payload as any;
+      tokenPolicyHash = payload.decision_token?.payload?.policy_snapshot_hash ?? 
+                        payload.policy_snapshot_hash ?? null;
+    }
+  }
+  
+  if (!tokenPolicyHash) {
+    return {
+      consistent: false,
+      packPolicyHash,
+      tokenPolicyHash: null,
+      error: "No policy_snapshot_hash found in decision token or audit chain"
+    };
+  }
+  
+  // The decision token uses a truncated hash (16 chars), so compare prefixes
+  const packHashPrefix = packPolicyHash.slice(0, 16);
+  const tokenHashPrefix = tokenPolicyHash.slice(0, 16);
+  
+  const consistent = packHashPrefix === tokenHashPrefix;
+  
+  return {
+    consistent,
+    packPolicyHash,
+    tokenPolicyHash,
+    error: consistent ? undefined : `Policy hash mismatch: pack=${packHashPrefix}, token=${tokenHashPrefix}`
+  };
+}
+
+/**
  * Serialize Evidence Pack to JSON (for storage/transmission)
  */
 export function serializeEvidencePack(pack: EvidencePackV1): string {

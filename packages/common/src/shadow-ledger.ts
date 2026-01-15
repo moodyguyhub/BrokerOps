@@ -367,4 +367,181 @@ export class ShadowLedger {
       client.release();
     }
   }
+
+  /**
+   * Expire stale AUTHORIZED holds (P0-R1 fix)
+   * Called periodically to revert exposure for tokens that were never executed
+   * 
+   * @param tokenTtlSeconds - Maximum age of unexpired holds (default: 300s = 5 min)
+   * @returns Array of expired trace IDs
+   */
+  async expireStaleHolds(tokenTtlSeconds: number = 300): Promise<string[]> {
+    const client = await this.pool.connect();
+    const expiredTraces: string[] = [];
+    
+    try {
+      // Find AUTHORIZED events that haven't been followed by FILLED/CANCELLED
+      // and are older than the TTL
+      const staleHolds = await client.query(`
+        WITH authorized_holds AS (
+          SELECT 
+            ee.trace_id,
+            ee.client_id,
+            ee.symbol,
+            ee.exposure_delta,
+            ee.created_at
+          FROM exposure_events ee
+          WHERE ee.event_type = 'AUTHORIZED'
+            AND ee.created_at < NOW() - INTERVAL '${tokenTtlSeconds} seconds'
+        ),
+        settled AS (
+          SELECT DISTINCT trace_id
+          FROM exposure_events
+          WHERE event_type IN ('FILLED', 'CANCELLED', 'EXPIRED')
+        )
+        SELECT ah.*
+        FROM authorized_holds ah
+        LEFT JOIN settled s ON ah.trace_id = s.trace_id
+        WHERE s.trace_id IS NULL
+      `);
+
+      for (const hold of staleHolds.rows) {
+        // Revert the exposure
+        await client.query(`
+          UPDATE shadow_ledger
+          SET pending_exposure = GREATEST(0, pending_exposure - $1),
+              updated_at = NOW()
+          WHERE client_id = $2 AND symbol = $3
+        `, [Math.abs(hold.exposure_delta), hold.client_id, hold.symbol]);
+
+        // Get prev hash for chain
+        const prevHashResult = await client.query(`
+          SELECT hash FROM exposure_events
+          WHERE client_id = $1
+          ORDER BY id DESC LIMIT 1
+        `, [hold.client_id]);
+        
+        const prevHash = prevHashResult.rows[0]?.hash ?? null;
+        const reversalDelta = -Math.abs(hold.exposure_delta);
+        
+        const newHash = createHash("sha256")
+          .update(`${prevHash ?? "genesis"}:${hold.trace_id}:${hold.client_id}:${hold.symbol}:${reversalDelta}`)
+          .digest("hex");
+
+        // Log expiry event
+        await client.query(`
+          INSERT INTO exposure_events (
+            trace_id, client_id, symbol, event_type, 
+            exposure_delta, prev_hash, hash
+          ) VALUES ($1, $2, $3, 'EXPIRED', $4, $5, $6)
+        `, [hold.trace_id, hold.client_id, hold.symbol, reversalDelta, prevHash, newHash]);
+
+        expiredTraces.push(hold.trace_id);
+      }
+
+      return expiredTraces;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Record cancellation of an authorized order
+   */
+  async recordCancelled(
+    traceId: string,
+    clientId: string,
+    symbol: string,
+    originalExposure: number
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      // Revert pending exposure
+      await client.query(`
+        UPDATE shadow_ledger
+        SET pending_exposure = GREATEST(0, pending_exposure - $1),
+            updated_at = NOW()
+        WHERE client_id = $2 AND symbol = $3
+      `, [originalExposure, clientId, symbol]);
+
+      // Get prev hash
+      const prevHashResult = await client.query(`
+        SELECT hash FROM exposure_events
+        WHERE client_id = $1
+        ORDER BY id DESC LIMIT 1
+      `, [clientId]);
+      
+      const prevHash = prevHashResult.rows[0]?.hash ?? null;
+      const reversalDelta = -originalExposure;
+      
+      const newHash = createHash("sha256")
+        .update(`${prevHash ?? "genesis"}:${traceId}:${clientId}:${symbol}:${reversalDelta}`)
+        .digest("hex");
+
+      // Log cancellation event
+      await client.query(`
+        INSERT INTO exposure_events (
+          trace_id, client_id, symbol, event_type,
+          exposure_delta, prev_hash, hash
+        ) VALUES ($1, $2, $3, 'CANCELLED', $4, $5, $6)
+      `, [traceId, clientId, symbol, reversalDelta, prevHash, newHash]);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get pending holds that are close to expiry (for monitoring)
+   */
+  async getPendingHolds(clientId?: string): Promise<Array<{
+    traceId: string;
+    clientId: string;
+    symbol: string;
+    exposureDelta: number;
+    createdAt: string;
+    ageSeconds: number;
+  }>> {
+    const client = await this.pool.connect();
+    try {
+      let query = `
+        WITH authorized_holds AS (
+          SELECT 
+            trace_id, client_id, symbol, exposure_delta, created_at,
+            EXTRACT(EPOCH FROM (NOW() - created_at)) as age_seconds
+          FROM exposure_events
+          WHERE event_type = 'AUTHORIZED'
+        ),
+        settled AS (
+          SELECT DISTINCT trace_id
+          FROM exposure_events
+          WHERE event_type IN ('FILLED', 'CANCELLED', 'EXPIRED')
+        )
+        SELECT ah.*
+        FROM authorized_holds ah
+        LEFT JOIN settled s ON ah.trace_id = s.trace_id
+        WHERE s.trace_id IS NULL
+      `;
+      
+      const params: any[] = [];
+      if (clientId) {
+        query += ` AND ah.client_id = $1`;
+        params.push(clientId);
+      }
+      
+      query += ` ORDER BY ah.created_at DESC`;
+      
+      const result = await client.query(query, params);
+      
+      return result.rows.map(row => ({
+        traceId: row.trace_id,
+        clientId: row.client_id,
+        symbol: row.symbol,
+        exposureDelta: parseFloat(row.exposure_delta),
+        createdAt: row.created_at,
+        ageSeconds: Math.round(parseFloat(row.age_seconds))
+      }));
+    } finally {
+      client.release();
+    }
+  }
 }

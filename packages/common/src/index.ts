@@ -25,6 +25,7 @@ export {
 export {
   buildEvidencePack,
   verifyEvidencePack,
+  verifyPolicyConsistency,
   serializeEvidencePack,
   deserializeEvidencePack,
   hashComponent,
