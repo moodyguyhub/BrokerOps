@@ -1,0 +1,13 @@
+{
+  "name": "@broker/tests",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-reporter spec dist/policy/opa_decision.test.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.0"
+  }
+}
