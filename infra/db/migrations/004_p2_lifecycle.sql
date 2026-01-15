@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS lifecycle_events (
   price NUMERIC,
   realized_pnl NUMERIC,
   pnl_source VARCHAR(16),
+  source VARCHAR(16),  -- Event source: PLATFORM, BACKOFFICE
   raw_payload JSONB NOT NULL,
   -- Clock skew protection: store both asserted (from event) and received (server)
   asserted_at TIMESTAMPTZ,

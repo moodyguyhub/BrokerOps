@@ -439,10 +439,13 @@ app.get("/trace/:traceId/evidence-pack", async (req, res) => {
     // P2-G2: Fetch realized economics from lifecycle_events (execution + close events)
     try {
       // Get the decision_token from audit events for this trace
+      // The decision token payload contains trace_id, and lifecycle events store decision_token=traceId
       const decisionEvent = events.rows.find(e => 
         e.event_type === 'order.authorized' || e.event_type === 'order.accepted'
       );
-      const decisionToken = decisionEvent?.payload_json?.decision_token;
+      
+      // Use traceId as the lookup key (lifecycle events store traceId as decision_token)
+      const decisionToken = decisionEvent?.payload_json?.decisionToken?.trace_id ?? traceId;
       
       if (decisionToken) {
         // Fetch execution events
