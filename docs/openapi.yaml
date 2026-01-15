@@ -43,6 +43,8 @@ tags:
     description: Decision economics tracking
   - name: Webhooks
     description: Event notifications for external systems
+  - name: Playground
+    description: Policy dry-run and testing endpoints
 
 paths:
   # ============================================================================
@@ -94,6 +96,66 @@ paths:
                     reasonCode: "SYMBOL_RESTRICTION"
                     policyVersion: "policy.v0.2"
                     ruleId: "symbol_gme"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # Playground (Dry-Run)
+  # ============================================================================
+  /dry-run:
+    post:
+      tags: [Playground]
+      summary: Evaluate policy without persisting (dry-run)
+      description: |
+        Test how the guardrail engine would evaluate an order without creating
+        any audit records. Useful for:
+        - Testing new policies before deployment
+        - Validating order parameters before submission
+        - Training and documentation
+        
+        **Important:** No data is persisted, no traceId is generated.
+      operationId: dryRunEvaluate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+            example:
+              clientOrderId: "test-001"
+              symbol: "AAPL"
+              side: "BUY"
+              qty: 100
+              price: 150.00
+      responses:
+        '200':
+          description: Policy evaluation result (not persisted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DryRunResponse'
+              examples:
+                would_allow:
+                  summary: Order would be allowed
+                  value:
+                    decision: "ALLOW"
+                    allow: true
+                    reasonCode: "OK"
+                    policyVersion: "policy.v0.2"
+                    dryRun: true
+                would_block:
+                  summary: Order would be blocked
+                  value:
+                    decision: "BLOCK"
+                    allow: false
+                    reasonCode: "QTY_LIMIT_EXCEEDED"
+                    ruleId: "qty_limit"
+                    policyVersion: "policy.v0.2"
+                    dryRun: true
         '400':
           description: Invalid request
           content:
@@ -437,6 +499,31 @@ components:
         ruleId:
           type: string
           description: Specific rule that triggered (for BLOCK decisions)
+
+    # --- Dry-Run (Playground) ---
+    DryRunResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [ALLOW, BLOCK]
+          description: Policy decision
+        allow:
+          type: boolean
+          description: Whether order would be allowed
+        reasonCode:
+          type: string
+          description: Reason code for the decision
+        ruleId:
+          type: string
+          description: Rule that triggered (for BLOCK decisions)
+        policyVersion:
+          type: string
+          description: Version of policy evaluated
+        dryRun:
+          type: boolean
+          const: true
+          description: Indicates this was a dry-run (always true)
 
     # --- Overrides ---
     OverrideRequest:
