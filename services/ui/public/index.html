@@ -7,27 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Tailwind CDN inline config — must come AFTER cdn script loads
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            mono: ['JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
-          },
-          colors: {
-            sidebar: {
-              DEFAULT: '#0f172a',
-              hover: '#1e293b',
-              border: '#334155'
-            }
-          }
-        }
-      }
-    };
-  </script>
+  <link href="/styles.css" rel="stylesheet" />
   <style>
     :root {
       --bg: #0f172a;

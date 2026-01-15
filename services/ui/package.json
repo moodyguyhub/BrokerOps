@@ -4,10 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "tailwindcss -i ./src/input.css -o ./public/styles.css --minify",
+    "build:watch": "tailwindcss -i ./src/input.css -o ./public/styles.css --watch",
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "concurrently \"pnpm build:watch\" \"node server.js\""
   },
   "dependencies": {
     "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.20",
+    "concurrently": "^9.1.2",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17"
   }
 }

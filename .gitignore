@@ -4,3 +4,6 @@ dist/
 .env
 .DS_Store
 evidence/
+
+# Build artifacts
+services/ui/public/styles.css
