@@ -59,6 +59,7 @@ node services/risk-gate/dist/index.js &
 node services/audit-writer/dist/index.js &
 node services/order-api/dist/index.js &
 node services/reconstruction-api/dist/index.js &
+node services/economics/dist/index.js &
 
 sleep 2
 
@@ -68,6 +69,7 @@ curl -sf http://localhost:7001/health > /dev/null && success "order-api :7001" |
 curl -sf http://localhost:7002/health > /dev/null && success "risk-gate :7002" || error "risk-gate"
 curl -sf http://localhost:7003/health > /dev/null && success "audit-writer :7003" || error "audit-writer"
 curl -sf http://localhost:7004/health > /dev/null && success "reconstruction-api :7004" || error "reconstruction-api"
+curl -sf http://localhost:7005/health > /dev/null && success "economics :7005" || error "economics"
 curl -sf http://localhost:8181/health > /dev/null && success "OPA :8181" || error "OPA"
 
 # ============================================================================
@@ -138,6 +140,27 @@ else
 fi
 
 # ============================================================================
+header "Step 5: Record Economic Impact"
+# ============================================================================
+
+log "Recording economic event: blocked trade would have generated \$12.50 revenue"
+ECON_BLOCKED=$(curl -s -X POST http://localhost:7005/economics/event \
+  -H "content-type: application/json" \
+  -d "{\"traceId\":\"$TRACE_ID\",\"type\":\"TRADE_BLOCKED\",\"estimatedLostRevenue\":12.50,\"currency\":\"USD\",\"source\":\"demo\",\"policyId\":\"symbol_gme\"}")
+success "Economic event recorded (TRADE_BLOCKED, lost \$12.50)"
+
+log "Recording economic event: override approved, trade executed"
+ECON_OVERRIDE=$(curl -s -X POST http://localhost:7005/economics/event \
+  -H "content-type: application/json" \
+  -d "{\"traceId\":\"$TRACE_ID\",\"type\":\"OVERRIDE_APPROVED\",\"grossRevenue\":12.50,\"fees\":1.20,\"costs\":0.80,\"currency\":\"USD\",\"source\":\"demo\"}")
+success "Economic event recorded (OVERRIDE_APPROVED, +\$12.50 revenue)"
+
+echo ""
+log "Fetching economics summary..."
+ECON_SUMMARY=$(curl -s http://localhost:7005/economics/summary)
+echo "$ECON_SUMMARY" | jq '.'
+
+# ============================================================================
 header "Trace Reconstruction (The Product Thesis)"
 # ============================================================================
 
@@ -149,6 +172,13 @@ echo -e "${GREEN}═════════════════════
 echo -e "${GREEN}  TRACE BUNDLE SUMMARY${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
 echo "$BUNDLE" | jq '.summary'
+
+ECONOMIC_IMPACT=$(echo "$BUNDLE" | jq '.summary.economicImpact')
+if [ "$ECONOMIC_IMPACT" != "null" ]; then
+  echo ""
+  echo -e "${YELLOW}Economic Impact attached to trace:${NC}"
+  echo "$ECONOMIC_IMPACT" | jq '.'
+fi
 
 echo ""
 echo -e "${BLUE}Hash Chain (integrity verified):${NC}"
@@ -176,9 +206,10 @@ echo "    ✓ What was requested (GME 100 shares)"
 echo "    ✓ Why it was blocked (SYMBOL_RESTRICTION, rule: symbol_gme)"
 echo "    ✓ Who requested override (ops-alice)"
 echo "    ✓ Who approved it (ops-bob)"
+echo "    ✓ What it cost/earned (economic impact attached)"
 echo "    ✓ That the audit trail is tamper-evident (hash chain verified)"
 echo ""
-echo -e "${YELLOW}This is governance as code.${NC}"
+echo -e "${YELLOW}This is governance as code + decision economics.${NC}"
 echo ""
 
 # Keep services running for exploration

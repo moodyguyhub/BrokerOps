@@ -5,6 +5,8 @@ const { Pool } = pg;
 
 const app = express();
 
+const ECONOMICS_URL = process.env.ECONOMICS_URL ?? "http://localhost:7005";
+
 const pool = new Pool({
   host: process.env.PGHOST ?? "localhost",
   port: Number(process.env.PGPORT ?? 5434),
@@ -164,6 +166,26 @@ app.get("/trace/:traceId/bundle", async (req, res) => {
     e.event_type === "operator.override" || e.event_type === "override.approved"
   );
 
+  // Fetch economics data for this trace (best effort - don't fail if unavailable)
+  let economicImpact: { estimatedLostRevenue?: number; grossRevenue?: number; currency: string } | null = null;
+  try {
+    const econRes = await fetch(`${ECONOMICS_URL}/economics/trace/${traceId}`);
+    if (econRes.ok) {
+      const econData = await econRes.json() as { 
+        summary?: { estimatedLostRevenue?: number; totalRevenue?: number; currency?: string } 
+      };
+      if (econData.summary) {
+        economicImpact = {
+          estimatedLostRevenue: econData.summary.estimatedLostRevenue || undefined,
+          grossRevenue: econData.summary.totalRevenue || undefined,
+          currency: econData.summary.currency ?? "USD"
+        };
+      }
+    }
+  } catch {
+    // Economics service unavailable - continue without it
+  }
+
   const summary = {
     traceId,
     outcome: orderOutcome?.event_type === "order.accepted" ? "ACCEPTED" : "BLOCKED",
@@ -174,6 +196,7 @@ app.get("/trace/:traceId/bundle", async (req, res) => {
     hasOverride: !!operatorOverride,
     overrideBy: operatorOverride?.payload_json?.operatorId ?? operatorOverride?.payload_json?.approvedBy ?? null,
     overrideReason: operatorOverride?.payload_json?.reason ?? null,
+    economicImpact,
     order: orderRequested?.payload_json?.raw ?? null,
     eventCount: events.length,
     hashChainValid: true, // If we got here, it's valid

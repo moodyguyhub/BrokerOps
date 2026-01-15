@@ -50,6 +50,34 @@ importers:
         specifier: ^5.5.4
         version: 5.9.3
 
+  services/economics:
+    dependencies:
+      '@broker/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      pg:
+        specifier: ^8.11.3
+        version: 8.17.1
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.29
+      '@types/pg':
+        specifier: ^8.10.9
+        version: 8.16.0
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
   services/order-api:
     dependencies:
       '@broker/common':
