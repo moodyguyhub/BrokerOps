@@ -1,6 +1,15 @@
 import express from "express";
 import crypto from "crypto";
 import pg from "pg";
+import {
+  buildEvidencePack,
+  extractPolicySnapshot,
+  extractDecision,
+  extractAuditChain,
+  extractOperatorIdentity,
+  serializeEvidencePack,
+  type EconomicsComponent
+} from "@broker/common";
 const { Pool } = pg;
 
 const app = express();
@@ -129,12 +138,13 @@ app.get("/traces/recent", async (req, res) => {
       MIN(created_at) as started_at,
       MAX(created_at) as last_event_at,
       COUNT(*) as event_count,
-      MAX(CASE WHEN event_type = 'order.accepted' THEN 'ACCEPTED' 
+      MAX(CASE WHEN event_type IN ('order.accepted', 'order.authorized') THEN 'AUTHORIZED' 
                WHEN event_type = 'order.blocked' THEN 'BLOCKED' 
                ELSE NULL END) as outcome,
       MAX(CASE WHEN event_type = 'risk.decision' THEN payload_json->>'reasonCode' ELSE NULL END) as reason_code,
       MAX(CASE WHEN event_type = 'risk.decision' THEN payload_json->>'ruleId' ELSE NULL END) as rule_id,
-      MAX(CASE WHEN event_type = 'override.approved' THEN 'true' ELSE NULL END) as has_override
+      MAX(CASE WHEN event_type = 'override.approved' THEN 'true' ELSE NULL END) as has_override,
+      MAX(CASE WHEN event_type IN ('order.authorized', 'order.blocked') THEN payload_json->>'decision_signature' ELSE NULL END) as decision_signature
     FROM audit_events
     GROUP BY trace_id
     ORDER BY MAX(created_at) DESC
@@ -151,7 +161,8 @@ app.get("/traces/recent", async (req, res) => {
       outcome: row.outcome ?? "PENDING",
       reasonCode: row.reason_code,
       ruleId: row.rule_id,
-      hasOverride: row.has_override === "true"
+      hasOverride: row.has_override === "true",
+      decisionSignature: row.decision_signature ?? null
     }))
   });
 });
@@ -197,7 +208,7 @@ app.get("/trace/:traceId/bundle", async (req, res) => {
   const riskDecision = events.find(e => e.event_type === "risk.decision");
   const orderRequested = events.find(e => e.event_type === "order.requested");
   const orderOutcome = events.find(e => 
-    e.event_type === "order.accepted" || e.event_type === "order.blocked"
+    e.event_type === "order.accepted" || e.event_type === "order.authorized" || e.event_type === "order.blocked"
   );
   const operatorOverride = events.find(e => 
     e.event_type === "operator.override" || e.event_type === "override.approved"
@@ -225,7 +236,8 @@ app.get("/trace/:traceId/bundle", async (req, res) => {
 
   const summary = {
     traceId,
-    outcome: orderOutcome?.event_type === "order.accepted" ? "ACCEPTED" : "BLOCKED",
+    outcome: (orderOutcome?.event_type === "order.accepted" || orderOutcome?.event_type === "order.authorized") ? "AUTHORIZED" : "BLOCKED",
+    decisionSignature: orderOutcome?.payload_json?.decision_signature ?? null,
     decision: riskDecision?.payload_json?.decision ?? "UNKNOWN",
     reasonCode: riskDecision?.payload_json?.reasonCode ?? "UNKNOWN",
     ruleId: riskDecision?.payload_json?.ruleId ?? null,
@@ -349,7 +361,7 @@ app.get("/evaluations/by-account/:accountId", async (req, res) => {
       ae.trace_id,
       MIN(ae.created_at) as started_at,
       COUNT(*) as event_count,
-      MAX(CASE WHEN ae.event_type = 'order.accepted' THEN 'ACCEPTED' 
+      MAX(CASE WHEN ae.event_type IN ('order.accepted', 'order.authorized') THEN 'AUTHORIZED' 
                WHEN ae.event_type = 'order.blocked' THEN 'BLOCKED' 
                ELSE NULL END) as outcome,
       MAX(CASE WHEN ae.event_type = 'risk.decision' THEN ae.payload_json->>'reasonCode' ELSE NULL END) as reason_code
@@ -372,6 +384,141 @@ app.get("/evaluations/by-account/:accountId", async (req, res) => {
     }))
   });
 });
+
+// GET /trace/:traceId/evidence-pack - Generate Evidence Pack v1 for trace
+app.get("/trace/:traceId/evidence-pack", async (req, res) => {
+  const { traceId } = req.params;
+  
+  try {
+    // Fetch trace bundle first
+    const events = await pool.query<AuditRow>(
+      "SELECT * FROM audit_events WHERE trace_id = $1 ORDER BY id",
+      [traceId]
+    );
+    
+    if (events.rows.length === 0) {
+      return res.status(404).json({ error: "TRACE_NOT_FOUND", traceId });
+    }
+    
+    // Build trace bundle (reuse existing logic)
+    const chainVerification = verifyHashChain(events.rows);
+    
+    // Fetch economics if available
+    let economics: EconomicsComponent | undefined;
+    try {
+      const econRes = await fetch(`${ECONOMICS_URL}/economics/trace/${traceId}`);
+      if (econRes.ok) {
+        const econData = await econRes.json();
+        if (!econData.error && econData.summary) {
+          economics = {
+            traceId,
+            summary: {
+              grossRevenue: econData.summary.totalRevenue ?? 0,
+              fees: econData.summary.fees ?? 0,
+              costs: econData.summary.totalCosts ?? 0,
+              estimatedLostRevenue: econData.summary.estimatedLostRevenue ?? 0,
+              netImpact: (econData.summary.totalRevenue ?? 0) - (econData.summary.totalCosts ?? 0),
+              currency: econData.summary.currency ?? "USD"
+            },
+            events: (econData.events ?? []).map((e: any) => ({
+              eventType: e.eventType,
+              amount: e.grossRevenue ?? e.estimatedLostRevenue ?? 0,
+              source: e.source ?? "unknown",
+              timestamp: e.createdAt
+            }))
+          };
+        }
+      }
+    } catch {
+      // Economics service might not be available
+    }
+    
+    // Build minimal trace bundle for extraction
+    const traceBundle = {
+      traceId,
+      events: events.rows.map(r => ({
+        eventType: r.event_type,
+        eventVersion: r.event_version,
+        payload: r.payload_json,
+        prevHash: r.prev_hash,
+        hash: r.hash,
+        timestamp: r.created_at
+      })),
+      summary: buildSummaryFromEvents(events.rows, chainVerification)
+    };
+    
+    // Get policy content (from OPA or file)
+    let policyContent = "# Policy content not available";
+    try {
+      const opaRes = await fetch("http://localhost:8181/v1/policies");
+      if (opaRes.ok) {
+        const policies = await opaRes.json();
+        policyContent = JSON.stringify(policies.result, null, 2);
+      }
+    } catch {
+      // OPA might not be available
+    }
+    
+    // Extract components
+    const policySnapshot = extractPolicySnapshot(traceBundle, policyContent);
+    const decision = extractDecision(traceBundle);
+    const auditChain = extractAuditChain(traceBundle);
+    const operatorIdentity = extractOperatorIdentity(traceBundle);
+    
+    // Build evidence pack
+    const pack = buildEvidencePack(
+      traceId,
+      {
+        policySnapshot,
+        decision,
+        auditChain,
+        economics,
+        operatorIdentity
+      },
+      {
+        generatorName: "BrokerOps Reconstruction API",
+        generatorVersion: "1.0.0",
+        commitHash: process.env.GIT_COMMIT ?? "unknown"
+      }
+    );
+    
+    res.json(pack);
+  } catch (err) {
+    console.error("Evidence pack generation error:", err);
+    res.status(500).json({ 
+      error: "EVIDENCE_PACK_GENERATION_FAILED",
+      message: err instanceof Error ? err.message : "Unknown error"
+    });
+  }
+});
+
+// Helper function to build summary from events (reused)
+function buildSummaryFromEvents(events: AuditRow[], chainVerification: HashChainVerification) {
+  const riskDecision = events.find(e => e.event_type === "risk.decision");
+  const orderRequested = events.find(e => e.event_type === "order.requested");
+  const authorizedEvent = events.find(e => 
+    e.event_type === "order.authorized" || e.event_type === "order.accepted"
+  );
+  const blockedEvent = events.find(e => e.event_type === "order.blocked");
+  const overrideApproved = events.find(e => e.event_type === "override.approved");
+  
+  return {
+    traceId: events[0]?.trace_id,
+    outcome: authorizedEvent ? "AUTHORIZED" : blockedEvent ? "BLOCKED" : "PENDING",
+    decision: riskDecision?.payload_json?.decision ?? "UNKNOWN",
+    reasonCode: riskDecision?.payload_json?.reasonCode ?? "UNKNOWN",
+    ruleId: riskDecision?.payload_json?.ruleId,
+    policyVersion: riskDecision?.payload_json?.policyVersion ?? "unknown",
+    decisionSignature: authorizedEvent?.payload_json?.decision_signature ?? blockedEvent?.payload_json?.decision_signature,
+    hasOverride: !!overrideApproved,
+    overrideBy: overrideApproved?.payload_json?.approvedBy,
+    order: orderRequested?.payload_json?.raw ?? orderRequested?.payload_json,
+    hashChainValid: chainVerification.valid,
+    eventCount: events.length,
+    firstEvent: events[0]?.created_at,
+    lastEvent: events[events.length - 1]?.created_at
+  };
+}
 
 app.get("/health", async (_, res) => {
   const r = await pool.query("SELECT 1 as ok");

@@ -19,7 +19,7 @@ window.PolicyTranslator = {
 
     if (reasonCode === 'OK' || reasonCode === 'APPROVED') {
       return {
-        primary: '✓ All guardrails passed — order auto-approved',
+        primary: '✓ All guardrails passed — order authorized',
         secondary: `Guardrail Set: ${summary.policyVersion || 'default'}`
       };
     }
@@ -58,8 +58,9 @@ window.PolicyTranslator = {
     const map = {
       'order.requested': 'Order Submitted',
       'risk.decision': 'Guardrail Evaluated',
-      'order.accepted': 'Auto-Approved',
-      'order.blocked': 'Policy-Blocked',
+      'order.authorized': 'Authorized',
+      'order.accepted': 'Authorized',
+      'order.blocked': 'Blocked',
       'override.requested': 'Override Requested',
       'override.approved': 'Override Approved',
       'operator.override': 'Manual Override'

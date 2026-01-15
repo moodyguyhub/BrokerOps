@@ -1,6 +1,47 @@
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
+// Re-export Decision Token utilities
+export {
+  issueDecisionToken,
+  verifyDecisionToken,
+  getCompactSignature,
+  type DecisionToken,
+  type DecisionTokenPayload
+} from "./decision-token.js";
+
+// Re-export Shadow Ledger utilities
+export {
+  ShadowLedger,
+  calculateExposureEventHash,
+  type ExposureCheck,
+  type ExposureCheckResult,
+  type ClientExposureSummary,
+  type SymbolPosition,
+  type ExposureEvent
+} from "./shadow-ledger.js";
+
+// Re-export Evidence Pack v1 utilities
+export {
+  buildEvidencePack,
+  verifyEvidencePack,
+  serializeEvidencePack,
+  deserializeEvidencePack,
+  hashComponent,
+  calculatePackHash,
+  extractPolicySnapshot,
+  extractDecision,
+  extractAuditChain,
+  extractOperatorIdentity,
+  type EvidencePackV1,
+  type EvidenceManifestV1,
+  type PolicySnapshotComponent,
+  type DecisionComponent,
+  type AuditChainComponent,
+  type EconomicsComponent,
+  type OperatorIdentityComponent
+} from "./evidence-pack.js";
+
 export const TraceId = z.string().min(8);
 
 export function newTraceId(): string {

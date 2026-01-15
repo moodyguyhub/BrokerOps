@@ -1,5 +1,12 @@
 import express from "express";
-import { newTraceId, OrderRequestSchema, type RiskDecision, emitWebhook } from "@broker/common";
+import { 
+  newTraceId, 
+  OrderRequestSchema, 
+  type RiskDecision, 
+  emitWebhook,
+  issueDecisionToken,
+  getCompactSignature
+} from "@broker/common";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +44,8 @@ async function decideRisk(order: any): Promise<RiskDecision> {
 
 app.post("/orders", async (req, res) => {
   const traceId = req.header("x-trace-id") ?? newTraceId();
+  const clientId = req.header("x-client-id") ?? "default-client";
+  const audience = req.header("x-audience") ?? "trading-platform";
 
   const parsed = OrderRequestSchema.safeParse(req.body);
   await audit(traceId, "order.requested", { raw: req.body, valid: parsed.success });
@@ -50,17 +59,92 @@ app.post("/orders", async (req, res) => {
   const decision = await decideRisk(order);
   await audit(traceId, "risk.decision", decision);
 
+  // Calculate projected exposure for shadow ledger
+  const projectedExposure = (order.qty ?? 0) * (order.price ?? 0);
+
   if (decision.decision === "BLOCK") {
-    await audit(traceId, "order.blocked", { ...decision, order });
-    await emitWebhook("trace.completed", traceId, { status: "BLOCKED", ...decision, order });
-    return res.status(403).json({ traceId, status: "BLOCKED", ...decision });
+    // Issue BLOCKED Decision Token
+    const token = issueDecisionToken({
+      traceId,
+      decision: "BLOCK",
+      reasonCode: (decision as any).reasonCode,
+      ruleId: (decision as any).ruleId,
+      policyVersion: decision.policyVersion,
+      order: {
+        symbol: order.symbol,
+        side: order.side,
+        qty: order.qty,
+        price: order.price,
+        clientOrderId: order.clientOrderId
+      },
+      subject: clientId,
+      audience,
+      projectedExposure
+    });
+
+    await audit(traceId, "order.blocked", { 
+      ...decision, 
+      order,
+      decisionToken: token.payload,
+      decision_signature: getCompactSignature(token)
+    });
+    await emitWebhook("trace.completed", traceId, { 
+      status: "BLOCKED", 
+      ...decision, 
+      order,
+      decision_signature: getCompactSignature(token)
+    });
+
+    return res.status(403).json({ 
+      traceId, 
+      status: "BLOCKED", 
+      ...decision,
+      decision_signature: getCompactSignature(token),
+      decision_token: token
+    });
   }
 
-  await audit(traceId, "order.accepted", { ...decision, order });
-  await emitWebhook("trace.completed", traceId, { status: "ACCEPTED", ...decision, order });
+  // Issue AUTHORIZED Decision Token (renamed from ACCEPTED)
+  const token = issueDecisionToken({
+    traceId,
+    decision: "ALLOW",
+    reasonCode: (decision as any).reasonCode ?? "OK",
+    ruleId: (decision as any).ruleId,
+    policyVersion: decision.policyVersion,
+    order: {
+      symbol: order.symbol,
+      side: order.side,
+      qty: order.qty,
+      price: order.price,
+      clientOrderId: order.clientOrderId
+    },
+    subject: clientId,
+    audience,
+    projectedExposure
+  });
 
-  // v0: no execution. Just accept.
-  return res.json({ traceId, status: "ACCEPTED", ...decision });
+  await audit(traceId, "order.authorized", { 
+    ...decision, 
+    order,
+    decisionToken: token.payload,
+    decision_signature: getCompactSignature(token)
+  });
+  await emitWebhook("trace.completed", traceId, { 
+    status: "AUTHORIZED", 
+    ...decision, 
+    order,
+    decision_signature: getCompactSignature(token)
+  });
+
+  // Gate issues Decision Token - trading platform is execution master
+  return res.json({ 
+    traceId, 
+    status: "AUTHORIZED",
+    ...decision,
+    decision_signature: getCompactSignature(token),
+    decision_token: token,
+    gate_note: "Decision Token issued. Trading platform remains execution master."
+  });
 });
 
 // ============================================================================
