@@ -171,6 +171,40 @@ else
 fi
 
 # ============================================================================
+# 5b. Economics Data
+# ============================================================================
+log "Fetching economics data..."
+
+mkdir -p "$EVIDENCE_DIR/economics"
+
+# Check if economics service is running
+if curl -sf http://localhost:7005/health > /dev/null 2>&1; then
+  # Trace-level economics
+  curl -s "http://localhost:7005/economics/trace/$TRACE_ID" > "$EVIDENCE_DIR/economics/trace.json" 2>/dev/null || true
+  
+  # Global summary (for context)
+  curl -s "http://localhost:7005/economics/summary" > "$EVIDENCE_DIR/economics/summary.json" 2>/dev/null || true
+  
+  success "Economics data fetched"
+  
+  # Export raw economic events for this trace from DB
+  if docker exec broker-postgres psql -U broker -d broker -c "SELECT 1" > /dev/null 2>&1; then
+    docker exec broker-postgres psql -U broker -d broker -t -A -F',' \
+      -c "SELECT id, trace_id, event_type, gross_revenue, fees, costs, estimated_lost_revenue, currency, source, policy_id, hash, created_at FROM economic_events WHERE trace_id='$TRACE_ID' ORDER BY id" \
+      > "$EVIDENCE_DIR/economics/economic_events.csv" 2>/dev/null || true
+    
+    # Add CSV header
+    if [ -s "$EVIDENCE_DIR/economics/economic_events.csv" ]; then
+      sed -i '1i id,trace_id,event_type,gross_revenue,fees,costs,estimated_lost_revenue,currency,source,policy_id,hash,created_at' "$EVIDENCE_DIR/economics/economic_events.csv"
+      success "Economic events CSV exported"
+    fi
+  fi
+else
+  echo '{"error": "economics service not running"}' > "$EVIDENCE_DIR/economics/trace.json"
+  log "Economics data skipped (economics service not running)"
+fi
+
+# ============================================================================
 # 6. Generate Evidence Summary (human-readable)
 # ============================================================================
 log "Generating evidence summary..."
@@ -236,12 +270,40 @@ fi
 
 cat >> "$SUMMARY_FILE" <<EOF
 
+## Economic Impact
+
+EOF
+
+if [ -f "$EVIDENCE_DIR/economics/trace.json" ]; then
+  ECON_ERROR=$(jq -r '.error // empty' "$EVIDENCE_DIR/economics/trace.json")
+  if [ -z "$ECON_ERROR" ]; then
+    ECON_REVENUE=$(jq -r '.summary.totalRevenue // 0' "$EVIDENCE_DIR/economics/trace.json")
+    ECON_COSTS=$(jq -r '.summary.totalCosts // 0' "$EVIDENCE_DIR/economics/trace.json")
+    ECON_LOST=$(jq -r '.summary.estimatedLostRevenue // 0' "$EVIDENCE_DIR/economics/trace.json")
+    ECON_CURRENCY=$(jq -r '.summary.currency // "USD"' "$EVIDENCE_DIR/economics/trace.json")
+    EVENT_COUNT=$(jq -r '.events | length' "$EVIDENCE_DIR/economics/trace.json")
+    cat >> "$SUMMARY_FILE" <<EOF
+- **Gross Revenue**: $ECON_CURRENCY $ECON_REVENUE
+- **Total Costs**: $ECON_CURRENCY $ECON_COSTS
+- **Estimated Lost Revenue**: $ECON_CURRENCY $ECON_LOST
+- **Economic Events**: $EVENT_COUNT
+EOF
+  else
+    cat >> "$SUMMARY_FILE" <<EOF
+- Economics data not available ($ECON_ERROR)
+EOF
+  fi
+fi
+
+cat >> "$SUMMARY_FILE" <<EOF
+
 ## Files Included
 
 - \`metadata.json\` - Generation metadata
 - \`policy/\` - Rego policy files
 - \`tests/\` - Policy test source and results
 - \`trace/\` - Trace bundle, summary, events, hash chain
+- \`economics/\` - Economic impact data (trace + summary + CSV)
 
 ---
 
@@ -281,6 +343,7 @@ echo "    • Policy files (Rego)"
 echo "    • Policy test results"
 echo "    • Trace bundle (JSON)"
 echo "    • Hash chain verification"
+echo "    • Economic impact data"
 echo "    • Human-readable summary"
 echo ""
 echo -e "${BLUE}Share this file with auditors/compliance for review.${NC}"
