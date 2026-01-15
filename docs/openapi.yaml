@@ -1,0 +1,780 @@
+openapi: 3.1.0
+info:
+  title: BrokerOps Governance API
+  version: 0.1.0
+  description: |
+    Governance-first operations infrastructure for brokerage platforms.
+    
+    **Core capabilities:**
+    - Deterministic policy evaluation (OPA-backed)
+    - Dual-control operator overrides
+    - Tamper-evident audit trail (hash-chained)
+    - Trace reconstruction with integrity verification
+    - Decision economics tracking
+    
+    **Integration pattern:**
+    All operations are linked by `traceId`. Given any traceId, you can reconstruct:
+    - The original request
+    - The policy decision (allow/block + reason + policy version)
+    - Any overrides (who, why, approved by whom)
+    - Economic impact (revenue, costs, lost revenue)
+    - Full audit trail with cryptographic integrity
+  contact:
+    name: BrokerOps API Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:7001
+    description: Order API (local dev)
+  - url: http://localhost:7004
+    description: Reconstruction API (local dev)
+  - url: http://localhost:7005
+    description: Economics API (local dev)
+
+tags:
+  - name: Orders
+    description: Order submission and decision flow
+  - name: Overrides
+    description: Dual-control operator override workflow
+  - name: Traces
+    description: Trace reconstruction and evidence
+  - name: Economics
+    description: Decision economics tracking
+  - name: Webhooks
+    description: Event notifications for external systems
+
+paths:
+  # ============================================================================
+  # Orders
+  # ============================================================================
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Submit order for policy evaluation
+      description: |
+        Submits an order request through the risk policy engine.
+        Returns immediately with decision (ACCEPTED or BLOCKED).
+        All decisions are audited with full trace reconstruction available.
+      operationId: submitOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+            example:
+              clientOrderId: "ORD-2026-001"
+              symbol: "AAPL"
+              side: "BUY"
+              qty: 100
+              price: 185.50
+      responses:
+        '200':
+          description: Order processed (may be ACCEPTED or BLOCKED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              examples:
+                accepted:
+                  summary: Order accepted
+                  value:
+                    traceId: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                    status: "ACCEPTED"
+                    decision: "ALLOW"
+                    reasonCode: "APPROVED"
+                    policyVersion: "policy.v0.2"
+                blocked:
+                  summary: Order blocked by policy
+                  value:
+                    traceId: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                    status: "BLOCKED"
+                    decision: "BLOCK"
+                    reasonCode: "SYMBOL_RESTRICTION"
+                    policyVersion: "policy.v0.2"
+                    ruleId: "symbol_gme"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # Overrides (Dual-Control)
+  # ============================================================================
+  /override/{traceId}/request:
+    post:
+      tags: [Overrides]
+      summary: Request operator override
+      description: |
+        First step of dual-control override workflow.
+        Operator requests to override a blocked decision.
+        Requires approval from a different operator.
+      operationId: requestOverride
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideRequest'
+            example:
+              operatorId: "ops-alice"
+              reason: "Client is verified institutional, exception approved by compliance"
+              newDecision: "ALLOW"
+      responses:
+        '200':
+          description: Override requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideRequestResponse'
+        '404':
+          description: Trace not found
+        '409':
+          description: Override already exists for this trace
+
+  /override/{traceId}/approve:
+    post:
+      tags: [Overrides]
+      summary: Approve override (dual-control)
+      description: |
+        Second step of dual-control override workflow.
+        A different operator approves the override request.
+        **Dual-control enforced:** Approver must be different from requester.
+      operationId: approveOverride
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideApproval'
+            example:
+              operatorId: "ops-bob"
+              comment: "Reviewed and approved per compliance exception process"
+      responses:
+        '200':
+          description: Override approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideApprovalResponse'
+        '403':
+          description: Dual-control violation (same operator)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "DUAL_CONTROL_VIOLATION"
+                message: "Approver must be different from requester"
+        '404':
+          description: No pending override for this trace
+
+  /override/{traceId}/reject:
+    post:
+      tags: [Overrides]
+      summary: Reject override request
+      description: Reject a pending override request with reason.
+      operationId: rejectOverride
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideRejection'
+      responses:
+        '200':
+          description: Override rejected
+        '404':
+          description: No pending override for this trace
+
+  # ============================================================================
+  # Trace Reconstruction
+  # ============================================================================
+  /trace/{traceId}:
+    get:
+      tags: [Traces]
+      summary: Get raw trace events
+      description: Returns all audit events for a trace (unverified).
+      operationId: getTrace
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      responses:
+        '200':
+          description: Trace events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceEvents'
+
+  /trace/{traceId}/bundle:
+    get:
+      tags: [Traces]
+      summary: Get trace bundle (integrity verified)
+      description: |
+        Returns complete trace bundle with:
+        - Summary (decision, policy, override status, economic impact)
+        - Full event timeline
+        - Hash chain for integrity verification
+        
+        **Fail-closed:** Returns 500 if hash chain integrity fails.
+        This is the primary artifact for audit/compliance review.
+      operationId: getTraceBundle
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      responses:
+        '200':
+          description: Trace bundle (integrity verified)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceBundle'
+        '404':
+          description: Trace not found
+        '500':
+          description: Audit chain integrity failure (possible tampering)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrityFailure'
+
+  # ============================================================================
+  # Economics
+  # ============================================================================
+  /economics/event:
+    post:
+      tags: [Economics]
+      summary: Record economic event
+      description: |
+        Record an economic impact event linked to a traceId.
+        Events are append-only and hash-chained.
+        
+        **Use cases:**
+        - Trade blocked → record estimatedLostRevenue
+        - Trade executed → record grossRevenue, fees, costs
+        - Override approved → record revenue recovered
+      operationId: recordEconomicEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EconomicEvent'
+            example:
+              traceId: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+              type: "TRADE_BLOCKED"
+              estimatedLostRevenue: 12.50
+              currency: "USD"
+              source: "execution"
+              policyId: "symbol_gme"
+      responses:
+        '200':
+          description: Event recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EconomicEventResponse'
+
+  /economics/trace/{traceId}:
+    get:
+      tags: [Economics]
+      summary: Get economics for a trace
+      description: Returns all economic events and summary for a specific trace.
+      operationId: getTraceEconomics
+      parameters:
+        - $ref: '#/components/parameters/traceId'
+      responses:
+        '200':
+          description: Trace economics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceEconomics'
+
+  /economics/summary:
+    get:
+      tags: [Economics]
+      summary: Get aggregate economic summary
+      description: |
+        Returns aggregate economic metrics across all traces.
+        Includes breakdowns by policy and override status.
+      operationId: getEconomicsSummary
+      responses:
+        '200':
+          description: Economic summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EconomicsSummary'
+
+  # ============================================================================
+  # Webhooks
+  # ============================================================================
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List registered webhooks
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      tags: [Webhooks]
+      summary: Register a webhook
+      description: |
+        Register a URL to receive event notifications.
+        
+        **Available events:**
+        - `trace.completed` - Order processed (accepted or blocked)
+        - `override.requested` - Operator requested override
+        - `override.approved` - Override approved (dual-control verified)
+        - `override.rejected` - Override rejected
+        - `economics.recorded` - Economic event recorded
+      operationId: registerWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRegistration'
+            example:
+              url: "https://crm.example.com/webhooks/brokerops"
+              events: ["trace.completed", "override.approved"]
+              secret: "whsec_abc123..."
+      responses:
+        '201':
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+
+  /webhooks/{webhookId}:
+    delete:
+      tags: [Webhooks]
+      summary: Delete a webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+
+components:
+  parameters:
+    traceId:
+      name: traceId
+      in: path
+      required: true
+      description: Unique trace identifier (UUID)
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # --- Orders ---
+    OrderRequest:
+      type: object
+      required: [clientOrderId, symbol, side, qty]
+      properties:
+        clientOrderId:
+          type: string
+          minLength: 3
+          description: Client-provided order identifier
+        symbol:
+          type: string
+          minLength: 1
+          description: Trading symbol (e.g., AAPL, GME)
+        side:
+          type: string
+          enum: [BUY, SELL]
+        qty:
+          type: integer
+          minimum: 1
+          description: Order quantity
+        price:
+          type: number
+          minimum: 0
+          description: Limit price (optional for market orders)
+
+    OrderResponse:
+      type: object
+      properties:
+        traceId:
+          type: string
+          format: uuid
+          description: Unique trace ID for this order flow
+        status:
+          type: string
+          enum: [ACCEPTED, BLOCKED]
+        decision:
+          type: string
+          enum: [ALLOW, BLOCK]
+        reasonCode:
+          type: string
+          description: Policy reason code
+        policyVersion:
+          type: string
+          description: Version of policy that made the decision
+        ruleId:
+          type: string
+          description: Specific rule that triggered (for BLOCK decisions)
+
+    # --- Overrides ---
+    OverrideRequest:
+      type: object
+      required: [operatorId, reason, newDecision]
+      properties:
+        operatorId:
+          type: string
+          description: Operator requesting the override
+        reason:
+          type: string
+          description: Business justification for override
+        newDecision:
+          type: string
+          enum: [ALLOW]
+          description: Requested new decision
+
+    OverrideRequestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [OVERRIDE_REQUESTED]
+        traceId:
+          type: string
+        requestedBy:
+          type: string
+        requiresApprovalFrom:
+          type: string
+          description: "Different operator required"
+
+    OverrideApproval:
+      type: object
+      required: [operatorId]
+      properties:
+        operatorId:
+          type: string
+          description: Operator approving (must differ from requester)
+        comment:
+          type: string
+          description: Approval comment
+
+    OverrideApprovalResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [OVERRIDE_APPROVED]
+        traceId:
+          type: string
+        requestedBy:
+          type: string
+        approvedBy:
+          type: string
+        dualControlVerified:
+          type: boolean
+
+    OverrideRejection:
+      type: object
+      required: [operatorId, reason]
+      properties:
+        operatorId:
+          type: string
+        reason:
+          type: string
+
+    # --- Traces ---
+    TraceEvents:
+      type: object
+      properties:
+        traceId:
+          type: string
+        count:
+          type: integer
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        traceId:
+          type: string
+        eventType:
+          type: string
+        eventVersion:
+          type: string
+        payloadJson:
+          type: object
+        prevHash:
+          type: string
+          nullable: true
+        hash:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    TraceBundle:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "bundle.v2"
+        generatedAt:
+          type: string
+          format: date-time
+        integrityVerified:
+          type: boolean
+        summary:
+          $ref: '#/components/schemas/TraceSummary'
+        hashChain:
+          type: array
+          items:
+            $ref: '#/components/schemas/HashChainEntry'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+
+    TraceSummary:
+      type: object
+      properties:
+        traceId:
+          type: string
+        outcome:
+          type: string
+          enum: [ACCEPTED, BLOCKED]
+        decision:
+          type: string
+        reasonCode:
+          type: string
+        ruleId:
+          type: string
+          nullable: true
+        policyVersion:
+          type: string
+        hasOverride:
+          type: boolean
+        overrideBy:
+          type: string
+          nullable: true
+        overrideReason:
+          type: string
+          nullable: true
+        economicImpact:
+          $ref: '#/components/schemas/EconomicImpact'
+        order:
+          $ref: '#/components/schemas/OrderRequest'
+        eventCount:
+          type: integer
+        hashChainValid:
+          type: boolean
+        hashChainVerified:
+          type: boolean
+
+    HashChainEntry:
+      type: object
+      properties:
+        seq:
+          type: integer
+        eventType:
+          type: string
+        hash:
+          type: string
+        prevHash:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    IntegrityFailure:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "AUDIT_CHAIN_INTEGRITY_FAILURE"
+        traceId:
+          type: string
+        verification:
+          type: object
+          properties:
+            valid:
+              type: boolean
+            brokenAt:
+              type: integer
+            reason:
+              type: string
+        message:
+          type: string
+        action:
+          type: string
+          example: "Contact security team immediately"
+
+    # --- Economics ---
+    EconomicEvent:
+      type: object
+      required: [traceId, type]
+      properties:
+        traceId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TRADE_EXECUTED, TRADE_BLOCKED, OVERRIDE_APPROVED, OVERRIDE_DENIED]
+        grossRevenue:
+          type: number
+        fees:
+          type: number
+        costs:
+          type: number
+        estimatedLostRevenue:
+          type: number
+        currency:
+          type: string
+          default: "USD"
+        source:
+          type: string
+          description: Origin system (e.g., crm, execution, ops)
+        policyId:
+          type: string
+          description: Policy rule for attribution
+
+    EconomicEventResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        traceId:
+          type: string
+        hash:
+          type: string
+          description: Hash of this event in the chain
+
+    EconomicImpact:
+      type: object
+      nullable: true
+      properties:
+        estimatedLostRevenue:
+          type: number
+        grossRevenue:
+          type: number
+        currency:
+          type: string
+
+    TraceEconomics:
+      type: object
+      properties:
+        traceId:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EconomicEvent'
+        summary:
+          type: object
+          properties:
+            totalRevenue:
+              type: number
+            totalCosts:
+              type: number
+            estimatedLostRevenue:
+              type: number
+            currency:
+              type: string
+
+    EconomicsSummary:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+        totalCosts:
+          type: number
+        netImpact:
+          type: number
+        lostRevenue:
+          type: number
+        byPolicy:
+          type: object
+          additionalProperties:
+            type: number
+        byOverride:
+          type: object
+          properties:
+            approved:
+              type: number
+            denied:
+              type: number
+
+    # --- Webhooks ---
+    WebhookRegistration:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: HTTPS endpoint to receive events
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - trace.completed
+              - override.requested
+              - override.approved
+              - override.rejected
+              - economics.recorded
+        secret:
+          type: string
+          description: Shared secret for HMAC signature verification
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+
+    # --- Common ---
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string

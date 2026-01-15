@@ -31,3 +31,28 @@ CREATE TABLE IF NOT EXISTS economic_events (
 
 CREATE INDEX IF NOT EXISTS idx_econ_trace ON economic_events(trace_id);
 CREATE INDEX IF NOT EXISTS idx_econ_policy ON economic_events(policy_id);
+
+-- Webhooks table
+CREATE TABLE IF NOT EXISTS webhooks (
+  id VARCHAR(64) PRIMARY KEY,
+  url TEXT NOT NULL,
+  events JSONB NOT NULL,
+  secret_hash VARCHAR(128),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  active BOOLEAN DEFAULT true
+);
+
+-- Webhook delivery log
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id SERIAL PRIMARY KEY,
+  webhook_id VARCHAR(64) NOT NULL,
+  event_type VARCHAR(32) NOT NULL,
+  trace_id VARCHAR(64),
+  success BOOLEAN NOT NULL,
+  status_code INTEGER,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_trace ON webhook_deliveries(trace_id);

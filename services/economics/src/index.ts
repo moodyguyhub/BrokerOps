@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import pg from "pg";
 import { z } from "zod";
+import { emitWebhook } from "@broker/common";
 
 const { Pool } = pg;
 
@@ -92,6 +93,15 @@ app.post("/economics/event", async (req, res) => {
       hash
     ]
   );
+
+  // Emit webhook
+  await emitWebhook("economics.recorded", evt.traceId, {
+    type: evt.type,
+    grossRevenue: evt.grossRevenue,
+    estimatedLostRevenue: evt.estimatedLostRevenue,
+    currency: evt.currency,
+    policyId: evt.policyId
+  });
 
   res.json({ ok: true, traceId: evt.traceId, hash });
 });

@@ -1,5 +1,5 @@
 import express from "express";
-import { newTraceId, OrderRequestSchema, type RiskDecision } from "@broker/common";
+import { newTraceId, OrderRequestSchema, type RiskDecision, emitWebhook } from "@broker/common";
 
 const app = express();
 app.use(express.json());
@@ -52,10 +52,12 @@ app.post("/orders", async (req, res) => {
 
   if (decision.decision === "BLOCK") {
     await audit(traceId, "order.blocked", { ...decision, order });
+    await emitWebhook("trace.completed", traceId, { status: "BLOCKED", ...decision, order });
     return res.status(403).json({ traceId, status: "BLOCKED", ...decision });
   }
 
   await audit(traceId, "order.accepted", { ...decision, order });
+  await emitWebhook("trace.completed", traceId, { status: "ACCEPTED", ...decision, order });
 
   // v0: no execution. Just accept.
   return res.json({ traceId, status: "ACCEPTED", ...decision });
@@ -104,6 +106,7 @@ app.post("/override/:traceId/request", async (req, res) => {
   };
 
   await audit(traceId, "override.requested", requestEvent);
+  await emitWebhook("override.requested", traceId, requestEvent);
 
   return res.json({ 
     traceId, 
@@ -167,6 +170,7 @@ app.post("/override/:traceId/approve", async (req, res) => {
   };
 
   await audit(traceId, "override.approved", approvalEvent);
+  await emitWebhook("override.approved", traceId, approvalEvent);
 
   return res.json({ 
     traceId, 
@@ -206,6 +210,7 @@ app.post("/override/:traceId/reject", async (req, res) => {
   };
 
   await audit(traceId, "override.rejected", rejectionEvent);
+  await emitWebhook("override.rejected", traceId, rejectionEvent);
 
   return res.json({ 
     traceId, 

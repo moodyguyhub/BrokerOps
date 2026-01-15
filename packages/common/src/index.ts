@@ -30,3 +30,37 @@ export type AuditEvent = {
   hash: string;      // sha256(prevHash + canonical_json(payload))
   createdAt: string; // ISO
 };
+
+// --- Webhook Helper ---
+
+const WEBHOOK_SERVICE_URL = process.env.WEBHOOK_SERVICE_URL ?? "http://localhost:7006";
+
+export type WebhookEventType = 
+  | "trace.completed"
+  | "override.requested"
+  | "override.approved"
+  | "override.rejected"
+  | "economics.recorded";
+
+export async function emitWebhook(
+  type: WebhookEventType,
+  traceId: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  try {
+    await fetch(`${WEBHOOK_SERVICE_URL}/emit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type,
+        traceId,
+        payload,
+        timestamp: new Date().toISOString()
+      }),
+      signal: AbortSignal.timeout(5000)
+    });
+  } catch {
+    // Best effort - don't fail main flow if webhooks are down
+    console.warn(`Webhook emit failed for ${type}:${traceId}`);
+  }
+}
