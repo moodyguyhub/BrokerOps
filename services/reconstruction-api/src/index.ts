@@ -119,6 +119,43 @@ function verifyHashChain(events: AuditRow[]): HashChainVerification {
   return { valid: true };
 }
 
+// List recent traces (for UI)
+app.get("/traces/recent", async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  
+  const r = await pool.query(`
+    SELECT 
+      trace_id,
+      MIN(created_at) as started_at,
+      MAX(created_at) as last_event_at,
+      COUNT(*) as event_count,
+      MAX(CASE WHEN event_type = 'order.accepted' THEN 'ACCEPTED' 
+               WHEN event_type = 'order.blocked' THEN 'BLOCKED' 
+               ELSE NULL END) as outcome,
+      MAX(CASE WHEN event_type = 'risk.decision' THEN payload_json->>'reasonCode' ELSE NULL END) as reason_code,
+      MAX(CASE WHEN event_type = 'risk.decision' THEN payload_json->>'ruleId' ELSE NULL END) as rule_id,
+      MAX(CASE WHEN event_type = 'override.approved' THEN 'true' ELSE NULL END) as has_override
+    FROM audit_events
+    GROUP BY trace_id
+    ORDER BY MAX(created_at) DESC
+    LIMIT $1
+  `, [limit]);
+
+  res.json({
+    count: r.rowCount,
+    traces: r.rows.map(row => ({
+      traceId: row.trace_id,
+      startedAt: row.started_at,
+      lastEventAt: row.last_event_at,
+      eventCount: parseInt(row.event_count),
+      outcome: row.outcome ?? "PENDING",
+      reasonCode: row.reason_code,
+      ruleId: row.rule_id,
+      hasOverride: row.has_override === "true"
+    }))
+  });
+});
+
 app.get("/trace/:traceId", async (req, res) => {
   const traceId = req.params.traceId;
   const r = await pool.query(

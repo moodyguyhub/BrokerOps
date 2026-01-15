@@ -203,6 +203,45 @@ app.post("/emit", async (req, res) => {
   });
 });
 
+// Get recent webhook deliveries (for UI)
+app.get("/webhooks/deliveries", async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const webhookId = req.query.webhookId as string | undefined;
+  
+  let query = `
+    SELECT id, webhook_id, event_type, trace_id, success, status_code, error_message, created_at
+    FROM webhook_deliveries
+  `;
+  const params: any[] = [];
+  
+  if (webhookId) {
+    query += " WHERE webhook_id = $1";
+    params.push(webhookId);
+  }
+  
+  query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit);
+  
+  try {
+    const result = await pool.query(query, params);
+    res.json({
+      count: result.rowCount,
+      deliveries: result.rows.map(row => ({
+        id: row.id,
+        webhookId: row.webhook_id,
+        eventType: row.event_type,
+        traceId: row.trace_id,
+        success: row.success,
+        statusCode: row.status_code,
+        errorMessage: row.error_message,
+        createdAt: row.created_at
+      }))
+    });
+  } catch {
+    res.json({ count: 0, deliveries: [] });
+  }
+});
+
 // Health check
 app.get("/health", async (_, res) => {
   res.json({ ok: true, webhookCount: webhooks.size });

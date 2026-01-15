@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrokerOps - Governance Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-hover: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --border: #334155;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    
+    /* Header */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      margin-bottom: 24px;
+    }
+    
+    header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    
+    .logo span { color: var(--text-muted); font-weight: 400; }
+    
+    nav { display: flex; gap: 8px; }
+    
+    nav button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    nav button:hover { background: var(--bg-hover); color: var(--text); }
+    nav button.active { background: var(--accent); border-color: var(--accent); color: white; }
+    
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .card-title { font-size: 1.1rem; font-weight: 600; }
+    
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; }
+    
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    th { color: var(--text-muted); font-weight: 500; font-size: 13px; text-transform: uppercase; }
+    
+    tr:hover { background: var(--bg-hover); }
+    
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .badge-success { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+    .badge-info { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+    
+    /* Buttons */
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    
+    .btn:hover { background: var(--accent-hover); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    
+    /* Links */
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    
+    /* Bundle View */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .summary-item {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .summary-item label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    
+    .summary-item .value {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    /* Hash chain */
+    .hash-chain {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+    }
+    
+    .hash-chain .event {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-left: 2px solid var(--border);
+      margin-left: 8px;
+    }
+    
+    .hash-chain .event:hover { background: var(--bg-hover); }
+    
+    .hash-chain .event-type { min-width: 150px; color: var(--accent); }
+    .hash-chain .hash { color: var(--text-muted); }
+    
+    /* Integrity banner */
+    .integrity-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    
+    .integrity-banner.verified { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); }
+    .integrity-banner.failed { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
+    
+    .integrity-banner .icon { font-size: 24px; }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    
+    .empty h3 { color: var(--text); margin-bottom: 8px; }
+    
+    /* Back button */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    
+    .back-link:hover { color: var(--text); text-decoration: none; }
+    
+    /* JSON viewer */
+    .json-viewer {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="logo">BrokerOps <span>Governance Dashboard</span></div>
+      <nav>
+        <button onclick="navigate('traces')" id="nav-traces">Traces</button>
+        <button onclick="navigate('webhooks')" id="nav-webhooks">Webhooks</button>
+      </nav>
+    </div>
+  </header>
+  
+  <main class="container" id="app">
+    <div class="loading">Loading...</div>
+  </main>
+
+  <script>
+    // State
+    let currentPage = 'traces';
+    let currentTraceId = null;
+
+    // Navigation
+    function navigate(page, params = {}) {
+      currentPage = page;
+      currentTraceId = params.traceId || null;
+      
+      // Update nav
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+      const navBtn = document.getElementById(`nav-${page}`);
+      if (navBtn) navBtn.classList.add('active');
+      
+      render();
+    }
+
+    // API calls
+    async function fetchTraces() {
+      const resp = await fetch('/api/traces/recent?limit=50');
+      return resp.json();
+    }
+
+    async function fetchBundle(traceId) {
+      const resp = await fetch(`/api/trace/${traceId}/bundle`);
+      return resp.json();
+    }
+
+    async function fetchEconomics(traceId) {
+      const resp = await fetch(`/api/economics/trace/${traceId}`);
+      return resp.json();
+    }
+
+    async function fetchWebhooks() {
+      const resp = await fetch('/api/webhooks');
+      return resp.json();
+    }
+
+    async function fetchDeliveries() {
+      const resp = await fetch('/api/webhooks/deliveries?limit=50');
+      return resp.json();
+    }
+
+    // Render functions
+    async function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        if (currentPage === 'traces' && currentTraceId) {
+          await renderBundle();
+        } else if (currentPage === 'traces') {
+          await renderTraces();
+        } else if (currentPage === 'webhooks') {
+          await renderWebhooks();
+        }
+      } catch (err) {
+        app.innerHTML = `<div class="card"><p style="color: var(--danger)">Error: ${err.message}</p></div>`;
+      }
+    }
+
+    async function renderTraces() {
+      const data = await fetchTraces();
+      const app = document.getElementById('app');
+      
+      if (!data.traces || data.traces.length === 0) {
+        app.innerHTML = `
+          <div class="empty">
+            <h3>No traces yet</h3>
+            <p>Submit an order to see traces appear here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      app.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Recent Traces</h2>
+            <span style="color: var(--text-muted)">${data.count} traces</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Trace ID</th>
+                <th>Outcome</th>
+                <th>Reason</th>
+                <th>Override</th>
+                <th>Events</th>
+                <th>Time</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.traces.map(t => `
+                <tr>
+                  <td><code style="color: var(--accent)">${t.traceId.slice(0, 8)}...</code></td>
+                  <td>
+                    <span class="badge ${t.outcome === 'ACCEPTED' ? 'badge-success' : t.outcome === 'BLOCKED' ? 'badge-danger' : 'badge-warning'}">
+                      ${t.outcome}
+                    </span>
+                  </td>
+                  <td>${t.reasonCode || '-'} ${t.ruleId ? `<span style="color: var(--text-muted)">(${t.ruleId})</span>` : ''}</td>
+                  <td>${t.hasOverride ? '<span class="badge badge-info">Yes</span>' : '-'}</td>
+                  <td>${t.eventCount}</td>
+                  <td style="color: var(--text-muted)">${formatTime(t.startedAt)}</td>
+                  <td><button class="btn btn-sm" onclick="navigate('traces', {traceId: '${t.traceId}'})">View</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function renderBundle() {
+      const [bundle, economics] = await Promise.all([
+        fetchBundle(currentTraceId),
+        fetchEconomics(currentTraceId)
+      ]);
+      
+      const app = document.getElementById('app');
+      
+      if (bundle.error) {
+        const isIntegrityFailure = bundle.error === 'AUDIT_CHAIN_INTEGRITY_FAILURE';
+        app.innerHTML = `
+          <a href="#" class="back-link" onclick="navigate('traces'); return false;">← Back to Traces</a>
+          <div class="integrity-banner failed">
+            <span class="icon">⚠️</span>
+            <div>
+              <strong>${isIntegrityFailure ? 'INTEGRITY FAILURE' : 'Error'}</strong>
+              <p style="color: var(--text-muted)">${bundle.message || bundle.error}</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const s = bundle.summary;
+      const econ = economics.summary || {};
+
+      app.innerHTML = `
+        <a href="#" class="back-link" onclick="navigate('traces'); return false;">← Back to Traces</a>
+        
+        <div class="integrity-banner ${bundle.integrityVerified ? 'verified' : 'failed'}">
+          <span class="icon">${bundle.integrityVerified ? '✓' : '⚠️'}</span>
+          <div>
+            <strong>${bundle.integrityVerified ? 'Hash Chain Verified' : 'Integrity Check Failed'}</strong>
+            <p style="color: var(--text-muted)">Audit trail is ${bundle.integrityVerified ? 'tamper-evident and intact' : 'potentially compromised'}</p>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Trace Summary</h2>
+            <code style="color: var(--text-muted)">${currentTraceId}</code>
+          </div>
+          
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>Outcome</label>
+              <div class="value">
+                <span class="badge ${s.outcome === 'ACCEPTED' ? 'badge-success' : 'badge-danger'}" style="font-size: 16px; padding: 6px 14px;">
+                  ${s.outcome}
+                </span>
+              </div>
+            </div>
+            <div class="summary-item">
+              <label>Decision</label>
+              <div class="value">${s.decision}</div>
+            </div>
+            <div class="summary-item">
+              <label>Reason Code</label>
+              <div class="value" style="font-size: 1rem;">${s.reasonCode}</div>
+            </div>
+            <div class="summary-item">
+              <label>Rule ID</label>
+              <div class="value" style="font-size: 1rem;">${s.ruleId || '-'}</div>
+            </div>
+            <div class="summary-item">
+              <label>Policy Version</label>
+              <div class="value" style="font-size: 1rem;">${s.policyVersion}</div>
+            </div>
+            <div class="summary-item">
+              <label>Override</label>
+              <div class="value">
+                ${s.hasOverride 
+                  ? `<span class="badge badge-info">Yes</span> by ${s.overrideBy}` 
+                  : '<span style="color: var(--text-muted)">None</span>'}
+              </div>
+            </div>
+            <div class="summary-item">
+              <label>Events</label>
+              <div class="value">${s.eventCount}</div>
+            </div>
+            <div class="summary-item">
+              <label>Time</label>
+              <div class="value" style="font-size: 0.9rem;">${formatTime(s.firstEvent)}</div>
+            </div>
+          </div>
+        </div>
+        
+        ${(econ.estimatedLostRevenue || econ.totalRevenue) ? `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Economic Impact</h2>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>Gross Revenue</label>
+              <div class="value" style="color: var(--success)">$${(econ.totalRevenue || 0).toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <label>Total Costs</label>
+              <div class="value" style="color: var(--danger)">$${(econ.totalCosts || 0).toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <label>Estimated Lost Revenue</label>
+              <div class="value" style="color: var(--warning)">$${(econ.estimatedLostRevenue || 0).toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+        
+        ${s.order ? `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Order Details</h2>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>Client Order ID</label>
+              <div class="value" style="font-size: 1rem;">${s.order.clientOrderId}</div>
+            </div>
+            <div class="summary-item">
+              <label>Symbol</label>
+              <div class="value">${s.order.symbol}</div>
+            </div>
+            <div class="summary-item">
+              <label>Side</label>
+              <div class="value">
+                <span class="badge ${s.order.side === 'BUY' ? 'badge-success' : 'badge-danger'}">${s.order.side}</span>
+              </div>
+            </div>
+            <div class="summary-item">
+              <label>Quantity</label>
+              <div class="value">${s.order.qty}</div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Hash Chain</h2>
+            <span style="color: var(--text-muted)">${bundle.hashChain?.length || 0} events</span>
+          </div>
+          <div class="hash-chain">
+            ${(bundle.hashChain || []).map(e => `
+              <div class="event">
+                <span class="event-type">${e.eventType}</span>
+                <span class="hash">${e.hash.slice(0, 16)}...</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Raw Bundle JSON</h2>
+          </div>
+          <div class="json-viewer">${JSON.stringify(bundle, null, 2)}</div>
+        </div>
+      `;
+    }
+
+    async function renderWebhooks() {
+      const [webhooks, deliveries] = await Promise.all([
+        fetchWebhooks(),
+        fetchDeliveries()
+      ]);
+      
+      const app = document.getElementById('app');
+
+      app.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Registered Webhooks</h2>
+            <span style="color: var(--text-muted)">${webhooks.length} webhook(s)</span>
+          </div>
+          ${webhooks.length === 0 ? `
+            <div class="empty" style="padding: 30px">
+              <p>No webhooks registered yet.</p>
+              <p style="font-size: 13px; margin-top: 8px;">Use the API: POST /webhooks with {url, events}</p>
+            </div>
+          ` : `
+            <table>
+              <thead>
+                <tr>
+                  <th>URL</th>
+                  <th>Events</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${webhooks.map(w => `
+                  <tr>
+                    <td><code>${w.url}</code></td>
+                    <td>${w.events.map(e => `<span class="badge badge-info" style="margin-right: 4px">${e}</span>`).join('')}</td>
+                    <td style="color: var(--text-muted)">${formatTime(w.createdAt)}</td>
+                    <td><span class="badge ${w.active ? 'badge-success' : 'badge-danger'}">${w.active ? 'Active' : 'Inactive'}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Recent Deliveries</h2>
+            <span style="color: var(--text-muted)">${deliveries.count || 0} deliveries</span>
+          </div>
+          ${!deliveries.deliveries || deliveries.deliveries.length === 0 ? `
+            <div class="empty" style="padding: 30px">
+              <p>No webhook deliveries yet.</p>
+            </div>
+          ` : `
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Trace ID</th>
+                  <th>Status</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${deliveries.deliveries.map(d => `
+                  <tr>
+                    <td><span class="badge badge-info">${d.eventType}</span></td>
+                    <td>
+                      <a href="#" onclick="navigate('traces', {traceId: '${d.traceId}'}); return false;">
+                        <code>${d.traceId?.slice(0, 8) || '-'}...</code>
+                      </a>
+                    </td>
+                    <td>
+                      <span class="badge ${d.success ? 'badge-success' : 'badge-danger'}">
+                        ${d.success ? `OK (${d.statusCode})` : 'Failed'}
+                      </span>
+                      ${d.errorMessage ? `<span style="color: var(--text-muted); font-size: 12px"> ${d.errorMessage.slice(0, 30)}...</span>` : ''}
+                    </td>
+                    <td style="color: var(--text-muted)">${formatTime(d.createdAt)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </div>
+      `;
+    }
+
+    // Helpers
+    function formatTime(iso) {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      return d.toLocaleString();
+    }
+
+    // Init
+    navigate('traces');
+  </script>
+</body>
+</html>

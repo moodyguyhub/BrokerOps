@@ -138,6 +138,12 @@ importers:
         specifier: ^5.5.4
         version: 5.9.3
 
+  services/ui:
+    dependencies:
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+
   services/webhooks:
     dependencies:
       '@broker/common':
