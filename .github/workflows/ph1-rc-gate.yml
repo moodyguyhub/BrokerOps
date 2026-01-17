@@ -238,6 +238,7 @@ jobs:
             test-results/demo-run-latest/**
             test-results/rc/${{ github.ref_name }}/tag-proof.txt
             test-results/push-proof-main.txt
+            test-results/ph9-provenance-smoke.json
             /tmp/brokerops-demo/*.log
 
       - name: Teardown stack
