@@ -45,9 +45,14 @@ jobs:
           node-version: '20'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: 10
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Install dependencies
         run: pnpm install
@@ -66,7 +71,10 @@ jobs:
 
       - name: Apply DB migrations
         run: |
-          PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f infra/sql/001_init.sql
+          for migration in infra/db/migrations/*.sql; do
+            echo "Applying: $migration"
+            PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f "$migration"
+          done
 
   policy-lint:
     runs-on: ubuntu-latest
@@ -128,6 +136,11 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Install dependencies
         run: pnpm install

@@ -34,7 +34,8 @@ header() {
 wait_for_health() {
   local url=$1
   local name=$2
-  local max_attempts=30
+  local max_attempts=${3:-${DEMO_HEALTH_ATTEMPTS:-30}}
+  local sleep_seconds=${DEMO_HEALTH_SLEEP_SECONDS:-0.5}
   local attempt=0
   
   while [ $attempt -lt $max_attempts ]; do
@@ -42,7 +43,7 @@ wait_for_health() {
       return 0
     fi
     attempt=$((attempt + 1))
-    sleep 0.5
+    sleep "$sleep_seconds"
   done
   return 1
 }
@@ -57,7 +58,7 @@ echo ""
 
 # Step 1: Infrastructure
 log "Step 1/5: Starting infrastructure (Postgres + OPA)..."
-docker compose up -d --wait 2>/dev/null || docker compose up -d
+docker compose up -d --wait postgres opa 2>/dev/null || docker compose up -d postgres opa
 sleep 2
 
 if wait_for_health "http://localhost:8181/health" "OPA"; then
