@@ -125,6 +125,13 @@ jobs:
           chmod +x ./scripts/ph3-orders-contract-gate.sh
           ./scripts/ph3-orders-contract-gate.sh
 
+      - name: Gate 6 — LP Accounts Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph4-lp-accounts-contract-gate.sh
+          ./scripts/ph4-lp-accounts-contract-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash

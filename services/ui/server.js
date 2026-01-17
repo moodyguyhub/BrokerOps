@@ -298,6 +298,16 @@ app.get("/api/lp-accounts", async (req, res) => {
   }
 });
 
+app.get("/api/lp-accounts/:id", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/lp-accounts/${req.params.id}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch LP account" });
+  }
+});
+
 app.get("/api/lp-accounts/:id/history", async (req, res) => {
   try {
     const url = new URL(`${API_URLS.orderApi}/api/lp-accounts/${req.params.id}/history`);
@@ -436,6 +446,11 @@ app.get("/command-center-v2", (req, res) => {
 // Phase 3: Orders page
 app.get("/orders", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "orders.html"));
+});
+
+// Phase 4: LP Accounts page
+app.get("/lp-accounts", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "lp-accounts.html"));
 });
 
 // SPA fallback

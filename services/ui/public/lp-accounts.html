@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — LP Accounts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Shared UI design system -->
+  <link rel="stylesheet" href="/assets/ui.css">
+  <style>
+    /* Page-specific styles */
+    .lp-layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: var(--spacing-lg);
+      min-height: calc(100vh - 120px);
+    }
+
+    @media (max-width: 1200px) {
+      .lp-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .lp-detail-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: none;
+      }
+      
+      .lp-detail-panel.active {
+        display: block;
+      }
+    }
+
+    /* Filters */
+    .lp-filters {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .filter-group label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .filter-select {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      min-width: 120px;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .filter-input {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      width: 200px;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .filter-actions {
+      margin-left: auto;
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* LP Table */
+    .lp-table-wrapper {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .lp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .lp-table th {
+      background: var(--slate-800);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--slate-300);
+      border-bottom: 1px solid var(--slate-700);
+      white-space: nowrap;
+    }
+
+    .lp-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-800);
+      color: var(--slate-300);
+    }
+
+    .lp-table tbody tr {
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .lp-table tbody tr:hover {
+      background: var(--slate-800);
+    }
+
+    .lp-table tbody tr.selected {
+      background: rgba(6, 182, 212, 0.1);
+      border-left: 3px solid var(--cyan-500);
+    }
+
+    .lp-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--cyan-400);
+    }
+
+    .lp-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .lp-status.active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald-400);
+    }
+
+    .lp-status.inactive {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red-400);
+    }
+
+    .lp-status.warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber-400);
+    }
+
+    .lp-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Balance columns */
+    .balance-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+    }
+
+    .balance-positive {
+      color: var(--emerald-400);
+    }
+
+    .balance-negative {
+      color: var(--red-400);
+    }
+
+    .margin-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+    }
+
+    .margin-level.healthy {
+      color: var(--emerald-400);
+    }
+
+    .margin-level.warning {
+      color: var(--amber-400);
+    }
+
+    .margin-level.critical {
+      color: var(--red-400);
+    }
+
+    /* Detail Panel */
+    .lp-detail-panel {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      height: fit-content;
+      max-height: calc(100vh - 140px);
+      overflow: hidden;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .detail-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--slate-100);
+    }
+
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--slate-400);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .detail-close:hover {
+      background: var(--slate-800);
+      color: var(--slate-200);
+    }
+
+    .detail-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--spacing-md);
+    }
+
+    .detail-section {
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .detail-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .detail-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-size: 0.8125rem;
+      color: var(--slate-400);
+    }
+
+    .detail-value {
+      font-size: 0.8125rem;
+      color: var(--slate-200);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* History Chart Section */
+    .history-chart {
+      background: var(--slate-800);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .history-chart-placeholder {
+      color: var(--slate-500);
+      font-size: 0.875rem;
+    }
+
+    /* Action buttons */
+    .detail-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-md);
+      border-top: 1px solid var(--slate-800);
+    }
+
+    .detail-action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .detail-action-btn.primary {
+      background: var(--cyan-600);
+      color: white;
+      border: none;
+    }
+
+    .detail-action-btn.primary:hover {
+      background: var(--cyan-500);
+    }
+
+    .detail-action-btn.secondary {
+      background: var(--slate-800);
+      color: var(--slate-300);
+      border: 1px solid var(--slate-700);
+    }
+
+    .detail-action-btn.secondary:hover {
+      background: var(--slate-700);
+    }
+
+    .detail-action-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-xl);
+      color: var(--slate-500);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .empty-state p {
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    /* Loading state */
+    .loading-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-xl);
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--slate-700);
+      border-top-color: var(--cyan-500);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Embed mode adjustments */
+    body.embed-mode {
+      background: transparent;
+    }
+
+    body.embed-mode .page-header {
+      display: none;
+    }
+
+    body.embed-mode .page-container {
+      padding: var(--spacing-md);
+    }
+
+    /* Summary cards */
+    .lp-summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .summary-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+
+    .summary-card-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .summary-card-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--slate-100);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .summary-card-subtext {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- Page Header (hidden in embed mode) -->
+    <header class="page-header">
+      <h1 class="page-title">LP Accounts</h1>
+      <p class="page-subtitle">Manage and monitor liquidity provider accounts</p>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="lp-summary-cards" id="lp-summary">
+      <div class="summary-card">
+        <div class="summary-card-label">Total LPs</div>
+        <div class="summary-card-value" id="summary-total">--</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Active</div>
+        <div class="summary-card-value" id="summary-active">--</div>
+        <div class="summary-card-subtext">Heartbeat &lt; 5min</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Total Balance</div>
+        <div class="summary-card-value" id="summary-balance">--</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Avg Margin Level</div>
+        <div class="summary-card-value" id="summary-margin">--</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="lp-filters" id="lp-filters">
+      <div class="filter-group">
+        <label>Status</label>
+        <select class="filter-select" id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="warning">Warning</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Search</label>
+        <input type="text" class="filter-input" id="filter-search" placeholder="Search by name or server...">
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-refresh-lps">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 21h5v-5"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="lp-layout">
+      <!-- LP Table -->
+      <div class="lp-table-wrapper" id="lp-table-wrapper">
+        <table class="lp-table" id="lp-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Server</th>
+              <th>Status</th>
+              <th>Balance</th>
+              <th>Equity</th>
+              <th>Margin Level</th>
+              <th>Last Heartbeat</th>
+            </tr>
+          </thead>
+          <tbody id="lp-table-body">
+            <!-- LP rows will be rendered here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Detail Panel -->
+      <div class="lp-detail-panel" id="lp-detail">
+        <div class="detail-header">
+          <span class="detail-title" id="detail-title">LP Details</span>
+          <button class="detail-close" id="detail-close" title="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="detail-content">
+          <div class="detail-section">
+            <div class="detail-section-title">Account Info</div>
+            <div class="detail-row">
+              <span class="detail-label">ID</span>
+              <span class="detail-value" id="detail-id">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Name</span>
+              <span class="detail-value" id="detail-name">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Server</span>
+              <span class="detail-value" id="detail-server">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Currency</span>
+              <span class="detail-value" id="detail-currency">--</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">Balances</div>
+            <div class="detail-row">
+              <span class="detail-label">Balance</span>
+              <span class="detail-value" id="detail-balance">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Equity</span>
+              <span class="detail-value" id="detail-equity">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Margin</span>
+              <span class="detail-value" id="detail-margin">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Free Margin</span>
+              <span class="detail-value" id="detail-free-margin">--</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Margin Level</span>
+              <span class="detail-value" id="detail-margin-level">--</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">History (Last 24h)</div>
+            <div class="history-chart" id="lp-history-chart">
+              <span class="history-chart-placeholder">Loading history...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <button class="detail-action-btn secondary" id="lp-export-snapshot" title="Export current snapshot">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Snapshot
+          </button>
+          <button class="detail-action-btn primary" id="lp-view-history" title="View full history">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            View History
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Check embed mode
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('embed') === '1') {
+        document.body.classList.add('embed-mode');
+      }
+
+      // State
+      let lpAccounts = [];
+      let selectedLpId = null;
+
+      // DOM refs
+      const tableBody = document.getElementById('lp-table-body');
+      const detailPanel = document.getElementById('lp-detail');
+      const filterStatus = document.getElementById('filter-status');
+      const filterSearch = document.getElementById('filter-search');
+      const refreshBtn = document.getElementById('btn-refresh-lps');
+      const closeBtn = document.getElementById('detail-close');
+      const exportSnapshotBtn = document.getElementById('lp-export-snapshot');
+      const viewHistoryBtn = document.getElementById('lp-view-history');
+
+      // Formatters
+      function formatCurrency(value, currency = 'USD') {
+        if (value == null) return '--';
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(value);
+      }
+
+      function formatPercent(value) {
+        if (value == null) return '--';
+        return `${value.toFixed(2)}%`;
+      }
+
+      function formatRelativeTime(dateStr) {
+        if (!dateStr) return '--';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays}d ago`;
+      }
+
+      function getStatusClass(lp) {
+        if (!lp.last_heartbeat_at) return 'inactive';
+        const lastHb = new Date(lp.last_heartbeat_at);
+        const now = new Date();
+        const diffMins = (now - lastHb) / 60000;
+        
+        if (diffMins < 5) return 'active';
+        if (diffMins < 30) return 'warning';
+        return 'inactive';
+      }
+
+      function getMarginLevelClass(marginLevel) {
+        if (marginLevel == null) return '';
+        if (marginLevel >= 200) return 'healthy';
+        if (marginLevel >= 100) return 'warning';
+        return 'critical';
+      }
+
+      // Render functions
+      function renderTable() {
+        const statusFilter = filterStatus.value;
+        const searchFilter = filterSearch.value.toLowerCase();
+
+        const filtered = lpAccounts.filter(lp => {
+          const status = getStatusClass(lp);
+          if (statusFilter && status !== statusFilter) return false;
+          if (searchFilter) {
+            const searchable = `${lp.name} ${lp.server_name}`.toLowerCase();
+            if (!searchable.includes(searchFilter)) return false;
+          }
+          return true;
+        });
+
+        if (filtered.length === 0) {
+          tableBody.innerHTML = `
+            <tr>
+              <td colspan="7">
+                <div class="empty-state">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  <h3>No LP Accounts Found</h3>
+                  <p>No accounts match your current filters.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tableBody.innerHTML = filtered.map(lp => {
+          const status = getStatusClass(lp);
+          const marginClass = getMarginLevelClass(lp.margin_level);
+          const isSelected = lp.id === selectedLpId;
+          
+          return `
+            <tr data-lp-id="${lp.id}" class="${isSelected ? 'selected' : ''}">
+              <td>
+                <span class="lp-id">${lp.name || lp.id}</span>
+              </td>
+              <td>${lp.server_name || '--'}</td>
+              <td>
+                <span class="lp-status ${status}">
+                  <span class="lp-status-dot"></span>
+                  ${status.charAt(0).toUpperCase() + status.slice(1)}
+                </span>
+              </td>
+              <td class="balance-value">${formatCurrency(lp.balance, lp.currency)}</td>
+              <td class="balance-value">${formatCurrency(lp.equity, lp.currency)}</td>
+              <td class="margin-level ${marginClass}">${formatPercent(lp.margin_level)}</td>
+              <td>${formatRelativeTime(lp.last_heartbeat_at)}</td>
+            </tr>
+          `;
+        }).join('');
+
+        // Add click handlers
+        tableBody.querySelectorAll('tr[data-lp-id]').forEach(row => {
+          row.addEventListener('click', () => {
+            selectLp(row.dataset.lpId);
+          });
+        });
+      }
+
+      function renderSummary() {
+        const total = lpAccounts.length;
+        const active = lpAccounts.filter(lp => getStatusClass(lp) === 'active').length;
+        const totalBalance = lpAccounts.reduce((sum, lp) => sum + (lp.balance || 0), 0);
+        const avgMargin = lpAccounts.length > 0
+          ? lpAccounts.reduce((sum, lp) => sum + (lp.margin_level || 0), 0) / lpAccounts.length
+          : 0;
+
+        document.getElementById('summary-total').textContent = total;
+        document.getElementById('summary-active').textContent = active;
+        document.getElementById('summary-balance').textContent = formatCurrency(totalBalance);
+        document.getElementById('summary-margin').textContent = formatPercent(avgMargin);
+      }
+
+      function renderDetail(lp) {
+        document.getElementById('detail-title').textContent = lp.name || 'LP Details';
+        document.getElementById('detail-id').textContent = lp.id;
+        document.getElementById('detail-name').textContent = lp.name || '--';
+        document.getElementById('detail-server').textContent = lp.server_name || '--';
+        document.getElementById('detail-currency').textContent = lp.currency || 'USD';
+        document.getElementById('detail-balance').textContent = formatCurrency(lp.balance, lp.currency);
+        document.getElementById('detail-equity').textContent = formatCurrency(lp.equity, lp.currency);
+        document.getElementById('detail-margin').textContent = formatCurrency(lp.margin, lp.currency);
+        document.getElementById('detail-free-margin').textContent = formatCurrency(lp.free_margin, lp.currency);
+        document.getElementById('detail-margin-level').textContent = formatPercent(lp.margin_level);
+
+        // Load history
+        loadHistory(lp.id);
+      }
+
+      async function loadHistory(lpId) {
+        const chartEl = document.getElementById('lp-history-chart');
+        chartEl.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div></div>';
+
+        try {
+          const resp = await fetch(`/api/lp-accounts/${lpId}/history?limit=50`);
+          const data = await resp.json();
+
+          if (data.success && data.data && data.data.length > 0) {
+            // Simple text-based history for now
+            const latest = data.data[0];
+            chartEl.innerHTML = `
+              <div style="text-align: center; color: var(--slate-400); font-size: 0.875rem;">
+                <p>${data.data.length} snapshots available</p>
+                <p style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                  Latest: ${new Date(latest.snapshot_at).toLocaleString()}
+                </p>
+              </div>
+            `;
+          } else {
+            chartEl.innerHTML = '<span class="history-chart-placeholder">No history available</span>';
+          }
+        } catch (err) {
+          chartEl.innerHTML = '<span class="history-chart-placeholder">Failed to load history</span>';
+        }
+      }
+
+      function selectLp(lpId) {
+        selectedLpId = lpId;
+        const lp = lpAccounts.find(l => l.id === lpId);
+        if (lp) {
+          renderDetail(lp);
+          detailPanel.classList.add('active');
+        }
+        renderTable();
+      }
+
+      // API calls
+      async function fetchLpAccounts() {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7">
+              <div class="loading-state">
+                <div class="loading-spinner"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+
+        try {
+          const resp = await fetch('/api/lp-accounts');
+          const data = await resp.json();
+
+          if (data.success && Array.isArray(data.data)) {
+            lpAccounts = data.data;
+          } else {
+            lpAccounts = [];
+          }
+        } catch (err) {
+          console.error('Failed to fetch LP accounts:', err);
+          lpAccounts = [];
+        }
+
+        renderTable();
+        renderSummary();
+      }
+
+      // Export snapshot as JSON
+      function exportSnapshot() {
+        if (!selectedLpId) return;
+        const lp = lpAccounts.find(l => l.id === selectedLpId);
+        if (!lp) return;
+
+        const blob = new Blob([JSON.stringify(lp, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lp-snapshot-${lp.id}-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // Event listeners
+      refreshBtn.addEventListener('click', fetchLpAccounts);
+      filterStatus.addEventListener('change', renderTable);
+      filterSearch.addEventListener('input', renderTable);
+      closeBtn.addEventListener('click', () => {
+        selectedLpId = null;
+        detailPanel.classList.remove('active');
+        renderTable();
+      });
+      exportSnapshotBtn.addEventListener('click', exportSnapshot);
+      viewHistoryBtn.addEventListener('click', () => {
+        if (selectedLpId) {
+          window.open(`/api/lp-accounts/${selectedLpId}/history?limit=100`, '_blank');
+        }
+      });
+
+      // Initialize
+      fetchLpAccounts();
+
+      // Auto-refresh every 30s
+      setInterval(fetchLpAccounts, 30000);
+
+      // Expose for testing
+      window.LPAccountsPage = {
+        refresh: fetchLpAccounts,
+        getLpAccounts: () => lpAccounts,
+        selectLp
+      };
+    })();
+  </script>
+</body>
+</html>
