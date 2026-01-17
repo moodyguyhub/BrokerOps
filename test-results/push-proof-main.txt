@@ -1,0 +1,8 @@
+571b15ccf264d73bd84fc248b32819d233ba451a	refs/heads/main
+commit 571b15ccf264d73bd84fc248b32819d233ba451a
+Author:     Mahmood Asadi <232202144+moodyguyhub@users.noreply.github.com>
+AuthorDate: Sat Jan 17 09:38:32 2026 +0200
+Commit:     Mahmood Asadi <232202144+moodyguyhub@users.noreply.github.com>
+CommitDate: Sat Jan 17 09:38:32 2026 +0200
+
+    chore: repo root configuration + remaining service updates
