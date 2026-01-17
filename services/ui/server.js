@@ -432,6 +432,15 @@ app.get("/api/policies/detail", (req, res) => {
       });
     }
 
+    // Path traversal protection: reject dangerous characters before allowlist check
+    if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+      return res.status(400).json({
+        schema_version: "1.0.0",
+        error: "Invalid filename: path traversal characters not allowed",
+        allowed_files: POLICY_FILE_ALLOWLIST
+      });
+    }
+
     // Fail-closed: only serve allowlisted files
     if (!POLICY_FILE_ALLOWLIST.includes(filename)) {
       return res.status(404).json({

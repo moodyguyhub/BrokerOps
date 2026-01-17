@@ -229,6 +229,12 @@ if curl -sf "${UI_URL}/health" > /dev/null 2>&1; then
   check "API detail returns allowed_files hint" \
     "echo '$BLOCKED_RESPONSE' | jq -e '.allowed_files | type == \"array\"'"
   
+  # Path traversal protection test
+  TRAVERSAL_RESPONSE=$(curl -s "${UI_URL}/api/policies/detail?file=../etc/passwd" 2>/dev/null || echo "{}")
+  
+  check "API detail blocks path traversal attempts" \
+    "echo '$TRAVERSAL_RESPONSE' | jq -e '.error | contains(\"path traversal\")'"
+  
 else
   echo -e "${YELLOW}⚠${NC} UI server not reachable at ${UI_URL}, skipping runtime checks"
   echo "   Start server and re-run to verify runtime behavior"
