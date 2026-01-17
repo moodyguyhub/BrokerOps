@@ -104,6 +104,13 @@ jobs:
           chmod +x ./scripts/ph1-demo-choreography.sh
           ./scripts/ph1-demo-choreography.sh --skip-clean-boot --skip-stack-up
 
+      - name: Gate 3 — UI Shell gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph1-ui-shell-gate.sh
+          ./scripts/ph1-ui-shell-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash
@@ -139,6 +146,7 @@ jobs:
           # Copy latest receipts to stable RC path
           cp test-results/clean-boot-latest.json "$RC_DIR/clean-boot-receipt.json" 2>/dev/null || true
           cp test-results/ph1-demo-run-latest.json "$RC_DIR/ph1-demo-run.json" 2>/dev/null || true
+          cp test-results/ph1-ui-shell-*.log "$RC_DIR/ph1-ui-shell.log" 2>/dev/null || true
           # Copy from timestamped dirs if latest doesn't exist
           find test-results -name 'clean-boot-receipt.json' -newer "$RC_DIR/tag-proof.txt" -exec cp {} "$RC_DIR/" \; 2>/dev/null || true
           find test-results -name 'ph1-demo-run.json' -newer "$RC_DIR/tag-proof.txt" -exec cp {} "$RC_DIR/" \; 2>/dev/null || true

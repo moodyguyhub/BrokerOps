@@ -395,6 +395,11 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
+// Phase 1: Command Center v2 (UI Shell with tab navigation)
+app.get("/command-center-v2", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "command-center-v2.html"));
+});
+
 // SPA fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
