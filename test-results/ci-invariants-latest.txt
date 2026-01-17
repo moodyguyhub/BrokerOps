@@ -1,0 +1,19 @@
+=== CI Invariant Checks ===
+
+INV-001: Toolchain Version Anchoring
+[0;32m✓[0m pnpm version consistent across workflows
+
+INV-002: No Local Absolute Paths in Config
+[0;32m✓[0m No absolute paths in YAML configs
+
+INV-003: OPA Policy Validation
+[0;32m✓[0m OPA policies compile successfully
+
+INV-004: Service-Port Correspondence
+[0;32m✓[0m All health-checked ports have started services
+
+INV-005: No Nested Git Repositories
+[0;32m✓[0m Only root .git directory exists
+
+=== Summary ===
+[0;32mAll invariants passed[0m

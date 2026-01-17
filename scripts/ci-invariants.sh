@@ -119,6 +119,20 @@ else
 fi
 echo ""
 
+# INV-005: No Nested Git Repositories
+echo "INV-005: No Nested Git Repositories"
+# VS Code auto-detects nested .git directories and shows phantom changes
+# This invariant prevents the "10k changes but git is clean" developer trap
+NESTED_GIT=$(find "$PROJECT_ROOT" -name ".git" -type d 2>/dev/null | wc -l)
+if [ "$NESTED_GIT" -eq 1 ]; then
+    check "Only root .git directory exists" 0
+else
+    echo "  Found $NESTED_GIT .git directories (expected 1):"
+    find "$PROJECT_ROOT" -name ".git" -type d 2>/dev/null | grep -v "^$PROJECT_ROOT/.git$" | sed 's/^/    /'
+    check "Only root .git directory exists" 1
+fi
+echo ""
+
 # Summary
 echo "=== Summary ==="
 if [ $FAILED -eq 0 ]; then
