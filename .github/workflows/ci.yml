@@ -270,3 +270,121 @@ jobs:
             test-results/p2-acceptance-latest.json
             test-results/p2-acceptance-*.log
           retention-days: 90
+  # UI Contract Gates (Gates 4-8) - validates UI pages, anchors, and shell header
+  ui-contract-gates:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: broker
+          POSTGRES_PASSWORD: broker
+          POSTGRES_DB: broker
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U broker"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10.27.0"
+          run_install: false
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build all packages
+        run: pnpm -r build
+
+      - name: Start OPA server
+        run: |
+          docker run -d --name broker-opa \
+            -p 8181:8181 \
+            openpolicyagent/opa:latest \
+            run --server --addr=0.0.0.0:8181 --log-level=info
+          
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+              echo "OPA healthy after $i seconds"
+              break
+            fi
+            sleep 1
+          done
+          
+          curl -X PUT http://localhost:8181/v1/policies/broker \
+            -H "Content-Type: text/plain" \
+            --data-binary @policies/order.rego
+
+      - name: Apply DB migrations
+        run: |
+          for migration in infra/db/migrations/*.sql; do
+            echo "Applying: $migration"
+            PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f "$migration"
+          done
+
+      - name: Start services
+        run: |
+          node services/risk-gate/dist/index.js &
+          node services/audit-writer/dist/index.js &
+          node services/reconstruction-api/dist/index.js &
+          node services/order-api/dist/index.js &
+          node services/economics/dist/index.js &
+          node services/webhooks/dist/index.js &
+          node services/ui/server.js &
+          
+          for port in 7001 7004 3000; do
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:$port/health > /dev/null 2>&1; then
+                echo "Service on port $port healthy"
+                break
+              fi
+              sleep 1
+            done
+          done
+          echo "All services healthy"
+
+      - name: Gate 4 — LP Accounts Contract
+        run: |
+          chmod +x ./scripts/ph4-lp-accounts-contract-gate.sh
+          ./scripts/ph4-lp-accounts-contract-gate.sh | tee /tmp/gate4.log
+          echo "GATE_SUMMARY gate=ph4-lp-accounts status=PASS"
+
+      - name: Gate 7 — Alerts Contract
+        run: |
+          chmod +x ./scripts/ph5-alerts-contract-gate.sh
+          ./scripts/ph5-alerts-contract-gate.sh | tee /tmp/gate7.log
+          echo "GATE_SUMMARY gate=ph5-alerts status=PASS"
+
+      - name: Gate 8 — Shell Header Completeness
+        run: |
+          chmod +x ./scripts/ph6-shell-contract-gate.sh
+          ./scripts/ph6-shell-contract-gate.sh | tee /tmp/gate8.log
+          echo "GATE_SUMMARY gate=ph6-shell status=PASS"
+
+      - name: Upload gate logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-gate-logs-${{ github.run_number }}
+          path: /tmp/gate*.log
+          retention-days: 30
