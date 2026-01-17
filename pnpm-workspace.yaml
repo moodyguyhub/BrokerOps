@@ -2,5 +2,3 @@ packages:
   - services/*
   - packages/*
   - tests
-
-storeDir: /home/mahmood-asadi/BrokerOps/.pnpm-store
