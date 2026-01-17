@@ -97,7 +97,8 @@ mkdir -p /tmp/brokerops-demo
 
 node services/risk-gate/dist/index.js > /tmp/brokerops-demo/risk-gate.log 2>&1 &
 node services/audit-writer/dist/index.js > /tmp/brokerops-demo/audit-writer.log 2>&1 &
-node services/order-api/dist/index.js > /tmp/brokerops-demo/order-api.log 2>&1 &
+node services/lp-simulator/dist/index.js > /tmp/brokerops-demo/lp-simulator.log 2>&1 &
+LP_SIMULATOR_URL="http://localhost:7010" node services/order-api/dist/index.js > /tmp/brokerops-demo/order-api.log 2>&1 &
 node services/reconstruction-api/dist/index.js > /tmp/brokerops-demo/reconstruction-api.log 2>&1 &
 node services/economics/dist/index.js > /tmp/brokerops-demo/economics.log 2>&1 &
 node services/webhooks/dist/index.js > /tmp/brokerops-demo/webhooks.log 2>&1 &
@@ -127,6 +128,13 @@ if wait_for_health "http://localhost:7001/health" "order-api"; then
   success "order-api        :7001"
 else
   error "order-api        :7001"
+  SERVICES_OK=false
+fi
+
+if wait_for_health "http://localhost:7010/health" "lp-simulator"; then
+  success "lp-simulator     :7010"
+else
+  error "lp-simulator     :7010"
   SERVICES_OK=false
 fi
 
