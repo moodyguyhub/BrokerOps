@@ -1,0 +1,2 @@
+rc-gate Smoke — Provenance Endpoint Runtime     2026-01-17T16:57:18.5775194Z SMOKE_OK provenance_json_keys=kernel,ui,buildTs port=3999
+rc-gate Generate artifact hashes        2026-01-17T16:57:18.6678408Z b6ca2c1e34751d39eaeea1a13c116bd2c9cdfeff20f9fb825e3cda2c53460e82  test-results/ph9-provenance-smoke.json
