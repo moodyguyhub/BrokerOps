@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — Orders</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Shared UI design system -->
+  <link rel="stylesheet" href="/assets/ui.css">
+  <style>
+    /* Page-specific styles */
+    .orders-layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: var(--spacing-lg);
+      min-height: calc(100vh - 120px);
+    }
+
+    @media (max-width: 1200px) {
+      .orders-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .order-detail-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: none;
+      }
+      
+      .order-detail-panel.active {
+        display: block;
+      }
+    }
+
+    /* Filters */
+    .orders-filters {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .filter-group label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .filter-select {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      min-width: 120px;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .filter-input {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      width: 200px;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .filter-actions {
+      margin-left: auto;
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Orders Table */
+    .orders-table-wrapper {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .orders-table th {
+      background: var(--slate-800);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--slate-300);
+      border-bottom: 1px solid var(--slate-700);
+      white-space: nowrap;
+    }
+
+    .orders-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-800);
+      color: var(--slate-300);
+    }
+
+    .orders-table tbody tr {
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .orders-table tbody tr:hover {
+      background: var(--slate-800);
+    }
+
+    .orders-table tbody tr.selected {
+      background: rgba(6, 182, 212, 0.1);
+      border-left: 3px solid var(--cyan-500);
+    }
+
+    .order-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--cyan-400);
+    }
+
+    .order-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .order-status.filled {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--emerald-400);
+    }
+
+    .order-status.rejected {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--rose-400);
+    }
+
+    .order-status.pending {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber-400);
+    }
+
+    .order-status.partial {
+      background: rgba(168, 85, 247, 0.2);
+      color: var(--purple-400);
+    }
+
+    .order-side {
+      font-weight: 600;
+    }
+
+    .order-side.buy {
+      color: var(--emerald-400);
+    }
+
+    .order-side.sell {
+      color: var(--rose-400);
+    }
+
+    .order-symbol {
+      font-weight: 500;
+      color: white;
+    }
+
+    .order-qty {
+      font-family: 'JetBrains Mono', monospace;
+      text-align: right;
+    }
+
+    .order-price {
+      font-family: 'JetBrains Mono', monospace;
+      text-align: right;
+    }
+
+    .order-time {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Pagination */
+    .orders-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-top: 1px solid var(--slate-800);
+      background: var(--slate-900);
+    }
+
+    .pagination-info {
+      font-size: 0.875rem;
+      color: var(--slate-400);
+    }
+
+    .pagination-controls {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Order Detail Panel */
+    .order-detail-panel {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid var(--slate-800);
+      background: var(--slate-800);
+    }
+
+    .detail-header h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .detail-close {
+      background: transparent;
+      border: none;
+      color: var(--slate-400);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+
+    .detail-close:hover {
+      color: white;
+      background: var(--slate-700);
+    }
+
+    .detail-body {
+      padding: 16px;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-section h4 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .detail-item label {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .detail-item span {
+      font-size: 0.875rem;
+      color: var(--slate-200);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Export Actions */
+    .export-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      padding: 16px;
+      border-top: 1px solid var(--slate-800);
+      background: var(--slate-800);
+    }
+
+    .export-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-sm);
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      border: 1px solid transparent;
+    }
+
+    .export-btn.evidence {
+      background: var(--cyan-500);
+      color: var(--slate-950);
+    }
+
+    .export-btn.evidence:hover {
+      background: var(--cyan-400);
+    }
+
+    .export-btn.dispute {
+      background: transparent;
+      color: var(--amber-400);
+      border-color: var(--amber-500);
+    }
+
+    .export-btn.dispute:hover {
+      background: rgba(245, 158, 11, 0.2);
+    }
+
+    .export-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--slate-500);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--slate-300);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    /* Loading state */
+    .loading-row td {
+      text-align: center;
+      padding: 40px;
+      color: var(--slate-500);
+    }
+
+    /* Embed mode adjustments */
+    body.embed-mode .container {
+      padding: 16px;
+    }
+
+    body.embed-mode .header {
+      display: none;
+    }
+  </style>
+  <script>
+    // Detect embed mode from URL query param
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const isEmbed = params.get('embed') === '1';
+      if (isEmbed) {
+        document.documentElement.classList.add('embed-mode');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <script>
+    if (document.documentElement.classList.contains('embed-mode')) {
+      document.body.classList.add('embed-mode');
+    }
+  </script>
+  
+  <div class="container">
+    <!-- Header (hidden in embed mode) -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>TRUVESTA</h1>
+          <span>Orders Management</span>
+        </div>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Connected</span>
+      </div>
+    </header>
+
+    <!-- Filters -->
+    <div class="orders-filters" id="orders-filters">
+      <div class="filter-group">
+        <label>Status</label>
+        <select class="filter-select" id="filter-status">
+          <option value="">All</option>
+          <option value="filled">Filled</option>
+          <option value="rejected">Rejected</option>
+          <option value="pending">Pending</option>
+          <option value="partial">Partial</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Side</label>
+        <select class="filter-select" id="filter-side">
+          <option value="">All</option>
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Symbol</label>
+        <input type="text" class="filter-input" id="filter-symbol" placeholder="e.g. EURUSD">
+      </div>
+      
+      <div class="filter-actions">
+        <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
+        <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+      </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="orders-layout">
+      <!-- Orders Table -->
+      <div class="orders-table-wrapper" id="orders-table">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>LP</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody">
+            <tr class="loading-row">
+              <td colspan="8">Loading orders...</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="orders-pagination">
+          <span class="pagination-info" id="pagination-info">Showing 0 orders</span>
+          <div class="pagination-controls">
+            <button class="btn btn-ghost" id="btn-prev" onclick="prevPage()" disabled>Previous</button>
+            <button class="btn btn-ghost" id="btn-next" onclick="nextPage()">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Detail Panel -->
+      <aside class="order-detail-panel" id="order-detail">
+        <div class="detail-header">
+          <h3>Order Details</h3>
+          <button class="detail-close" onclick="closeDetail()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="detail-body" id="detail-body">
+          <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14,2 14,8 20,8"/>
+            </svg>
+            <h3>No Order Selected</h3>
+            <p>Click on an order to view details</p>
+          </div>
+        </div>
+        
+        <div class="export-actions" id="export-actions" style="display: none;">
+          <button class="export-btn evidence" id="order-export-evidence" onclick="exportEvidence()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Evidence Pack
+          </button>
+          <button class="export-btn dispute" id="order-export-dispute" onclick="exportDispute()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Export Dispute Pack
+          </button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // State
+      let orders = [];
+      let selectedOrder = null;
+      let currentPage = 1;
+      const pageSize = 20;
+      let totalOrders = 0;
+
+      // DOM elements
+      const tbody = document.getElementById('orders-tbody');
+      const paginationInfo = document.getElementById('pagination-info');
+      const detailBody = document.getElementById('detail-body');
+      const exportActions = document.getElementById('export-actions');
+
+      // Format timestamp
+      function formatTime(ts) {
+        if (!ts) return '--';
+        const d = new Date(ts);
+        return d.toLocaleTimeString('en-US', { hour12: false }) + '.' + 
+               String(d.getMilliseconds()).padStart(3, '0');
+      }
+
+      // Format date
+      function formatDate(ts) {
+        if (!ts) return '--';
+        const d = new Date(ts);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      // Render orders table
+      function renderOrders() {
+        if (orders.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14,2 14,8 20,8"/>
+                  </svg>
+                  <h3>No Orders Found</h3>
+                  <p>No orders match the current filters</p>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = orders.map(order => `
+          <tr onclick="selectOrder('${order.id}')" class="${selectedOrder?.id === order.id ? 'selected' : ''}">
+            <td><span class="order-id">${order.id?.substring(0, 8) || '--'}</span></td>
+            <td><span class="order-time">${formatTime(order.timestamp || order.created_at)}</span></td>
+            <td><span class="order-symbol">${order.symbol || '--'}</span></td>
+            <td><span class="order-side ${(order.side || '').toLowerCase()}">${order.side || '--'}</span></td>
+            <td><span class="order-qty">${order.quantity?.toLocaleString() || '--'}</span></td>
+            <td><span class="order-price">${order.price?.toFixed(5) || '--'}</span></td>
+            <td><span class="order-status ${(order.status || '').toLowerCase()}">${order.status || '--'}</span></td>
+            <td>${order.lp_account || order.lp || '--'}</td>
+          </tr>
+        `).join('');
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, totalOrders);
+        paginationInfo.textContent = `Showing ${start}-${end} of ${totalOrders} orders`;
+
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = end >= totalOrders;
+      }
+
+      // Render order detail
+      function renderDetail(order) {
+        if (!order) {
+          detailBody.innerHTML = `
+            <div class="empty-state">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+              </svg>
+              <h3>No Order Selected</h3>
+              <p>Click on an order to view details</p>
+            </div>
+          `;
+          exportActions.style.display = 'none';
+          return;
+        }
+
+        detailBody.innerHTML = `
+          <div class="detail-section">
+            <h4>Order Information</h4>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <label>Order ID</label>
+                <span>${order.id || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Status</label>
+                <span class="order-status ${(order.status || '').toLowerCase()}">${order.status || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Symbol</label>
+                <span>${order.symbol || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Side</label>
+                <span class="order-side ${(order.side || '').toLowerCase()}">${order.side || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Quantity</label>
+                <span>${order.quantity?.toLocaleString() || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Price</label>
+                <span>${order.price?.toFixed(5) || '--'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Execution</h4>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <label>LP Account</label>
+                <span>${order.lp_account || order.lp || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Fill Price</label>
+                <span>${order.fill_price?.toFixed(5) || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Fill Qty</label>
+                <span>${order.fill_quantity?.toLocaleString() || '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Slippage</label>
+                <span>${order.slippage ? (order.slippage * 10000).toFixed(2) + ' pips' : '--'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Timestamps</h4>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <label>Created</label>
+                <span>${order.created_at ? new Date(order.created_at).toISOString() : '--'}</span>
+              </div>
+              <div class="detail-item">
+                <label>Updated</label>
+                <span>${order.updated_at ? new Date(order.updated_at).toISOString() : '--'}</span>
+              </div>
+            </div>
+          </div>
+
+          ${order.rejection_reason ? `
+          <div class="detail-section">
+            <h4>Rejection</h4>
+            <div class="detail-item">
+              <label>Reason</label>
+              <span style="color: var(--rose-400);">${order.rejection_reason}</span>
+            </div>
+          </div>
+          ` : ''}
+        `;
+
+        exportActions.style.display = 'flex';
+      }
+
+      // Fetch orders
+      async function fetchOrders() {
+        try {
+          tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading orders...</td></tr>';
+          
+          const params = new URLSearchParams();
+          params.set('limit', pageSize);
+          params.set('offset', (currentPage - 1) * pageSize);
+          
+          const status = document.getElementById('filter-status').value;
+          const side = document.getElementById('filter-side').value;
+          const symbol = document.getElementById('filter-symbol').value;
+          
+          if (status) params.set('status', status);
+          if (side) params.set('side', side);
+          if (symbol) params.set('symbol', symbol);
+          
+          const resp = await fetch(`/api/orders?${params.toString()}`);
+          if (!resp.ok) throw new Error('Failed to fetch orders');
+          
+          const data = await resp.json();
+          orders = data.orders || data.data || [];
+          totalOrders = data.total || orders.length;
+          
+          renderOrders();
+        } catch (err) {
+          console.error('Error fetching orders:', err);
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <h3>Failed to Load Orders</h3>
+                  <p>Unable to connect to the orders API</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      // Select order
+      window.selectOrder = async function(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+        
+        selectedOrder = order;
+        renderOrders();
+        renderDetail(order);
+        
+        // On mobile, show detail panel
+        document.getElementById('order-detail').classList.add('active');
+      };
+
+      // Close detail
+      window.closeDetail = function() {
+        selectedOrder = null;
+        renderOrders();
+        renderDetail(null);
+        document.getElementById('order-detail').classList.remove('active');
+      };
+
+      // Pagination
+      window.prevPage = function() {
+        if (currentPage > 1) {
+          currentPage--;
+          fetchOrders();
+        }
+      };
+
+      window.nextPage = function() {
+        if (currentPage * pageSize < totalOrders) {
+          currentPage++;
+          fetchOrders();
+        }
+      };
+
+      // Filters
+      window.applyFilters = function() {
+        currentPage = 1;
+        fetchOrders();
+      };
+
+      window.clearFilters = function() {
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-side').value = '';
+        document.getElementById('filter-symbol').value = '';
+        currentPage = 1;
+        fetchOrders();
+      };
+
+      // Export functions
+      window.exportEvidence = async function() {
+        if (!selectedOrder) return;
+        
+        try {
+          const resp = await fetch(`/api/orders/${selectedOrder.id}/evidence-pack`);
+          if (!resp.ok) throw new Error('Failed to generate evidence pack');
+          
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `evidence-${selectedOrder.id}.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          console.error('Export evidence failed:', err);
+          alert('Failed to export evidence pack. API may not be available.');
+        }
+      };
+
+      window.exportDispute = async function() {
+        if (!selectedOrder) return;
+        
+        try {
+          const resp = await fetch(`/api/orders/${selectedOrder.id}/dispute-pack`);
+          if (!resp.ok) throw new Error('Failed to generate dispute pack');
+          
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `dispute-${selectedOrder.id}.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          console.error('Export dispute failed:', err);
+          alert('Failed to export dispute pack. API may not be available.');
+        }
+      };
+
+      // Initialize
+      fetchOrders();
+
+      // Expose API for programmatic control
+      window.OrdersPage = {
+        refresh: fetchOrders,
+        selectOrder: window.selectOrder
+      };
+    })();
+  </script>
+</body>
+</html>

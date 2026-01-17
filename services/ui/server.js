@@ -400,6 +400,11 @@ app.get("/command-center-v2", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "command-center-v2.html"));
 });
 
+// Phase 3: Orders page
+app.get("/orders", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "orders.html"));
+});
+
 // SPA fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

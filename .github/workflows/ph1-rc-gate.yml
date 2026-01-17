@@ -118,6 +118,13 @@ jobs:
           chmod +x ./scripts/ph2-embed-contract-gate.sh
           ./scripts/ph2-embed-contract-gate.sh
 
+      - name: Gate 5 — Orders Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph3-orders-contract-gate.sh
+          ./scripts/ph3-orders-contract-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash
