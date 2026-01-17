@@ -31,7 +31,9 @@ const {
   extractPolicySnapshot,
   extractDecision,
   extractAuditChain,
-  extractOperatorIdentity
+  extractOperatorIdentity,
+  computeOrderDigest,
+  verifyOrderDigest
 } = common;
 
 describe("P0 Acceptance Criteria", () => {
@@ -315,6 +317,203 @@ describe("P0 Acceptance Criteria", () => {
       const result = verifyPolicyConsistency(pack, originalHash.slice(0, 16));
       assert.strictEqual(result.consistent, false);
       assert.ok(result.error?.includes("Policy hash mismatch"));
+    });
+  });
+
+  // =========================================================================
+  // Criterion 6: Order Digest Binding
+  // =========================================================================
+  describe("6. Order Digest Binding", () => {
+    it("should include order_digest in issued token", () => {
+      const token = issueDecisionToken({
+        traceId: "test-digest-001",
+        decision: "ALLOW",
+        reasonCode: "OK",
+        policyVersion: "policy.v0.2",
+        order: {
+          symbol: "AAPL",
+          side: "BUY",
+          qty: 100,
+          price: 150.50,
+          clientOrderId: "order-digest-test"
+        }
+      });
+
+      assert.ok(token.payload.order_digest, "Token should contain order_digest");
+      assert.strictEqual(token.payload.order_digest_version, "v1");
+      assert.match(token.payload.order_digest, /^[a-f0-9]{64}$/, "Digest should be 64 hex chars");
+    });
+
+    it("should produce deterministic digest for same order", () => {
+      const orderParams = {
+        client_order_id: "deterministic-test-001",
+        symbol: "GME",
+        side: "SELL" as const,
+        qty: 50,
+        price: 25.75
+      };
+
+      const digest1 = computeOrderDigest(orderParams);
+      const digest2 = computeOrderDigest(orderParams);
+
+      assert.strictEqual(digest1, digest2, "Same order should produce identical digest");
+    });
+
+    it("should produce different digest when order content changes", () => {
+      const baseOrder = {
+        client_order_id: "mutation-test-001",
+        symbol: "AAPL",
+        side: "BUY" as const,
+        qty: 100,
+        price: 150.00
+      };
+
+      const originalDigest = computeOrderDigest(baseOrder);
+
+      // Mutate quantity
+      const mutatedQty = computeOrderDigest({ ...baseOrder, qty: 101 });
+      assert.notStrictEqual(originalDigest, mutatedQty, "Qty change should produce different digest");
+
+      // Mutate symbol
+      const mutatedSymbol = computeOrderDigest({ ...baseOrder, symbol: "MSFT" });
+      assert.notStrictEqual(originalDigest, mutatedSymbol, "Symbol change should produce different digest");
+
+      // Mutate side
+      const mutatedSide = computeOrderDigest({ ...baseOrder, side: "SELL" });
+      assert.notStrictEqual(originalDigest, mutatedSide, "Side change should produce different digest");
+
+      // Mutate price
+      const mutatedPrice = computeOrderDigest({ ...baseOrder, price: 150.01 });
+      assert.notStrictEqual(originalDigest, mutatedPrice, "Price change should produce different digest");
+    });
+
+    it("should handle market orders (no price)", () => {
+      const marketOrder = {
+        client_order_id: "market-order-001",
+        symbol: "TSLA",
+        side: "BUY" as const,
+        qty: 10,
+        price: undefined
+      };
+
+      const digest = computeOrderDigest(marketOrder);
+      assert.match(digest, /^[a-f0-9]{64}$/, "Market order should produce valid digest");
+
+      // Verify consistency
+      const digest2 = computeOrderDigest(marketOrder);
+      assert.strictEqual(digest, digest2, "Market order digest should be deterministic");
+    });
+
+    it("should verify matching order digest", () => {
+      const order = {
+        client_order_id: "verify-test-001",
+        symbol: "NVDA",
+        side: "BUY" as const,
+        qty: 25,
+        price: 450.00
+      };
+
+      const expectedDigest = computeOrderDigest(order);
+      const result = verifyOrderDigest(order, expectedDigest);
+
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.computedDigest, expectedDigest);
+    });
+
+    it("should detect execution that differs from authorized order", () => {
+      // Original authorized order
+      const authorizedOrder = {
+        client_order_id: "exec-diff-001",
+        symbol: "META",
+        side: "BUY" as const,
+        qty: 100,
+        price: 350.00
+      };
+
+      const authorizedDigest = computeOrderDigest(authorizedOrder);
+
+      // Executed order differs (qty changed)
+      const executedOrder = {
+        client_order_id: "exec-diff-001",
+        symbol: "META",
+        side: "BUY" as const,
+        qty: 150, // CHANGED!
+        price: 350.00
+      };
+
+      const result = verifyOrderDigest(executedOrder, authorizedDigest);
+
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.reason, "ORDER_DIGEST_MISMATCH");
+      assert.notStrictEqual(result.computedDigest, authorizedDigest);
+    });
+
+    it("should normalize symbol to uppercase", () => {
+      const lowerCase = computeOrderDigest({
+        client_order_id: "case-test",
+        symbol: "aapl",
+        side: "BUY",
+        qty: 100
+      });
+
+      const upperCase = computeOrderDigest({
+        client_order_id: "case-test",
+        symbol: "AAPL",
+        side: "BUY",
+        qty: 100
+      });
+
+      assert.strictEqual(lowerCase, upperCase, "Symbol should be case-insensitive");
+    });
+
+    it("should normalize price to 8 decimal places", () => {
+      const twoDecimals = computeOrderDigest({
+        client_order_id: "price-test",
+        symbol: "AAPL",
+        side: "BUY",
+        qty: 100,
+        price: 150.50
+      });
+
+      const eightDecimals = computeOrderDigest({
+        client_order_id: "price-test",
+        symbol: "AAPL",
+        side: "BUY",
+        qty: 100,
+        price: 150.50000000
+      });
+
+      assert.strictEqual(twoDecimals, eightDecimals, "Price normalization should be consistent");
+    });
+
+    it("should include order_digest in token that passes signature verification", () => {
+      const token = issueDecisionToken({
+        traceId: "sig-with-digest-001",
+        decision: "ALLOW",
+        reasonCode: "OK",
+        policyVersion: "policy.v0.2",
+        order: {
+          symbol: "AAPL",
+          side: "BUY",
+          qty: 100,
+          price: 150.00,
+          clientOrderId: "sig-test-001"
+        }
+      });
+
+      // Token with digest should pass verification
+      const sigResult = verifyDecisionToken(token);
+      assert.strictEqual(sigResult.valid, true, "Token with order_digest should pass signature verification");
+
+      // Digest should match recomputed value
+      const recomputedDigest = computeOrderDigest({
+        client_order_id: "sig-test-001",
+        symbol: "AAPL",
+        side: "BUY",
+        qty: 100,
+        price: 150.00
+      });
+      assert.strictEqual(token.payload.order_digest, recomputedDigest, "Embedded digest should match recomputed");
     });
   });
 });

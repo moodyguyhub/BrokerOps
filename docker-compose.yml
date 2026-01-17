@@ -26,5 +26,109 @@ services:
     volumes:
       - ./policies:/policies
 
+  lp-simulator:
+    image: node:20-alpine
+    container_name: broker-lp-simulator
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      SIM_PORT: "7010"
+      AUDIT_WRITER_URL: "http://audit-writer:7003"
+      CI: "true"
+    command: ["/bin/sh", "-c", "corepack enable && pnpm install --frozen-lockfile=false && pnpm --filter @broker/common build && pnpm --filter @broker/lp-simulator dev"]
+    ports:
+      - "7010:7010"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7010/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  audit-writer:
+    image: node:20-alpine
+    container_name: broker-audit-writer
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      PORT: "7003"
+      PGHOST: "postgres"
+      PGPORT: "5432"
+      PGUSER: "broker"
+      PGPASSWORD: "broker"
+      PGDATABASE: "broker"
+      CI: "true"
+    command: ["/bin/sh", "-c", "corepack enable && pnpm install --frozen-lockfile=false && pnpm --filter @broker/common build && pnpm --filter @broker/audit-writer build && pnpm --filter @broker/audit-writer start"]
+    ports:
+      - "7003:7003"
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  reconstruction-api:
+    image: node:20-alpine
+    container_name: broker-reconstruction-api
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      PORT: "7004"
+      PGHOST: "postgres"
+      PGPORT: "5432"
+      PGUSER: "broker"
+      PGPASSWORD: "broker"
+      PGDATABASE: "broker"
+      ECONOMICS_URL: "http://economics:7005"
+      CI: "true"
+    command: ["/bin/sh", "-c", "corepack enable && pnpm install --frozen-lockfile=false && pnpm --filter @broker/common build && pnpm --filter @broker/reconstruction-api build && pnpm --filter @broker/reconstruction-api start"]
+    ports:
+      - "7004:7004"
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  order-api:
+    image: node:20-alpine
+    container_name: broker-order-api
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      PORT: "7001"
+      PGHOST: "postgres"
+      PGPORT: "5432"
+      PGUSER: "broker"
+      PGPASSWORD: "broker"
+      PGDATABASE: "broker"
+      RISK_GATE_URL: "http://risk-gate:7002"
+      AUDIT_URL: "http://audit-writer:7003"
+      RECONSTRUCTION_URL: "http://reconstruction-api:7004"
+      ECONOMICS_URL: "http://economics:7005"
+      CI: "true"
+    command: ["/bin/sh", "-c", "corepack enable && pnpm install --frozen-lockfile=false && pnpm --filter @broker/common build && pnpm --filter @broker/order-api build && pnpm --filter @broker/order-api start"]
+    ports:
+      - "7001:7001"
+    depends_on:
+      - postgres
+      - audit-writer
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   pgdata:

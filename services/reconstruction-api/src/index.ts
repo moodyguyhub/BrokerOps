@@ -9,7 +9,12 @@ import {
   extractOperatorIdentity,
   serializeEvidencePack,
   type EconomicsComponent,
-  type EvidenceRealizedEconomics
+  type EvidenceRealizedEconomics,
+  // Phase 1 LP Order imports
+  reconstructTimeline,
+  isTerminalStatus,
+  type LpOrderEvent,
+  type Timeline
 } from "@broker/common";
 const { Pool } = pg;
 
@@ -581,6 +586,241 @@ function buildSummaryFromEvents(events: AuditRow[], chainVerification: HashChain
     lastEvent: events[events.length - 1]?.created_at
   };
 }
+
+// ============================================================================
+// Phase 1: LP Order Timeline Reconstruction
+// ============================================================================
+
+interface LpTimelineResponse extends Timeline {
+  verification: {
+    chain_valid: boolean;
+    chain_length: number;
+    computed_hashes_match: boolean;
+  };
+  rejection_details?: {
+    reason_class: string;
+    reason_code: string;
+    raw_provider_code: string | null;
+    raw_provider_message: string | null;
+    taxonomy_version: string;
+  };
+}
+
+// GET /lp-timeline/:traceId - Reconstruct LP order timeline
+app.get("/lp-timeline/:traceId", async (req, res) => {
+  const traceId = req.params.traceId;
+  
+  try {
+    // Fetch LP order events for this trace
+    const r = await pool.query<AuditRow>(
+      `SELECT id, trace_id, event_type, event_version, payload_json, prev_hash, hash, created_at 
+       FROM audit_events 
+       WHERE trace_id=$1 AND event_type LIKE 'lp.order.%'
+       ORDER BY id ASC`,
+      [traceId]
+    );
+
+    if (!r.rowCount) {
+      return res.status(404).json({ 
+        error: "LP_TIMELINE_NOT_FOUND", 
+        trace_id: traceId,
+        message: "No LP order events found for this trace"
+      });
+    }
+
+    // Extract LP events from stored payload
+    const lpEvents: LpOrderEvent[] = r.rows.map(row => {
+      const stored = row.payload_json;
+      // Remove internal validation metadata
+      const { _validation, ...event } = stored;
+      return event as LpOrderEvent;
+    });
+
+    // Reconstruct timeline using common module
+    const timeline = reconstructTimeline(traceId, lpEvents);
+
+    // Verify hash chain
+    const chainVerification = verifyHashChain(r.rows);
+
+    // Extract rejection details if present
+    let rejectionDetails: LpTimelineResponse["rejection_details"];
+    const rejectionEvent = lpEvents.find(e => e.normalization.status === "REJECTED");
+    if (rejectionEvent?.normalization.reason) {
+      const reason = rejectionEvent.normalization.reason;
+      rejectionDetails = {
+        reason_class: reason.reason_class,
+        reason_code: reason.reason_code,
+        raw_provider_code: reason.raw.provider_code ?? null,
+        raw_provider_message: reason.raw.provider_message ?? null,
+        taxonomy_version: reason.taxonomy_version
+      };
+    }
+
+    const response: LpTimelineResponse = {
+      ...timeline,
+      verification: {
+        chain_valid: chainVerification.valid,
+        chain_length: r.rowCount ?? 0,
+        computed_hashes_match: chainVerification.valid
+      },
+      rejection_details: rejectionDetails
+    };
+
+    // Add warning header if violations detected
+    if (timeline.has_violations) {
+      res.setHeader("X-BrokerOps-Warning", "TRANSITION_VIOLATIONS_DETECTED");
+    }
+
+    if (!chainVerification.valid) {
+      res.setHeader("X-BrokerOps-Warning", "HASH_CHAIN_INVALID");
+      response.integrity_status = "TAMPER_SUSPECTED";
+    }
+
+    res.json(response);
+  } catch (err) {
+    console.error("LP timeline reconstruction error:", err);
+    res.status(500).json({
+      error: "LP_TIMELINE_RECONSTRUCTION_FAILED",
+      message: err instanceof Error ? err.message : "Unknown error"
+    });
+  }
+});
+
+// GET /lp-timeline/:traceId/evidence - Generate LP timeline evidence for pack inclusion
+app.get("/lp-timeline/:traceId/evidence", async (req, res) => {
+  const traceId = req.params.traceId;
+  
+  try {
+    const r = await pool.query<AuditRow>(
+      `SELECT id, trace_id, event_type, event_version, payload_json, prev_hash, hash, created_at 
+       FROM audit_events 
+       WHERE trace_id=$1 AND event_type LIKE 'lp.order.%'
+       ORDER BY id ASC`,
+      [traceId]
+    );
+
+    if (!r.rowCount) {
+      return res.status(404).json({ error: "LP_TIMELINE_NOT_FOUND", trace_id: traceId });
+    }
+
+    const lpEvents: LpOrderEvent[] = r.rows.map(row => {
+      const { _validation, ...event } = row.payload_json;
+      return event as LpOrderEvent;
+    });
+
+    const timeline = reconstructTimeline(traceId, lpEvents);
+    const chainVerification = verifyHashChain(r.rows);
+
+    // Build evidence structure
+    const evidence = {
+      lp_timeline: {
+        trace_id: traceId,
+        generated_at: new Date().toISOString(),
+        event_count: lpEvents.length,
+        current_status: timeline.current_status,
+        is_terminal: timeline.is_terminal,
+        has_violations: timeline.has_violations,
+        violations: timeline.violations,
+        integrity_status: chainVerification.valid ? "VALID" : "TAMPER_SUSPECTED",
+        fill_summary: timeline.fill_summary
+      },
+      hash_chain: r.rows.map(row => ({
+        seq: row.id,
+        event_id: row.payload_json.event_id,
+        event_type: row.event_type,
+        status: row.payload_json.normalization?.status,
+        occurred_at: row.payload_json.occurred_at,
+        hash: row.hash,
+        prev_hash: row.prev_hash
+      })),
+      events: lpEvents.map(e => ({
+        event_id: e.event_id,
+        event_type: e.event_type,
+        status: e.normalization.status,
+        occurred_at: e.occurred_at,
+        source: e.source,
+        correlation: e.correlation,
+        payload_summary: {
+          symbol: e.payload.symbol,
+          side: e.payload.side,
+          qty: e.payload.qty,
+          fill_qty: e.payload.fill_qty,
+          fill_price: e.payload.fill_price
+        },
+        reason: e.normalization.reason
+      })),
+      checksums: {
+        timeline_hash: crypto.createHash("sha256")
+          .update(JSON.stringify(timeline))
+          .digest("hex"),
+        chain_verification: chainVerification
+      }
+    };
+
+    res.json(evidence);
+  } catch (err) {
+    console.error("LP timeline evidence error:", err);
+    res.status(500).json({
+      error: "LP_TIMELINE_EVIDENCE_FAILED",
+      message: err instanceof Error ? err.message : "Unknown error"
+    });
+  }
+});
+
+// GET /lp-timelines/recent - List recent LP order timelines
+app.get("/lp-timelines/recent", async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const serverId = typeof req.query.server_id === "string" ? req.query.server_id : null;
+  
+  try {
+    const r = await pool.query(`
+      WITH lp_traces AS (
+        SELECT 
+          trace_id,
+          MIN(created_at) as started_at,
+          MAX(created_at) as last_event_at,
+          COUNT(*) as event_count,
+          MAX(payload_json->'normalization'->>'status') as last_status,
+          MAX(payload_json->'payload'->>'symbol') as symbol,
+          MAX(payload_json->'payload'->>'side') as side,
+          MAX((payload_json->'payload'->>'qty')::numeric) as qty,
+          MAX(payload_json->'normalization'->'reason'->>'reason_code') as rejection_reason,
+          MAX(payload_json->'source'->>'server_id') as server_id,
+          MAX(payload_json->'source'->>'server_name') as server_name
+        FROM audit_events
+        WHERE event_type LIKE 'lp.order.%'
+          AND ($2::text IS NULL OR payload_json->'source'->>'server_id' = $2)
+        GROUP BY trace_id
+      )
+      SELECT * FROM lp_traces
+      ORDER BY started_at DESC
+      LIMIT $1
+    `, [limit, serverId]);
+
+    res.json({
+      count: r.rowCount ?? 0,
+      timelines: r.rows.map(row => ({
+        trace_id: row.trace_id,
+        started_at: row.started_at,
+        last_event_at: row.last_event_at,
+        event_count: parseInt(row.event_count),
+        current_status: row.last_status,
+        symbol: row.symbol,
+        side: row.side,
+        qty: row.qty,
+        rejection_reason: row.rejection_reason,
+        server_id: row.server_id,
+        server_name: row.server_name
+      }))
+    });
+  } catch (err) {
+    console.error("LP timelines list error:", err);
+    res.status(500).json({
+      error: "LP_TIMELINES_LIST_FAILED",
+      message: err instanceof Error ? err.message : "Unknown error"
+    });
+  }
+});
 
 app.get("/health", async (_, res) => {
   const r = await pool.query("SELECT 1 as ok");

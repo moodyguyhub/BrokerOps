@@ -1,4 +1,6 @@
 packages:
-  - "services/*"
-  - "packages/*"
-  - "tests"
+  - services/*
+  - packages/*
+  - tests
+
+storeDir: /home/mahmood-asadi/BrokerOps/.pnpm-store

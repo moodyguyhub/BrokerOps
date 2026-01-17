@@ -1,5 +1,16 @@
 import express from "express";
+import { execSync } from "child_process";
 import { OrderRequestSchema, type RiskDecision } from "@broker/common";
+
+// Build identity for demo/incident triage
+const BUILD_INFO = {
+  commit: (() => {
+    try { return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim(); }
+    catch { return "unknown"; }
+  })(),
+  built_at: new Date().toISOString(),
+  service: "risk-gate"
+};
 
 const app = express();
 app.use(express.json());
@@ -119,9 +130,9 @@ app.get("/health", async (_, res) => {
   try {
     const opaRes = await fetch(`${OPA_URL}/health`);
     const opaOk = opaRes.ok;
-    res.json({ ok: true, opa: opaOk ? "connected" : "unreachable" });
+    res.json({ ok: true, opa: opaOk ? "connected" : "unreachable", build: BUILD_INFO });
   } catch {
-    res.json({ ok: true, opa: "unreachable" });
+    res.json({ ok: true, opa: "unreachable", build: BUILD_INFO });
   }
 });
 
