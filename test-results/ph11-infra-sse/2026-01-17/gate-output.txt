@@ -1,0 +1,51 @@
+
+============================================
+Phase 11A: Infrastructure SSE Contract Gate
+============================================
+
+--- Section 1: Server SSE Endpoint ---
+✓ PASS: SSE route /api/infrastructure/stream exists
+✓ PASS: SSE Content-Type header set to text/event-stream
+✓ PASS: SSE Cache-Control no-cache header
+✓ PASS: SSE Connection keep-alive header
+✓ PASS: SSE flushHeaders() called
+✓ PASS: SSE sends connected event on connect
+✓ PASS: SSE sends infra event with payload
+✓ PASS: SSE heartbeat mechanism exists
+✓ PASS: SSE client tracking (sseClients Set)
+✓ PASS: SSE cleanup on connection close
+✓ PASS: SSE broadcast interval constant defined
+✓ PASS: SSE broadcast function exists
+✓ PASS: buildInfrastructurePayload helper function
+✓ PASS: SSE uses same payload schema as REST endpoint
+
+--- Section 2: infrastructure.html SSE Client ---
+✓ PASS: EventSource connects to /api/infrastructure/stream
+✓ PASS: Listens for SSE connected event
+✓ PASS: Listens for SSE infra event
+✓ PASS: SSE error handler defined
+✓ PASS: Fallback to polling on SSE error
+✓ PASS: SSE reconnect delay/timer exists
+✓ PASS: sseConnected state tracking
+✓ PASS: connectSSE function defined
+✓ PASS: disconnectSSE function defined
+✓ PASS: handleInfraData shared handler function
+✓ PASS: Visibility API pauses SSE when hidden
+✓ PASS: Initial connectSSE() call on load
+
+--- Section 3: Shell (command-center-v2.html) SSE ---
+✓ PASS: Shell EventSource connects to SSE stream
+✓ PASS: Shell listens for SSE connected event
+✓ PASS: Shell listens for SSE infra event
+✓ PASS: Shell SSE error handler defined
+✓ PASS: Shell fallback to polling on SSE error
+✓ PASS: Shell SSE reconnect mechanism
+✓ PASS: Shell connectInfraSSE function
+✓ PASS: Shell disconnectInfraSSE function
+✓ PASS: Shell updateConnectionIndicator function
+✓ PASS: Shell initial connectInfraSSE() call
+✓ PASS: Shell preserves hysteresis logic
+
+============================================
+GATE_SUMMARY gate=ph11-infra-sse passed=37 failed=0
+============================================

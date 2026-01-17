@@ -506,7 +506,7 @@
       });
 
       // ========================================================================
-      // Infrastructure Status Polling (header connection indicator)
+      // Infrastructure Status - SSE with Polling Fallback (header connection indicator)
       // ========================================================================
       const connectionShape = document.getElementById('connection-shape');
       const connectionText = document.getElementById('connection-text');
@@ -515,6 +515,52 @@
       
       let infraWarnCounter = 0;
       const INFRA_HYSTERESIS = 3;
+      const INFRA_POLL_INTERVAL = 10000;
+      const SSE_RECONNECT_DELAY = 3000;
+      
+      let infraEventSource = null;
+      let infraSseConnected = false;
+      let infraPollTimer = null;
+      let sseReconnectTimer = null;
+
+      function updateConnectionIndicator(data) {
+        if (!data.success) return;
+
+        let displayStatus = data.status;
+        
+        // Apply hysteresis for warn state
+        if (data.status === 'warn') {
+          infraWarnCounter++;
+          if (infraWarnCounter < INFRA_HYSTERESIS) {
+            displayStatus = 'ok';
+          }
+        } else if (data.status === 'ok') {
+          infraWarnCounter = 0;
+        } else if (data.status === 'error') {
+          infraWarnCounter = 0;
+        }
+
+        // Update connection indicator
+        connectionShape.className = 'connection-shape ' + displayStatus;
+        connectionText.textContent = displayStatus === 'ok' ? 'OK' : displayStatus === 'warn' ? 'WARN' : 'ERR';
+        connectionLatency.textContent = data.data.metrics.avg_latency_ms + 'ms';
+
+        // Update infra badge (show if not ok)
+        if (displayStatus !== 'ok') {
+          infraBadge.textContent = displayStatus === 'error' ? '!' : '⚠';
+          infraBadge.style.display = 'inline-block';
+        } else {
+          infraBadge.style.display = 'none';
+        }
+      }
+
+      function showConnectionError() {
+        connectionShape.className = 'connection-shape error';
+        connectionText.textContent = 'ERR';
+        connectionLatency.textContent = '--';
+        infraBadge.textContent = '!';
+        infraBadge.style.display = 'inline-block';
+      }
 
       async function fetchInfraStatus() {
         try {
@@ -522,48 +568,86 @@
           if (!response.ok) throw new Error('HTTP ' + response.status);
           
           const data = await response.json();
-          if (!data.success) throw new Error('Status check failed');
-
-          let displayStatus = data.status;
-          
-          // Apply hysteresis for warn state
-          if (data.status === 'warn') {
-            infraWarnCounter++;
-            if (infraWarnCounter < INFRA_HYSTERESIS) {
-              displayStatus = 'ok';
-            }
-          } else if (data.status === 'ok') {
-            infraWarnCounter = 0;
-          } else if (data.status === 'error') {
-            infraWarnCounter = 0;
-          }
-
-          // Update connection indicator
-          connectionShape.className = 'connection-shape ' + displayStatus;
-          connectionText.textContent = displayStatus === 'ok' ? 'OK' : displayStatus === 'warn' ? 'WARN' : 'ERR';
-          connectionLatency.textContent = data.data.metrics.avg_latency_ms + 'ms';
-
-          // Update infra badge (show if not ok)
-          if (displayStatus !== 'ok') {
-            infraBadge.textContent = displayStatus === 'error' ? '!' : '⚠';
-            infraBadge.style.display = 'inline-block';
-          } else {
-            infraBadge.style.display = 'none';
-          }
+          updateConnectionIndicator(data);
 
         } catch (err) {
-          // On error, show error state
-          connectionShape.className = 'connection-shape error';
-          connectionText.textContent = 'ERR';
-          connectionLatency.textContent = '--';
-          infraBadge.textContent = '!';
-          infraBadge.style.display = 'inline-block';
+          showConnectionError();
         }
       }
 
-      // Initial fetch and polling
+      function startInfraPolling() {
+        if (infraPollTimer) clearInterval(infraPollTimer);
+        infraPollTimer = setInterval(fetchInfraStatus, INFRA_POLL_INTERVAL);
+      }
+
+      function stopInfraPolling() {
+        if (infraPollTimer) {
+          clearInterval(infraPollTimer);
+          infraPollTimer = null;
+        }
+      }
+
+      function connectInfraSSE() {
+        if (infraEventSource) {
+          infraEventSource.close();
+        }
+
+        try {
+          infraEventSource = new EventSource('/api/infrastructure/stream');
+
+          infraEventSource.addEventListener('connected', () => {
+            console.log('[Shell SSE] Connected to infrastructure stream');
+            infraSseConnected = true;
+            stopInfraPolling();
+          });
+
+          infraEventSource.addEventListener('infra', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              updateConnectionIndicator(data);
+            } catch (err) {
+              console.error('[Shell SSE] Parse error:', err);
+            }
+          });
+
+          infraEventSource.onerror = () => {
+            console.warn('[Shell SSE] Connection error, falling back to polling');
+            infraSseConnected = false;
+            infraEventSource.close();
+            infraEventSource = null;
+            
+            if (!infraPollTimer) {
+              startInfraPolling();
+            }
+            
+            if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
+            sseReconnectTimer = setTimeout(() => {
+              console.log('[Shell SSE] Attempting reconnect...');
+              connectInfraSSE();
+            }, SSE_RECONNECT_DELAY);
+          };
+
+        } catch (err) {
+          console.error('[Shell SSE] Failed to create EventSource:', err);
+          startInfraPolling();
+        }
+      }
+
+      function disconnectInfraSSE() {
+        if (sseReconnectTimer) {
+          clearTimeout(sseReconnectTimer);
+          sseReconnectTimer = null;
+        }
+        if (infraEventSource) {
+          infraEventSource.close();
+          infraEventSource = null;
+        }
+        infraSseConnected = false;
+      }
+
+      // Initial: fetch immediately, then connect SSE
       fetchInfraStatus();
-      setInterval(fetchInfraStatus, 10000);
+      connectInfraSSE();
 
       // Listen for messages from infrastructure iframe
       window.addEventListener('message', (event) => {
