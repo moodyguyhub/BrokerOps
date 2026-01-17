@@ -144,8 +144,15 @@ gate_route_definition() {
 gate_server_routes() {
   log_header "GATE 3: Server Route Verification"
   
+  # In CI mode, server MUST be running (no silent skips)
+  CI_MODE="${CI:-false}"
+  
   # Check if UI server is running
   if ! curl -s --connect-timeout 2 "${UI_BASE_URL}/" >/dev/null 2>&1; then
+    if [[ "$CI_MODE" == "true" ]]; then
+      log_fail "UI server not running on port ${UI_PORT} (required in CI mode)"
+      return 1
+    fi
     echo -e "${YELLOW}  ⚠ UI server not running on port ${UI_PORT}, skipping server checks${NC}"
     echo "  Start UI server with: cd services/ui && pnpm start"
     RESULTS+=("SKIP: Server route checks (server not running)")
@@ -204,8 +211,15 @@ gate_server_routes() {
 gate_api_contract() {
   log_header "GATE 4: API Contract Verification"
   
+  # In CI mode, runtime checks are REQUIRED (no silent skips)
+  CI_MODE="${CI:-false}"
+  
   # Check if UI server is running
   if ! curl -s --connect-timeout 2 "${UI_BASE_URL}/" >/dev/null 2>&1; then
+    if [[ "$CI_MODE" == "true" ]]; then
+      log_fail "UI server not running (required in CI mode)"
+      return 1
+    fi
     echo -e "${YELLOW}  ⚠ UI server not running, skipping API checks${NC}"
     RESULTS+=("SKIP: API contract checks (server not running)")
     return 0
@@ -226,8 +240,12 @@ gate_api_contract() {
       log_fail "/api/orders response has unexpected shape"
     fi
   elif [[ "$HTTP_STATUS" == "500" || "$HTTP_STATUS" == "502" || "$HTTP_STATUS" == "503" ]]; then
-    echo -e "${YELLOW}  ⚠ /api/orders returns $HTTP_STATUS (backend not running)${NC}"
-    RESULTS+=("SKIP: /api/orders (backend not available)")
+    if [[ "$CI_MODE" == "true" ]]; then
+      log_fail "/api/orders returns $HTTP_STATUS (backend required in CI mode)"
+    else
+      echo -e "${YELLOW}  ⚠ /api/orders returns $HTTP_STATUS (backend not running)${NC}"
+      RESULTS+=("SKIP: /api/orders (backend not available)")
+    fi
   else
     log_fail "/api/orders returns unexpected HTTP $HTTP_STATUS"
   fi
