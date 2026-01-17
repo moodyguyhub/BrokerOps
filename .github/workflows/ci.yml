@@ -381,6 +381,12 @@ jobs:
           ./scripts/ph6-shell-contract-gate.sh | tee /tmp/gate8.log
           echo "GATE_SUMMARY gate=ph6-shell status=PASS"
 
+      - name: Gate 9 — Dashboard Phase 7 Contract
+        run: |
+          chmod +x ./scripts/ph7-dashboard-contract-gate.sh
+          ./scripts/ph7-dashboard-contract-gate.sh | tee /tmp/gate9.log
+          echo "GATE_SUMMARY gate=ph7-dashboard status=PASS"
+
       - name: Upload gate logs
         uses: actions/upload-artifact@v4
         if: always()
