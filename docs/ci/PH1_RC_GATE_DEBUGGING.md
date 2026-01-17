@@ -1,16 +1,16 @@
 # Phase 1 RC Gate Debugging Postmortem
 
 **Date:** 2026-01-17  
-**Current Verified Baseline:** `ph1-rc28`  
-**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095525261  
-**Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095518611  
-**Commit:** [`256878e`](https://github.com/moodyguyhub/BrokerOps/commit/256878eb2fa691e54a231b969b6f4498b778ce97)  
+**Current Verified Baseline:** `ph1-rc29`  
+**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095935770  
+**Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095929594  
+**Commit:** [`b9d1dda`](https://github.com/moodyguyhub/BrokerOps/commit/b9d1dda6bc87e73e19b928a35350386e0a0e4011)  
 
 **Tag boundary policy:** RC tags are code-only baselines; documentation may advance on `main` after tagging.
 
 ---
 
-**Previous baseline:** `ph1-rc18` ([`0a0e120`](https://github.com/moodyguyhub/BrokerOps/commit/0a0e12000ce6974696d767a699cd8d6cbac5e5fe))  
+**Previous baseline:** `ph1-rc28` ([`256878e`](https://github.com/moodyguyhub/BrokerOps/commit/256878eb2fa691e54a231b969b6f4498b778ce97))  
 **Actions Run URLs (legacy):**
 - PH1 RC Gate: https://github.com/moodyguyhub/BrokerOps/actions/runs?query=workflow%3A%22PH1+RC+Gate%22+branch%3Aph1-rc18
 - CI: https://github.com/moodyguyhub/BrokerOps/actions/runs?query=workflow%3ACI+branch%3Amain
