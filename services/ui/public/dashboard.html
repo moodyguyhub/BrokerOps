@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — Operations Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --cyan-500: #06b6d4;
+      --cyan-400: #22d3ee;
+      --emerald-500: #10b981;
+      --emerald-400: #34d399;
+      --rose-500: #f43f5e;
+      --rose-400: #fb7185;
+      --amber-500: #f59e0b;
+      --amber-400: #fbbf24;
+      --purple-500: #a855f7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-950);
+      color: var(--slate-200);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--cyan-500);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(3deg);
+    }
+
+    .logo-icon svg { color: var(--slate-950); width: 24px; height: 24px; }
+
+    .logo-text h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+      color: var(--slate-400);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--emerald-500);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.error { background: var(--rose-500); }
+    .status-dot.warning { background: var(--amber-500); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Demo Controls */
+    .demo-controls {
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.1), rgba(6, 182, 212, 0.1));
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .demo-controls h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--purple-500);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .demo-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .demo-btn {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      color: var(--slate-200);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .demo-btn:hover {
+      background: var(--slate-700);
+      border-color: var(--slate-600);
+    }
+
+    .demo-btn.danger {
+      border-color: var(--rose-500);
+      color: var(--rose-400);
+    }
+
+    .demo-btn.danger:hover {
+      background: rgba(244, 63, 94, 0.2);
+    }
+
+    .demo-btn.warning {
+      border-color: var(--amber-500);
+      color: var(--amber-400);
+    }
+
+    .demo-btn.warning:hover {
+      background: rgba(245, 158, 11, 0.2);
+    }
+
+    .demo-btn.success {
+      border-color: var(--emerald-500);
+      color: var(--emerald-400);
+    }
+
+    .demo-btn.success:hover {
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .demo-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .kpi-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .kpi-value.success { color: var(--emerald-400); }
+    .kpi-value.danger { color: var(--rose-400); }
+    .kpi-value.warning { color: var(--amber-400); }
+    .kpi-value.info { color: var(--cyan-400); }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+
+    /* Main Layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-badge {
+      background: var(--rose-500);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    /* Alerts List */
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--slate-800);
+      margin-bottom: 12px;
+      transition: background 0.2s;
+    }
+
+    .alert-item:last-child { margin-bottom: 0; }
+
+    .alert-item:hover { background: var(--slate-700); }
+
+    .alert-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .alert-icon.critical {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--rose-400);
+    }
+
+    .alert-icon.warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber-400);
+    }
+
+    .alert-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .alert-title {
+      font-weight: 600;
+      color: white;
+      font-size: 0.875rem;
+      margin-bottom: 4px;
+    }
+
+    .alert-desc {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    .alert-time {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .alert-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ack-btn {
+      background: var(--slate-700);
+      border: 1px solid var(--slate-600);
+      color: var(--slate-300);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ack-btn:hover {
+      background: var(--emerald-500);
+      border-color: var(--emerald-500);
+      color: white;
+    }
+
+    .alert-item.acked {
+      opacity: 0.6;
+    }
+
+    .alert-item.acked .ack-btn {
+      background: var(--emerald-500);
+      border-color: var(--emerald-500);
+      color: white;
+      cursor: default;
+    }
+
+    /* LP Accounts */
+    .lp-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      background: var(--slate-800);
+      margin-bottom: 12px;
+    }
+
+    .lp-item:last-child { margin-bottom: 0; }
+
+    .lp-status {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .lp-status.connected { background: var(--emerald-500); }
+    .lp-status.warning { background: var(--amber-500); animation: pulse 1s ease-in-out infinite; }
+    .lp-status.critical { background: var(--rose-500); animation: pulse 0.5s ease-in-out infinite; }
+
+    .lp-info { flex: 1; }
+
+    .lp-name {
+      font-weight: 600;
+      color: white;
+      font-size: 0.875rem;
+    }
+
+    .lp-server {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .lp-metrics {
+      display: flex;
+      gap: 24px;
+      text-align: right;
+    }
+
+    .lp-metric-label {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      text-transform: uppercase;
+    }
+
+    .lp-metric-value {
+      font-size: 0.875rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .lp-metric-value.danger { color: var(--rose-400); }
+    .lp-metric-value.warning { color: var(--amber-400); }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--slate-500);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    /* Refresh indicator */
+    .refresh-indicator {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--slate-600);
+      border-top-color: var(--cyan-500);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .toast {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 280px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.success { border-color: var(--emerald-500); }
+    .toast.error { border-color: var(--rose-500); }
+    .toast.warning { border-color: var(--amber-500); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast-title {
+      font-weight: 600;
+      color: white;
+      font-size: 0.875rem;
+      margin-bottom: 4px;
+    }
+
+    .toast-message {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <i data-lucide="shield-check"></i>
+        </div>
+        <div class="logo-text">
+          <h1>TRUVESTA</h1>
+          <span>Operations Dashboard</span>
+        </div>
+      </div>
+      <div class="status-indicator">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">CONNECTING...</span>
+        <span class="refresh-indicator">
+          Last updated: <span id="last-updated">--:--:--</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls" id="demo-controls">
+      <h3>
+        <i data-lucide="play-circle" style="width: 16px; height: 16px;"></i>
+        Demo Scenarios
+      </h3>
+      <div class="demo-buttons">
+        <button class="demo-btn danger" onclick="triggerScenario('margin-warning')" id="btn-margin">
+          <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i>
+          Margin Drop
+        </button>
+        <button class="demo-btn warning" onclick="triggerScenario('rejection-spike')" id="btn-spike">
+          <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+          Rejection Spike
+        </button>
+        <button class="demo-btn success" onclick="triggerScenario('recovery')" id="btn-recovery">
+          <i data-lucide="heart-pulse" style="width: 14px; height: 14px;"></i>
+          Recovery
+        </button>
+        <button class="demo-btn" onclick="refreshAll()" id="btn-refresh">
+          <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <i data-lucide="package" style="width: 14px; height: 14px;"></i>
+          Total Orders
+        </div>
+        <div class="kpi-value info" id="kpi-orders">--</div>
+        <div class="kpi-sub" id="kpi-orders-sub">Last 1 hour</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i>
+          Fill Rate
+        </div>
+        <div class="kpi-value success" id="kpi-fill-rate">--%</div>
+        <div class="kpi-sub" id="kpi-fill-sub">Filled / Total</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i>
+          Rejections
+        </div>
+        <div class="kpi-value danger" id="kpi-rejections">--</div>
+        <div class="kpi-sub" id="kpi-rejections-sub">Last 1 hour</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <i data-lucide="bell-ring" style="width: 14px; height: 14px;"></i>
+          Open Alerts
+        </div>
+        <div class="kpi-value warning" id="kpi-alerts">--</div>
+        <div class="kpi-sub" id="kpi-alerts-sub">0 critical</div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Alerts Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="bell" style="width: 18px; height: 18px;"></i>
+            Active Alerts
+            <span class="card-badge" id="alerts-count">0</span>
+          </div>
+        </div>
+        <div class="card-body" id="alerts-list">
+          <div class="empty-state">
+            <i data-lucide="bell-off"></i>
+            <p>No active alerts</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LP Accounts Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="server" style="width: 18px; height: 18px;"></i>
+            LP Accounts
+          </div>
+        </div>
+        <div class="card-body" id="lp-list">
+          <div class="empty-state">
+            <i data-lucide="server"></i>
+            <p>Loading LP accounts...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // State
+    let refreshInterval = null;
+    const REFRESH_INTERVAL_MS = 5000;
+
+    // Toast notifications
+    function showToast(title, message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <div class="toast-title">${title}</div>
+        <div class="toast-message">${message}</div>
+      `;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Format time
+    function formatTime(date) {
+      return date.toLocaleTimeString('en-US', { hour12: false });
+    }
+
+    function formatRelativeTime(dateStr) {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      if (diffMins < 1) return 'just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return `${Math.floor(diffHours / 24)}d ago`;
+    }
+
+    // Update status
+    function setStatus(status) {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      
+      dot.className = 'status-dot';
+      if (status === 'connected') {
+        text.textContent = 'CONNECTED';
+      } else if (status === 'error') {
+        dot.classList.add('error');
+        text.textContent = 'ERROR';
+      } else if (status === 'loading') {
+        dot.classList.add('warning');
+        text.textContent = 'LOADING...';
+      }
+    }
+
+    // Fetch Dashboard KPIs
+    async function fetchKPIs() {
+      try {
+        const resp = await fetch('/api/dashboard/kpis?window=1h');
+        const result = await resp.json();
+        
+        if (result.success && result.data) {
+          const kpis = result.data;
+          
+          // Total orders
+          document.getElementById('kpi-orders').textContent = kpis.orders?.total || 0;
+          document.getElementById('kpi-orders-sub').textContent = 
+            `${kpis.orders?.filled || 0} filled, ${kpis.orders?.rejected || 0} rejected`;
+          
+          // Fill rate
+          const fillRate = kpis.orders?.total > 0 
+            ? ((kpis.orders.filled / kpis.orders.total) * 100).toFixed(1)
+            : 0;
+          document.getElementById('kpi-fill-rate').textContent = `${fillRate}%`;
+          
+          // Rejections
+          document.getElementById('kpi-rejections').textContent = kpis.rejections?.in_window || 0;
+          
+          // Alerts
+          document.getElementById('kpi-alerts').textContent = kpis.alerts?.open || 0;
+          document.getElementById('kpi-alerts-sub').textContent = 
+            `${kpis.alerts?.critical || 0} critical`;
+          
+          // Update alert value color
+          const alertValue = document.getElementById('kpi-alerts');
+          if (kpis.alerts?.critical > 0) {
+            alertValue.className = 'kpi-value danger';
+          } else if (kpis.alerts?.open > 0) {
+            alertValue.className = 'kpi-value warning';
+          } else {
+            alertValue.className = 'kpi-value success';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch KPIs:', err);
+      }
+    }
+
+    // Fetch Alerts
+    async function fetchAlerts() {
+      try {
+        const resp = await fetch('/api/alerts?status=OPEN&limit=20');
+        const result = await resp.json();
+        
+        if (result.success && result.data) {
+          renderAlerts(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch alerts:', err);
+      }
+    }
+
+    function renderAlerts(alerts) {
+      const container = document.getElementById('alerts-list');
+      const countBadge = document.getElementById('alerts-count');
+      
+      countBadge.textContent = alerts.length;
+      countBadge.style.display = alerts.length > 0 ? 'inline' : 'none';
+      
+      if (alerts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i data-lucide="check-circle"></i>
+            <p>No active alerts — all systems normal</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+      
+      container.innerHTML = alerts.map(alert => {
+        const isCritical = alert.severity === 'CRITICAL';
+        const isAcked = alert.status === 'ACKNOWLEDGED';
+        
+        return `
+          <div class="alert-item ${isAcked ? 'acked' : ''}" data-id="${alert.id}">
+            <div class="alert-icon ${isCritical ? 'critical' : 'warning'}">
+              <i data-lucide="${isCritical ? 'alert-octagon' : 'alert-triangle'}" style="width: 18px; height: 18px;"></i>
+            </div>
+            <div class="alert-content">
+              <div class="alert-title">${alert.alert_type || alert.type}</div>
+              <div class="alert-desc">${alert.lp_id || ''} ${alert.symbol || ''} — ${alert.message || ''}</div>
+              <div class="alert-time">${formatRelativeTime(alert.created_at)}</div>
+            </div>
+            <div class="alert-actions">
+              <button class="ack-btn" onclick="acknowledgeAlert('${alert.id}')" ${isAcked ? 'disabled' : ''}>
+                ${isAcked ? 'Acknowledged' : 'Acknowledge'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      lucide.createIcons();
+    }
+
+    // Acknowledge alert
+    async function acknowledgeAlert(alertId) {
+      try {
+        const resp = await fetch(`/api/alerts/${alertId}/ack`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acked_by: 'dashboard-user' })
+        });
+        
+        const result = await resp.json();
+        
+        if (result.success) {
+          showToast('Alert Acknowledged', `Alert ${alertId.slice(0, 8)}... acknowledged`, 'success');
+          await fetchAlerts();
+          await fetchKPIs();
+        } else {
+          showToast('Error', result.error?.message || 'Failed to acknowledge alert', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to acknowledge alert:', err);
+        showToast('Error', 'Network error', 'error');
+      }
+    }
+
+    // Fetch LP Accounts
+    async function fetchLPAccounts() {
+      try {
+        const resp = await fetch('/api/lp-accounts');
+        const result = await resp.json();
+        
+        if (result.success && result.data) {
+          renderLPAccounts(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch LP accounts:', err);
+      }
+    }
+
+    function renderLPAccounts(accounts) {
+      const container = document.getElementById('lp-list');
+      
+      if (accounts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i data-lucide="server"></i>
+            <p>No LP accounts connected</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+      
+      container.innerHTML = accounts.map(lp => {
+        const marginLevel = lp.margin_level || 0;
+        let statusClass = 'connected';
+        let marginClass = '';
+        
+        if (marginLevel < 50) {
+          statusClass = 'critical';
+          marginClass = 'danger';
+        } else if (marginLevel < 100) {
+          statusClass = 'warning';
+          marginClass = 'warning';
+        }
+        
+        return `
+          <div class="lp-item">
+            <div class="lp-status ${statusClass}"></div>
+            <div class="lp-info">
+              <div class="lp-name">${lp.name || lp.id}</div>
+              <div class="lp-server">${lp.server_name || lp.server_id || 'Unknown server'}</div>
+            </div>
+            <div class="lp-metrics">
+              <div>
+                <div class="lp-metric-label">Equity</div>
+                <div class="lp-metric-value">$${(lp.equity || 0).toLocaleString()}</div>
+              </div>
+              <div>
+                <div class="lp-metric-label">Margin %</div>
+                <div class="lp-metric-value ${marginClass}">${marginLevel.toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Trigger demo scenario
+    async function triggerScenario(scenarioId) {
+      const btn = document.getElementById(`btn-${scenarioId === 'margin-warning' ? 'margin' : scenarioId === 'rejection-spike' ? 'spike' : 'recovery'}`);
+      btn.disabled = true;
+      
+      try {
+        const resp = await fetch(`/api/demo/trigger/${scenarioId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await resp.json();
+        
+        if (result.success) {
+          const scenarioName = scenarioId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+          showToast('Scenario Triggered', `${scenarioName} scenario executed`, 'success');
+          
+          // Poll for updates
+          setTimeout(() => refreshAll(), 2000);
+          setTimeout(() => refreshAll(), 5000);
+        } else {
+          showToast('Error', result.error?.message || 'Failed to trigger scenario', 'error');
+        }
+      } catch (err) {
+        console.error(`Failed to trigger ${scenarioId}:`, err);
+        showToast('Error', 'Network error', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Refresh all data
+    async function refreshAll() {
+      setStatus('loading');
+      
+      try {
+        await Promise.all([
+          fetchKPIs(),
+          fetchAlerts(),
+          fetchLPAccounts()
+        ]);
+        
+        setStatus('connected');
+        document.getElementById('last-updated').textContent = formatTime(new Date());
+      } catch (err) {
+        console.error('Refresh failed:', err);
+        setStatus('error');
+      }
+    }
+
+    // Initialize
+    async function init() {
+      setStatus('loading');
+      
+      // Check health
+      try {
+        const resp = await fetch('/health');
+        const health = await resp.json();
+        console.log('UI Health:', health);
+      } catch (err) {
+        console.error('Health check failed:', err);
+      }
+      
+      // Initial load
+      await refreshAll();
+      
+      // Start auto-refresh
+      refreshInterval = setInterval(refreshAll, REFRESH_INTERVAL_MS);
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

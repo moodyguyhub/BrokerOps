@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — Authority Layer Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="/styles.css" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --cyan-500: #06b6d4;
+      --cyan-400: #22d3ee;
+      --cyan-900: #164e63;
+      --emerald-500: #10b981;
+      --emerald-400: #34d399;
+      --rose-500: #f43f5e;
+      --rose-400: #fb7185;
+      --blue-500: #3b82f6;
+      --blue-400: #60a5fa;
+      --blue-900: #1e3a8a;
+      --purple-500: #a855f7;
+      --purple-400: #c084fc;
+      --purple-900: #581c87;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-950);
+      color: var(--slate-200);
+      line-height: 1.5;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .truvesta-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    /* Header */
+    .truvesta-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .truvesta-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .truvesta-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--cyan-500);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(3deg);
+    }
+
+    .truvesta-logo-icon svg {
+      color: var(--slate-950);
+      width: 20px;
+      height: 20px;
+    }
+
+    .truvesta-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.02em;
+    }
+
+    .truvesta-version {
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      margin-left: 8px;
+    }
+
+    .truvesta-trace {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .truvesta-trace span {
+      color: var(--slate-300);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--slate-400);
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald-500);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .scenario-select {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 6px;
+      padding: 6px 12px;
+      color: var(--slate-200);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .scenario-select:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    /* Grid layout */
+    .truvesta-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .truvesta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Card base */
+    .card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    .card-bg-icon {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 16px;
+      opacity: 0.1;
+    }
+
+    .card-bg-icon svg {
+      width: 120px;
+      height: 120px;
+      color: var(--slate-400);
+    }
+
+    /* Step headers */
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .step-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .step-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-title svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Status badges */
+    .badge {
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid;
+    }
+
+    .badge-authorized {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--emerald-400);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    .badge-blocked {
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--rose-400);
+      border-color: rgba(244, 63, 94, 0.2);
+    }
+
+    .badge-advisory {
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--cyan-400);
+      border-color: rgba(6, 182, 212, 0.2);
+    }
+
+    /* Info rows */
+    .info-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: rgba(2, 6, 23, 0.5);
+      border-radius: 8px;
+      border: 1px solid var(--slate-800);
+    }
+
+    .info-label {
+      color: var(--slate-400);
+    }
+
+    .info-value {
+      color: var(--slate-200);
+    }
+
+    /* Routing visualization */
+    .routing-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: relative;
+    }
+
+    .routing-flow::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--slate-800);
+      z-index: 0;
+    }
+
+    .flow-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--slate-900);
+      padding: 8px;
+      z-index: 1;
+    }
+
+    .flow-node-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.75rem;
+    }
+
+    .flow-node-circle.order {
+      background: var(--slate-800);
+      border: 2px solid var(--slate-600);
+      color: white;
+    }
+
+    .flow-node-circle.router {
+      width: 64px;
+      height: 64px;
+      background: rgba(6, 182, 212, 0.1);
+      border: 2px solid var(--cyan-500);
+      color: var(--cyan-400);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+    }
+
+    .flow-node-label {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .flow-node-label.highlight {
+      color: var(--cyan-400);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .route-boxes {
+      display: flex;
+      gap: 32px;
+      z-index: 1;
+    }
+
+    .route-box {
+      width: 96px;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .route-box.a-book {
+      background: rgba(30, 58, 138, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .route-box.b-book {
+      background: rgba(88, 28, 135, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    .route-box-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .route-box.a-book .route-box-label {
+      color: var(--blue-400);
+    }
+
+    .route-box.b-book .route-box-label {
+      color: var(--purple-400);
+    }
+
+    .route-box-value {
+      font-size: 1.125rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .route-box-subtext {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      margin-top: 8px;
+    }
+
+    .routing-note {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 16px;
+    }
+
+    /* Economics card */
+    .economics-card {
+      background: linear-gradient(to bottom, var(--slate-800), var(--slate-900));
+      border: 1px solid var(--slate-700);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .economics-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .economics-header svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .impact-value {
+      font-size: 2.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--emerald-400);
+      margin-bottom: 8px;
+    }
+
+    .impact-note {
+      font-size: 0.6875rem;
+      color: var(--slate-500);
+      margin-bottom: 16px;
+    }
+
+    .economics-divider {
+      border-top: 1px solid var(--slate-700);
+      padding-top: 16px;
+    }
+
+    .comparison-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 8px;
+    }
+
+    .comparison-label {
+      color: var(--slate-400);
+    }
+
+    .comparison-value {
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .comparison-value.negative {
+      color: var(--rose-400);
+    }
+
+    .routing-value-box {
+      margin-top: 16px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .routing-value-text {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--emerald-400);
+    }
+
+    /* Proof card */
+    .proof-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .proof-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .proof-icon {
+      padding: 8px;
+      background: var(--slate-800);
+      border-radius: 8px;
+    }
+
+    .proof-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--slate-400);
+    }
+
+    .proof-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .proof-subtitle {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .hash-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--slate-800);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      word-break: break-all;
+    }
+
+    .hash-action {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    .hash-action a {
+      color: var(--cyan-500);
+      font-size: 0.625rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .hash-action a:hover {
+      color: var(--cyan-400);
+    }
+
+    .hash-action svg {
+      width: 10px;
+      height: 10px;
+    }
+
+    .proof-disclaimer {
+      margin-top: 12px;
+      font-size: 0.6875rem;
+      color: var(--slate-500);
+    }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan-500);
+      text-decoration: none;
+      font-size: 0.875rem;
+      margin-bottom: 24px;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: var(--cyan-400);
+    }
+
+    .back-link svg {
+      width: 16px;
+      height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="truvesta-container">
+    <!-- Back navigation -->
+    <a href="/" class="back-link">
+      <i data-lucide="arrow-left"></i>
+      Back to Dashboard
+    </a>
+
+    <!-- Header -->
+    <header class="truvesta-header">
+      <div class="truvesta-logo">
+        <div class="truvesta-logo-icon">
+          <i data-lucide="shield-check"></i>
+        </div>
+        <div>
+          <h1 class="truvesta-title">
+            TRUVESTA
+            <span class="truvesta-version">v2.0-PROTOTYPE</span>
+          </h1>
+          <div class="truvesta-trace">
+            traceId: <span id="trace-id">trc_8f92a10</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <div class="system-status">
+          <div class="status-dot"></div>
+          SYSTEM ACTIVE
+        </div>
+        <select class="scenario-select" id="scenario-select">
+          <option value="0">VIP / Unknown Risk → HYBRID</option>
+          <option value="1">Toxic Flow → A-BOOK</option>
+          <option value="2">Policy Block → BLOCKED</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Main grid -->
+    <div class="truvesta-grid">
+      <!-- Left column: Governance + Routing -->
+      <div class="left-column">
+        <!-- Governance Card -->
+        <div class="card">
+          <div class="card-bg-icon">
+            <i data-lucide="shield-check"></i>
+          </div>
+
+          <div class="step-header">
+            <div>
+              <div class="step-label">Step 1: Governance</div>
+              <div class="step-title">
+                Policy Decision
+                <i data-lucide="check-circle-2" id="governance-icon-success" class="text-emerald"></i>
+                <i data-lucide="alert-circle" id="governance-icon-blocked" class="text-rose" style="display:none;"></i>
+              </div>
+            </div>
+            <div id="governance-badge" class="badge badge-authorized">AUTHORIZED</div>
+          </div>
+
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-label">Client</span>
+              <span class="info-value" id="client-name">VIP_Fund_Alpha</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Instrument</span>
+              <span class="info-value" id="instrument">XAUUSD</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Size</span>
+              <span class="info-value" id="size-label">50 Lots</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Routing Card -->
+        <div class="card">
+          <div class="card-bg-icon">
+            <i data-lucide="git-merge"></i>
+          </div>
+
+          <div class="step-header">
+            <div>
+              <div class="step-label">Step 2: Routing Intent</div>
+              <div class="step-title" id="routing-title">Policy-Driven Route: HYBRID (70/30)</div>
+              <p class="routing-note">
+                Authority layer emits intent; execution platform remains master.
+              </p>
+            </div>
+            <div class="badge badge-advisory">ADVISORY</div>
+          </div>
+
+          <div class="routing-flow">
+            <div class="flow-node">
+              <div class="flow-node-circle order">ORDER</div>
+              <span class="flow-node-label" id="order-size">50 Lots</span>
+            </div>
+
+            <div class="flow-node">
+              <div class="flow-node-circle router">
+                <i data-lucide="git-merge"></i>
+              </div>
+              <span class="flow-node-label highlight">ROUTING</span>
+            </div>
+
+            <div class="route-boxes">
+              <div class="flow-node">
+                <div class="route-box a-book">
+                  <div class="route-box-label">A-BOOK</div>
+                  <div class="route-box-value" id="a-book-pct">70%</div>
+                </div>
+                <span class="route-box-subtext">External hedge</span>
+              </div>
+
+              <div class="flow-node">
+                <div class="route-box b-book">
+                  <div class="route-box-label">B-BOOK</div>
+                  <div class="route-box-value" id="b-book-pct">30%</div>
+                </div>
+                <span class="route-box-subtext">Internalize</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: Economics + Proof -->
+      <div class="right-column">
+        <!-- Economics Card -->
+        <div class="economics-card">
+          <div class="economics-header">
+            <i data-lucide="trending-up"></i>
+            Decision Economics
+          </div>
+
+          <div>
+            <div class="step-label">Estimated Impact</div>
+            <div class="impact-value" id="estimated-impact">+$1,250.00</div>
+            <div class="impact-note" id="economics-note">
+              Demo numbers are placeholders (do not treat as realized P&amp;L).
+            </div>
+          </div>
+
+          <div class="economics-divider">
+            <div class="comparison-row">
+              <span class="comparison-label">If 100% A-Book:</span>
+              <span class="comparison-value" id="if-a-book">+$450.00</span>
+            </div>
+            <div class="comparison-row">
+              <span class="comparison-label">If 100% B-Book:</span>
+              <span class="comparison-value" id="if-b-book">-$2,100.00</span>
+            </div>
+
+            <div class="routing-value-box">
+              <span class="routing-value-text" id="routing-value">
+                ROUTING VALUE: +$800.00 vs benchmark
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cryptographic Proof Card -->
+        <div class="proof-card">
+          <div class="proof-header">
+            <div class="proof-icon">
+              <i data-lucide="lock"></i>
+            </div>
+            <div>
+              <div class="proof-title">Cryptographic Proof</div>
+              <div class="proof-subtitle" id="integrity-status">Hash Chain Verified</div>
+            </div>
+          </div>
+
+          <div class="hash-box">
+            <span id="hash-preview">sha256:8f92a10c...7b91</span>
+            <div class="hash-action">
+              <a href="#">
+                Verify <i data-lucide="chevron-right"></i>
+              </a>
+            </div>
+          </div>
+
+          <div class="proof-disclaimer">
+            Demo-only "Verify" action is UI stub.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Demo scenarios data
+    const DEMO_SCENARIOS = [
+      {
+        name: 'VIP / Unknown Risk → HYBRID',
+        traceId: 'trc_8f92a10',
+        client: 'VIP_Fund_Alpha',
+        symbol: 'XAUUSD',
+        sizeLabel: '50 Lots',
+        governance: 'AUTHORIZED',
+        advisory_routing_class: { classification: 'HYBRID', split: { a: 70, b: 30 }, is_advisory: true },
+        economics: {
+          estImpactUsd: 1250,
+          ifPureABookUsd: 450,
+          ifPureBBookUsd: -2100,
+          routingValueVsBenchmarkUsd: 800,
+          note: 'Demo numbers are placeholders (do not treat as realized P&L).',
+        },
+        integrity: { status: 'VERIFIED', hashPreview: 'sha256:8f92a10c...7b91' },
+      },
+      {
+        name: 'Toxic Flow → A-BOOK',
+        traceId: 'trc_1c03b9d',
+        client: 'Scalper_Group_7',
+        symbol: 'EURUSD',
+        sizeLabel: '12 Lots',
+        governance: 'AUTHORIZED',
+        advisory_routing_class: { classification: 'A_BOOK', is_advisory: true },
+        economics: {
+          estImpactUsd: 180,
+          ifPureABookUsd: 180,
+          ifPureBBookUsd: -3200,
+          routingValueVsBenchmarkUsd: 180,
+          note: 'Demo numbers are placeholders (do not treat as realized P&L).',
+        },
+        integrity: { status: 'VERIFIED', hashPreview: 'sha256:1c03b9d1...a41e' },
+      },
+      {
+        name: 'Policy Block → BLOCKED',
+        traceId: 'trc_9aa2f11',
+        client: 'Retail_Cluster_22',
+        symbol: 'XAUUSD',
+        sizeLabel: '5 Lots',
+        governance: 'BLOCKED',
+        advisory_routing_class: { classification: 'B_BOOK', is_advisory: true },
+        economics: {
+          estImpactUsd: 0,
+          ifPureABookUsd: 0,
+          ifPureBBookUsd: 0,
+          routingValueVsBenchmarkUsd: 0,
+          note: 'Blocked: economics intentionally zeroed (no execution).',
+        },
+        integrity: { status: 'VERIFIED', hashPreview: 'sha256:9aa2f11c...0dd2' },
+      },
+    ];
+
+    // Format money
+    function formatMoney(n) {
+      const sign = n >= 0 ? '+' : '-';
+      const abs = Math.abs(n);
+      return `${sign}$${abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // Update UI with scenario data
+    function updateScenario(scenarioIdx) {
+      const s = DEMO_SCENARIOS[scenarioIdx];
+
+      // Trace ID
+      document.getElementById('trace-id').textContent = s.traceId;
+
+      // Governance
+      const govBadge = document.getElementById('governance-badge');
+      const govIconSuccess = document.getElementById('governance-icon-success');
+      const govIconBlocked = document.getElementById('governance-icon-blocked');
+
+      govBadge.textContent = s.governance;
+      if (s.governance === 'AUTHORIZED') {
+        govBadge.className = 'badge badge-authorized';
+        govIconSuccess.style.display = 'inline';
+        govIconSuccess.style.color = '#34d399';
+        govIconBlocked.style.display = 'none';
+      } else {
+        govBadge.className = 'badge badge-blocked';
+        govIconSuccess.style.display = 'none';
+        govIconBlocked.style.display = 'inline';
+        govIconBlocked.style.color = '#fb7185';
+      }
+
+      // Client info
+      document.getElementById('client-name').textContent = s.client;
+      document.getElementById('instrument').textContent = s.symbol;
+      document.getElementById('size-label').textContent = s.sizeLabel;
+      document.getElementById('order-size').textContent = s.sizeLabel;
+
+      // Advisory Routing Classification (non-binding - platform may ignore)
+      const arc = s.advisory_routing_class || s.routing; // Backwards compat
+      const classification = arc.classification || arc.decision;
+      const routingLabel = classification === 'HYBRID'
+        ? `HYBRID (${arc.split?.a}/${arc.split?.b})`
+        : classification.replace('_', '-');
+      document.getElementById('routing-title').textContent = `Advisory Classification: ${routingLabel}${arc.is_advisory ? ' (non-binding)' : ''}`;
+
+      const aBookPct = classification === 'HYBRID' ? `${arc.split?.a}%` : classification === 'A_BOOK' ? '100%' : '0%';
+      const bBookPct = classification === 'HYBRID' ? `${arc.split?.b}%` : classification === 'B_BOOK' ? '100%' : '0%';
+      document.getElementById('a-book-pct').textContent = aBookPct;
+      document.getElementById('b-book-pct').textContent = bBookPct;
+
+      // Economics
+      document.getElementById('estimated-impact').textContent = formatMoney(s.economics.estImpactUsd);
+      document.getElementById('economics-note').textContent = s.economics.note || '';
+      document.getElementById('if-a-book').textContent = formatMoney(s.economics.ifPureABookUsd);
+
+      const ifBBook = document.getElementById('if-b-book');
+      ifBBook.textContent = formatMoney(s.economics.ifPureBBookUsd);
+      ifBBook.className = s.economics.ifPureBBookUsd < 0 ? 'comparison-value negative' : 'comparison-value';
+
+      document.getElementById('routing-value').textContent = `ROUTING VALUE: ${formatMoney(s.economics.routingValueVsBenchmarkUsd)} vs benchmark`;
+
+      // Integrity
+      document.getElementById('integrity-status').textContent = s.integrity.status === 'VERIFIED' ? 'Hash Chain Verified' : 'Hash Chain Mismatch';
+      document.getElementById('hash-preview').textContent = s.integrity.hashPreview;
+    }
+
+    // Event listener for scenario select
+    document.getElementById('scenario-select').addEventListener('change', function(e) {
+      updateScenario(parseInt(e.target.value, 10));
+    });
+
+    // Initialize with first scenario
+    updateScenario(0);
+  </script>
+
+  <!-- Kernel Pin Footer -->
+  <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(2,6,23,0.95); border-top: 1px solid #1e293b; padding: 8px 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+    <span>Kernel: brokerops@5c49f1f • Captured: 2026-01-15 (Asia/Nicosia)</span>
+    <span>Authority layer emits intent; execution platform remains master.</span>
+  </footer>
+</body>
+</html>

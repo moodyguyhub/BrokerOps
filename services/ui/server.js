@@ -30,6 +30,29 @@ app.get("/api/traces/recent", async (req, res) => {
   }
 });
 
+app.get("/api/lp-timelines/recent", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.reconstruction}/lp-timelines/recent`);
+    if (req.query.limit) url.searchParams.set("limit", String(req.query.limit));
+    if (req.query.server_id) url.searchParams.set("server_id", String(req.query.server_id));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch lp timelines" });
+  }
+});
+
+app.get("/api/lp-timeline/:traceId", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.reconstruction}/lp-timeline/${req.params.traceId}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch lp timeline" });
+  }
+});
+
 app.get("/api/trace/:traceId/bundle", async (req, res) => {
   try {
     const resp = await fetch(`${API_URLS.reconstruction}/trace/${req.params.traceId}/bundle`);
@@ -170,7 +193,206 @@ app.get("/api/overrides/pending", async (req, res) => {
 
 // Health check
 app.get("/health", (req, res) => {
-  res.json({ ok: true, service: "ui" });
+  res.json({ 
+    ok: true, 
+    service: "ui",
+    version: "0.2.0",
+    apiBase: API_URLS.orderApi
+  });
+});
+
+// ============================================================================
+// Week 4 API Proxies - Dashboard, Alerts, LP Accounts, Orders
+// ============================================================================
+
+// Dashboard KPIs
+app.get("/api/dashboard/kpis", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/dashboard/kpis`);
+    if (req.query.window) url.searchParams.set("window", String(req.query.window));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch dashboard KPIs" });
+  }
+});
+
+// Dashboard Timeline
+app.get("/api/dashboard/timeline", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/dashboard/timeline`);
+    if (req.query.window) url.searchParams.set("window", String(req.query.window));
+    if (req.query.bucket) url.searchParams.set("bucket", String(req.query.bucket));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch dashboard timeline" });
+  }
+});
+
+// Alerts list
+app.get("/api/alerts", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/alerts`);
+    for (const [key, value] of Object.entries(req.query)) {
+      url.searchParams.set(key, String(value));
+    }
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch alerts" });
+  }
+});
+
+// Acknowledge alert
+app.post("/api/alerts/:id/ack", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/alerts/${req.params.id}/ack`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to acknowledge alert" });
+  }
+});
+
+// Alert settings
+app.get("/api/alert-settings", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/alert-settings`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch alert settings" });
+  }
+});
+
+app.put("/api/alert-settings", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/alert-settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to update alert settings" });
+  }
+});
+
+// LP Accounts
+app.get("/api/lp-accounts", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/lp-accounts`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch LP accounts" });
+  }
+});
+
+app.get("/api/lp-accounts/:id/history", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/lp-accounts/${req.params.id}/history`);
+    if (req.query.limit) url.searchParams.set("limit", String(req.query.limit));
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch LP history" });
+  }
+});
+
+// Orders
+app.get("/api/orders", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/orders`);
+    for (const [key, value] of Object.entries(req.query)) {
+      url.searchParams.set(key, String(value));
+    }
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch orders" });
+  }
+});
+
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/orders/${req.params.id}`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch order" });
+  }
+});
+
+app.get("/api/orders/:id/lifecycle", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/orders/${req.params.id}/lifecycle`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch order lifecycle" });
+  }
+});
+
+// Rejections
+app.get("/api/rejections", async (req, res) => {
+  try {
+    const url = new URL(`${API_URLS.orderApi}/api/rejections`);
+    for (const [key, value] of Object.entries(req.query)) {
+      url.searchParams.set(key, String(value));
+    }
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch rejections" });
+  }
+});
+
+// Demo trigger proxy
+app.get("/api/demo/scenarios", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/demo/scenarios`);
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch demo scenarios" });
+  }
+});
+
+app.post("/api/demo/trigger/:scenario_id", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.orderApi}/api/demo/trigger/${req.params.scenario_id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
+    });
+    const data = await resp.json();
+    res.status(resp.status).json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to trigger demo scenario" });
+  }
+});
+
+// Truvesta Command Center route
+app.get("/truvesta", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "truvesta.html"));
+});
+
+// Week 4 Operations Dashboard route
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
 // SPA fallback

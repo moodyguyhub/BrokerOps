@@ -591,6 +591,10 @@
         <button class="nav-btn w-full text-left text-sm px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white" onclick="navigate('evaluations')" id="nav-evaluations">Evaluations</button>
         <button class="nav-btn w-full text-left text-sm px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white" onclick="navigate('playground')" id="nav-playground">Simulation Lab</button>
         <button class="nav-btn w-full text-left text-sm px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white" onclick="navigate('webhooks')" id="nav-webhooks">Integrations</button>
+        <a href="/truvesta" class="nav-btn w-full text-left text-sm px-3 py-2 rounded-lg text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 flex items-center gap-2 mt-4 border border-cyan-500/30">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+          Truvesta Demo
+        </a>
       </nav>
       <div class="px-6 py-4 border-t border-slate-800 text-xs text-slate-400">
         Guardrail Set: <span class="font-mono text-slate-300">policy.v0.2</span>
@@ -604,14 +608,79 @@
 
   <script src="/PolicyTranslator.js"></script>
   <script>
+    // Manual verification checklist (PH1-023):
+    // - All: server selector shows mixed servers in LP timelines.
+    // - Server 1/2: timelines filtered by server_id.
+    // - Policy scope persists across reload.
+    // - Exposure card labeled DEMO / Derived.
+    // - Timeline detail shows server_id/server_name.
 
     // =========================================================================
     // State
     // =========================================================================
     let currentPage = 'evaluations';
     let currentTraceId = null;
+    let currentLpTraceId = null;
     let showHashChainExpanded = false;
     let showRawJson = false;
+
+    const SERVER_OPTIONS = [
+      { label: 'All', value: 'all' },
+      { label: 'Server 1', value: 'srv-1' },
+      { label: 'Server 2', value: 'srv-2' }
+    ];
+
+    const POLICY_SCOPE_OPTIONS = [
+      { label: 'All', value: 'all' },
+      { label: 'Server 1', value: 'srv-1' },
+      { label: 'Server 2', value: 'srv-2' }
+    ];
+
+    function getQueryParam(key) {
+      return new URLSearchParams(window.location.search).get(key);
+    }
+
+    function setQueryParam(key, value) {
+      const params = new URLSearchParams(window.location.search);
+      if (!value || value === 'all') {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    function getInitialServerSelection() {
+      const fromQuery = getQueryParam('server_id');
+      const fromStorage = localStorage.getItem('demo.server_id');
+      if (fromQuery) {
+        localStorage.setItem('demo.server_id', fromQuery);
+        return fromQuery;
+      }
+      if (fromStorage) {
+        setQueryParam('server_id', fromStorage);
+        return fromStorage;
+      }
+      return 'all';
+    }
+
+    function getInitialPolicyScope() {
+      const fromQuery = getQueryParam('policy_scope');
+      const fromStorage = localStorage.getItem('demo.policy_scope');
+      if (fromQuery) {
+        localStorage.setItem('demo.policy_scope', fromQuery);
+        return fromQuery;
+      }
+      if (fromStorage) {
+        setQueryParam('policy_scope', fromStorage);
+        return fromStorage;
+      }
+      return 'all';
+    }
+
+    let selectedServerId = getInitialServerSelection();
+    let policyScope = getInitialPolicyScope();
 
     // =========================================================================
     // Navigation
@@ -619,6 +688,7 @@
     function navigate(page, params = {}) {
       currentPage = page;
       currentTraceId = params.traceId || null;
+      currentLpTraceId = params.lpTraceId || null;
       showHashChainExpanded = false;
       showRawJson = false;
       
@@ -635,11 +705,39 @@
       render();
     }
 
+    function updateServerSelection(value) {
+      selectedServerId = value;
+      localStorage.setItem('demo.server_id', value);
+      setQueryParam('server_id', value);
+      render();
+    }
+
+    function updatePolicyScope(value) {
+      policyScope = value;
+      localStorage.setItem('demo.policy_scope', value);
+      setQueryParam('policy_scope', value);
+      render();
+    }
+
     // =========================================================================
     // API calls
     // =========================================================================
     async function fetchTraces() {
       const resp = await fetch('/api/traces/recent?limit=100');
+      return resp.json();
+    }
+
+    async function fetchLpTimelines(serverId = 'all') {
+      const params = new URLSearchParams({ limit: '100' });
+      if (serverId && serverId !== 'all') {
+        params.set('server_id', serverId);
+      }
+      const resp = await fetch(`/api/lp-timelines/recent?${params.toString()}`);
+      return resp.json();
+    }
+
+    async function fetchLpTimeline(traceId) {
+      const resp = await fetch(`/api/lp-timeline/${traceId}`);
       return resp.json();
     }
 
@@ -709,6 +807,8 @@
       try {
         if (currentPage === 'evaluations' && currentTraceId) {
           await renderBundle();
+        } else if (currentPage === 'evaluations' && currentLpTraceId) {
+          await renderLpTimelineDetail();
         } else if (currentPage === 'evaluations') {
           await renderEvaluations();
         } else if (currentPage === 'playground') {
@@ -724,16 +824,18 @@
     }
 
     async function renderEvaluations() {
-      const [data, econSummary, savedExposureData, pendingOverrides, coverageData] = await Promise.all([
+      const [data, econSummary, savedExposureData, pendingOverrides, coverageData, lpTimelineData] = await Promise.all([
         fetchTraces(),
         fetchEconomicsSummary().catch(() => ({})),
         fetchSavedExposure(24).catch(() => ({ saved_exposure: 0, change_percent: 0, blocked_count: 0 })),
         fetchPendingOverrides().catch(() => ({ count: 0 })),
-        fetchCoverageStats(24).catch(() => ({ total_decisions: 0, decisions_with_price: 0, coverage_percent: 0 }))
+        fetchCoverageStats(24).catch(() => ({ total_decisions: 0, decisions_with_price: 0, coverage_percent: 0 })),
+        fetchLpTimelines(selectedServerId).catch(() => ({ timelines: [], count: 0 }))
       ]);
 
       const app = document.getElementById('app');
       const traces = data.traces || [];
+      const lpTimelines = lpTimelineData.timelines || [];
 
       const now = Date.now();
       const last24h = traces.filter(t => {
@@ -767,11 +869,49 @@
       // Coverage quality indicator
       const coverageQuality = coveragePct >= 90 ? 'emerald' : coveragePct >= 70 ? 'amber' : 'red';
 
+      const serverLabel = (id) => {
+        if (id === 'srv-1') return 'Server 1 (srv-1)';
+        if (id === 'srv-2') return 'Server 2 (srv-2)';
+        return 'All Servers';
+      };
+
+      const totalOrderCount = lpTimelines.length;
+      const totalQty = lpTimelines.reduce((acc, t) => acc + (Number(t.qty) || 0), 0);
+      const qtyAvailable = totalQty > 0;
+      const perServerCounts = lpTimelines.reduce((acc, t) => {
+        const key = t.server_id || 'unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+
       app.innerHTML = `
         <div class="mb-6 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-center gap-3">
           <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span class="text-sm font-medium text-emerald-900">System Healthy</span>
           <span class="text-xs text-emerald-700">Guardrails active</span>
+        </div>
+
+        <div class="rounded-lg bg-white shadow-sm ring-1 ring-slate-200 mb-6">
+          <div class="flex flex-wrap items-center gap-4 px-4 py-3">
+            <div>
+              <div class="text-xs uppercase text-slate-500">Server View</div>
+              <select class="mt-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" id="server-select">
+                ${SERVER_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${selectedServerId === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+              <div class="mt-1 text-xs text-slate-500">Showing: ${serverLabel(selectedServerId)}</div>
+            </div>
+            <div>
+              <div class="text-xs uppercase text-slate-500">Policy Scope</div>
+              <select class="mt-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" id="policy-scope-select">
+                ${POLICY_SCOPE_OPTIONS.map(opt => `
+                  <option value="${opt.value}" ${policyScope === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+              <div class="mt-1 text-xs text-amber-600">Demo only — not enforced in authorization yet</div>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
@@ -803,6 +943,32 @@
             <div class="text-xs uppercase text-slate-500">Override Rate</div>
             <div class="mt-2 text-2xl font-semibold font-mono text-slate-900">${totalEvals24h > 0 ? ((overrideTraces.length / totalEvals24h) * 100).toFixed(1) : 0}%</div>
             <div class="mt-1 text-xs text-slate-500">Manual interventions</div>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-white shadow-sm ring-1 ring-slate-200 mb-6">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-900">Total exposure across servers (DEMO / Derived)</h2>
+            <span class="text-xs text-slate-500">From lp.order timelines</span>
+          </div>
+          <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="rounded-md bg-slate-50 p-3">
+              <div class="text-xs uppercase text-slate-500">Total order flow (count)</div>
+              <div class="mt-2 text-xl font-semibold font-mono text-slate-900">${totalOrderCount}</div>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3">
+              <div class="text-xs uppercase text-slate-500">Total qty (derived)</div>
+              <div class="mt-2 text-xl font-semibold font-mono text-slate-900">${qtyAvailable ? totalQty.toLocaleString() : 'N/A'}</div>
+              <div class="text-xs text-slate-500">${qtyAvailable ? 'Sum of recent order qty' : 'Qty not available; showing count only'}</div>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3">
+              <div class="text-xs uppercase text-slate-500">By server</div>
+              <div class="mt-2 text-sm text-slate-700">
+                <div>Server 1: <span class="font-mono">${perServerCounts['srv-1'] || 0}</span></div>
+                <div>Server 2: <span class="font-mono">${perServerCounts['srv-2'] || 0}</span></div>
+                <div>Unknown: <span class="font-mono">${perServerCounts['unknown'] || 0}</span></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -877,6 +1043,113 @@
             </ul>
           </div>
         `}
+
+        <div class="rounded-lg bg-white shadow-sm ring-1 ring-slate-200 mt-6">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-900">LP Order Timelines</h2>
+            <span class="text-xs text-slate-500">${lpTimelineData.count || lpTimelines.length} records</span>
+          </div>
+          ${lpTimelines.length === 0 ? `
+            <div class="px-4 py-6 text-sm text-slate-500">No LP timelines yet for this server filter.</div>
+          ` : `
+            <ul role="list" class="divide-y divide-slate-200">
+              ${lpTimelines.slice(0, 50).map(t => `
+                <li class="py-2.5 px-4">
+                  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                      <div class="text-sm font-semibold text-slate-900">
+                        LP Timeline <span class="font-mono text-indigo-600">${(t.trace_id || '').slice(0, 8)}...</span>
+                      </div>
+                      <div class="mt-1 text-xs text-slate-500">${t.server_name || 'Unknown'} • <span class="font-mono">${t.server_id || 'unknown'}</span></div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                      <div class="text-xs text-slate-500">Status: <span class="font-mono">${t.current_status || t.last_status || 'UNKNOWN'}</span></div>
+                      <div class="text-xs text-slate-500">Symbol: <span class="font-mono">${t.symbol || '-'}</span></div>
+                      <div class="text-xs text-slate-500">Qty: <span class="font-mono">${t.qty || '-'}</span></div>
+                      <div class="text-xs text-slate-500 font-mono">${formatTime(t.started_at || t.startedAt || t.last_event_at)}</div>
+                      <button class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" onclick="navigate('evaluations', {lpTraceId: '${t.trace_id}'})">View Timeline</button>
+                    </div>
+                  </div>
+                </li>
+              `).join('')}
+            </ul>
+          `}
+        </div>
+
+        <div class="mt-6 text-xs text-slate-500">
+          Data provenance: Demo data from lp-simulator; proof-carrying server identity; real multi-server management is Phase 2.
+        </div>
+      `;
+
+      const serverSelect = document.getElementById('server-select');
+      if (serverSelect) {
+        serverSelect.addEventListener('change', (e) => updateServerSelection(e.target.value));
+      }
+
+      const policySelect = document.getElementById('policy-scope-select');
+      if (policySelect) {
+        policySelect.addEventListener('change', (e) => updatePolicyScope(e.target.value));
+      }
+    }
+
+    async function renderLpTimelineDetail() {
+      const timeline = await fetchLpTimeline(currentLpTraceId);
+      const app = document.getElementById('app');
+
+      if (timeline.error) {
+        app.innerHTML = `
+          <button class="text-sm text-slate-500 hover:text-slate-700" onclick="navigate('evaluations')">← Back to Evaluations</button>
+          <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+            <strong class="text-red-800">Error</strong>
+            <p class="text-sm text-red-700">${timeline.message || timeline.error}</p>
+          </div>
+        `;
+        return;
+      }
+
+      const events = timeline.events || [];
+      const head = events[0] || {};
+      const serverName = head.source?.server_name || 'Unknown';
+      const serverId = head.source?.server_id || 'unknown';
+
+      app.innerHTML = `
+        <button class="text-sm text-slate-500 hover:text-slate-700" onclick="navigate('evaluations')">← Back to Evaluations</button>
+
+        <div class="mt-4 rounded-lg bg-white shadow-sm ring-1 ring-slate-200 p-4">
+          <div class="text-sm font-semibold text-slate-900">LP Timeline Detail</div>
+          <div class="mt-1 text-xs text-slate-500">Server: ${serverName} • <span class="font-mono">${serverId}</span></div>
+          <div class="mt-1 text-xs text-slate-500">Trace: <span class="font-mono">${timeline.trace_id}</span></div>
+          <div class="mt-1 text-xs text-slate-500">Status: <span class="font-mono">${timeline.current_status}</span></div>
+        </div>
+
+        <div class="mt-4 rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-900">Events</h2>
+            <span class="text-xs text-slate-500">${events.length} events</span>
+          </div>
+          <ul role="list" class="divide-y divide-slate-200">
+            ${events.map(e => `
+              <li class="py-2.5 px-4">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-semibold text-slate-900">${e.event_type}</div>
+                    <div class="mt-1 text-xs text-slate-500">${e.source?.server_name || 'Unknown'} • <span class="font-mono">${e.source?.server_id || 'unknown'}</span></div>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-3">
+                    <div class="text-xs text-slate-500">Status: <span class="font-mono">${e.normalization?.status || 'UNKNOWN'}</span></div>
+                    <div class="text-xs text-slate-500">Symbol: <span class="font-mono">${e.payload?.symbol || '-'}</span></div>
+                    <div class="text-xs text-slate-500">Qty: <span class="font-mono">${e.payload?.qty || '-'}</span></div>
+                    <div class="text-xs text-slate-500 font-mono">${formatTime(e.occurred_at)}</div>
+                  </div>
+                </div>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+
+        <div class="mt-6 text-xs text-slate-500">
+          Data provenance: Demo data from lp-simulator; proof-carrying server identity; real multi-server management is Phase 2.
+        </div>
       `;
     }
 

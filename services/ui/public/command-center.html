@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --slate-950: #020617;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --cyan-500: #06b6d4;
+      --cyan-400: #22d3ee;
+      --emerald-500: #10b981;
+      --emerald-400: #34d399;
+      --rose-500: #f43f5e;
+      --rose-400: #fb7185;
+      --amber-500: #f59e0b;
+      --amber-400: #fbbf24;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-950);
+      color: var(--slate-200);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Container */
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--cyan-500);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(3deg);
+    }
+
+    .logo-icon svg { color: var(--slate-950); width: 24px; height: 24px; }
+
+    .logo-text h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-text span {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+      color: var(--slate-400);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--emerald-500);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.error { background: var(--rose-500); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Authority Banner */
+    .authority-banner {
+      background: linear-gradient(90deg, rgba(6, 182, 212, 0.1), rgba(16, 185, 129, 0.1));
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .authority-banner svg { color: var(--cyan-400); width: 20px; height: 20px; }
+
+    .authority-banner span {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .stat-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .stat-value.authorized { color: var(--emerald-400); }
+    .stat-value.blocked { color: var(--rose-400); }
+    .stat-value.latency { color: var(--cyan-400); }
+
+    .stat-change {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-top: 4px;
+    }
+
+    /* Main Layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Decision Stream */
+    .stream-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .stream-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .stream-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stream-title svg { width: 18px; height: 18px; color: var(--cyan-400); }
+
+    .stream-body {
+      height: 500px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .decision-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 100px 80px 80px;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      font-size: 0.875rem;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .decision-row:hover { background: var(--slate-800); }
+    .decision-row.authorized { border-left: 3px solid var(--emerald-500); }
+    .decision-row.blocked { border-left: 3px solid var(--rose-500); }
+
+    .decision-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .decision-order {
+      color: var(--slate-300);
+    }
+
+    .decision-order .symbol { font-weight: 600; color: white; }
+
+    .decision-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .decision-status.authorized {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--emerald-400);
+    }
+
+    .decision-status.blocked {
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--rose-400);
+    }
+
+    .decision-latency {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    .decision-token {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.625rem;
+      color: var(--slate-600);
+    }
+
+    /* Reason Counters */
+    .counters-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .counters-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--slate-800);
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .counters-header svg { width: 18px; height: 18px; color: var(--amber-400); }
+
+    .counters-body { padding: 16px; }
+
+    .counter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: var(--slate-800);
+    }
+
+    .counter-label {
+      font-size: 0.875rem;
+      color: var(--slate-300);
+    }
+
+    .counter-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .counter-value.green { color: var(--emerald-400); }
+    .counter-value.red { color: var(--rose-400); }
+    .counter-value.amber { color: var(--amber-400); }
+
+    /* Latency Chart */
+    .latency-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .latency-header {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .latency-header svg { width: 16px; height: 16px; color: var(--cyan-400); }
+
+    .latency-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 80px;
+    }
+
+    .latency-bar {
+      flex: 1;
+      background: var(--cyan-500);
+      border-radius: 2px 2px 0 0;
+      min-height: 4px;
+      opacity: 0.7;
+      transition: height 0.3s, opacity 0.3s;
+    }
+
+    .latency-bar:hover { opacity: 1; }
+
+    .latency-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      font-size: 0.75rem;
+    }
+
+    .latency-stat {
+      text-align: center;
+    }
+
+    .latency-stat-label { color: var(--slate-500); }
+    .latency-stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-400);
+      font-weight: 600;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn svg { width: 16px; height: 16px; }
+
+    .btn-primary {
+      background: var(--cyan-500);
+      color: var(--slate-950);
+    }
+
+    .btn-primary:hover { background: var(--cyan-400); }
+
+    .btn-secondary {
+      background: var(--slate-800);
+      color: var(--slate-200);
+      border-color: var(--slate-700);
+    }
+
+    .btn-secondary:hover { background: var(--slate-700); }
+
+    /* Footer */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(2, 6, 23, 0.95);
+      border-top: 1px solid var(--slate-800);
+      padding: 8px 24px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6875rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--slate-500);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" style="padding-bottom: 60px;">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <i data-lucide="shield-check"></i>
+        </div>
+        <div class="logo-text">
+          <h1>TRUVESTA</h1>
+          <span>COMMAND CENTER</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-secondary" onclick="clearStream()">
+          <i data-lucide="trash-2"></i>
+          Clear
+        </button>
+        <button class="btn btn-primary" onclick="runScenarios()">
+          <i data-lucide="play"></i>
+          Run Demo
+        </button>
+      </div>
+
+      <div class="status-indicator">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">CONNECTED</span>
+      </div>
+    </header>
+
+    <!-- Authority Banner -->
+    <div class="authority-banner">
+      <i data-lucide="shield"></i>
+      <span>Decision authority here; execution remains platform-owned.</span>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Decisions</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-change">Last 60 seconds</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Authorized</div>
+        <div class="stat-value authorized" id="stat-authorized">0</div>
+        <div class="stat-change" id="stat-authorized-pct">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Blocked</div>
+        <div class="stat-value blocked" id="stat-blocked">0</div>
+        <div class="stat-change" id="stat-blocked-pct">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Latency</div>
+        <div class="stat-value latency" id="stat-latency">--</div>
+        <div class="stat-change">p99: <span id="stat-p99">--</span></div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Decision Stream -->
+      <div class="stream-card">
+        <div class="stream-header">
+          <div class="stream-title">
+            <i data-lucide="activity"></i>
+            Live Decision Stream
+          </div>
+          <span style="font-size: 0.75rem; color: var(--slate-500);">
+            <span id="stream-count">0</span> decisions
+          </span>
+        </div>
+        <div class="stream-body" id="stream-body">
+          <div style="text-align: center; padding: 40px; color: var(--slate-500);">
+            <i data-lucide="inbox" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5;"></i>
+            <p>No decisions yet. Click "Run Demo" to start.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <!-- Reason Counters -->
+        <div class="counters-card">
+          <div class="counters-header">
+            <i data-lucide="pie-chart"></i>
+            Decision Breakdown
+          </div>
+          <div class="counters-body">
+            <div class="counter-row">
+              <span class="counter-label">✓ AUTHORIZED (Policy Pass)</span>
+              <span class="counter-value green" id="counter-auth">0</span>
+            </div>
+            <div class="counter-row">
+              <span class="counter-label">✗ BLOCKED (Notional Limit)</span>
+              <span class="counter-value red" id="counter-notional">0</span>
+            </div>
+            <div class="counter-row">
+              <span class="counter-label">✗ BLOCKED (Exposure Limit)</span>
+              <span class="counter-value red" id="counter-exposure">0</span>
+            </div>
+            <div class="counter-row">
+              <span class="counter-label">✗ BLOCKED (Audit Unavailable)</span>
+              <span class="counter-value amber" id="counter-audit">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Latency Chart -->
+        <div class="latency-card">
+          <div class="latency-header">
+            <i data-lucide="timer"></i>
+            Latency (Last 60s)
+          </div>
+          <div class="latency-bars" id="latency-bars">
+            <!-- Bars will be generated dynamically -->
+          </div>
+          <div class="latency-stats">
+            <div class="latency-stat">
+              <div class="latency-stat-label">Min</div>
+              <div class="latency-stat-value" id="latency-min">--</div>
+            </div>
+            <div class="latency-stat">
+              <div class="latency-stat-label">p50</div>
+              <div class="latency-stat-value" id="latency-p50">--</div>
+            </div>
+            <div class="latency-stat">
+              <div class="latency-stat-label">p95</div>
+              <div class="latency-stat-value" id="latency-p95">--</div>
+            </div>
+            <div class="latency-stat">
+              <div class="latency-stat-label">p99</div>
+              <div class="latency-stat-value" id="latency-p99">--</div>
+            </div>
+            <div class="latency-stat">
+              <div class="latency-stat-label">Max</div>
+              <div class="latency-stat-value" id="latency-max">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advisory Note -->
+        <div style="margin-top: 16px; padding: 16px; background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.1); border-radius: 8px;">
+          <div style="font-size: 0.75rem; font-weight: 600; color: var(--cyan-400); margin-bottom: 8px;">
+            ADVISORY ROUTING
+          </div>
+          <p style="font-size: 0.75rem; color: var(--slate-400);">
+            Routing classifications (A_BOOK, B_BOOK, HYBRID) are <strong style="color: var(--slate-200);">advisory only</strong>. 
+            The execution platform remains the authoritative owner of routing decisions.
+          </p>
+        </div>
+
+        <!-- Claims & Evidence Panel -->
+        <div class="claims-card" style="margin-top: 16px; background: var(--slate-900); border: 1px solid var(--slate-800); border-radius: 12px; overflow: hidden;">
+          <div style="padding: 16px 20px; border-bottom: 1px solid var(--slate-800); display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="file-check"></i>
+            <span style="font-size: 1rem; font-weight: 600; color: white;">Claims & Evidence</span>
+          </div>
+          <div style="padding: 16px;">
+            <!-- Claim 1: Authorization Contract -->
+            <div class="claim-row" style="margin-bottom: 12px; padding: 12px; background: var(--slate-800); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 0.8125rem; font-weight: 600; color: white;">Authorization Contract</span>
+                <span class="claim-badge" style="font-size: 0.625rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: var(--emerald-400);">PROVEN</span>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--slate-400); margin-bottom: 6px;">
+                /v1/authorize returns AUTHORIZED|BLOCKED with signed decision token
+              </p>
+              <div style="font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-500);">
+                Evidence: <a href="#" onclick="viewEvidence('contract')" style="color: var(--cyan-400); text-decoration: none;">authorize-response.json, openapi.yaml</a>
+              </div>
+            </div>
+
+            <!-- Claim 2: Sidecar Latency -->
+            <div class="claim-row" style="margin-bottom: 12px; padding: 12px; background: var(--slate-800); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 0.8125rem; font-weight: 600; color: white;">Edge Sidecar Latency</span>
+                <span class="claim-badge" style="font-size: 0.625rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: var(--emerald-400);">PROVEN</span>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--slate-400); margin-bottom: 6px;">
+                p99 &lt; 10ms for broker-DC sidecar (measured: 4.25ms)
+              </p>
+              <div style="font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-500);">
+                Evidence: <a href="#" onclick="viewEvidence('sidecar')" style="color: var(--cyan-400); text-decoration: none;">sidecar-performance.json</a>
+              </div>
+            </div>
+
+            <!-- Claim 3: Correctness Invariants -->
+            <div class="claim-row" style="margin-bottom: 12px; padding: 12px; background: var(--slate-800); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 0.8125rem; font-weight: 600; color: white;">Correctness Invariants</span>
+                <span class="claim-badge" style="font-size: 0.625rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: var(--emerald-400);">PROVEN</span>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--slate-400); margin-bottom: 6px;">
+                Idempotency + concurrency tests passing (same order_id → same token)
+              </p>
+              <div style="font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-500);">
+                Evidence: <a href="#" onclick="viewEvidence('tests')" style="color: var(--cyan-400); text-decoration: none;">test-run-output.txt</a>
+              </div>
+            </div>
+
+            <!-- Claim 4: MT5 Integration (UNVERIFIED) -->
+            <div class="claim-row" style="padding: 12px; background: var(--slate-800); border-radius: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 0.8125rem; font-weight: 600; color: white;">MT5 Pre-Trade Blocking</span>
+                <span class="claim-badge" style="font-size: 0.625rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: var(--amber-400);">REQUIRES BROKER</span>
+              </div>
+              <p style="font-size: 0.75rem; color: var(--slate-400); margin-bottom: 6px;">
+                Integration discovery next; requires broker-provided MT5 environment
+              </p>
+              <div style="font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-500);">
+                Status: Not demo-claimable until broker engagement
+              </div>
+            </div>
+
+            <!-- Authority Statement -->
+            <div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 8px;">
+              <div style="font-size: 0.6875rem; font-weight: 600; color: var(--amber-400); margin-bottom: 4px;">
+                AUTHORITY BOUNDARY
+              </div>
+              <p style="font-size: 0.6875rem; color: var(--slate-400);">
+                Truvesta owns <strong style="color: var(--slate-200);">authorization decisions</strong>. 
+                Broker/platform owns <strong style="color: var(--slate-200);">execution and routing</strong>.
+              </p>
+            </div>
+
+            <!-- Evidence Pack Info -->
+            <div style="margin-top: 12px; padding: 8px 12px; background: var(--slate-800); border-radius: 6px; font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-500);">
+              Generate evidence: <span style="color: var(--cyan-400);">./scripts/demo-evidence-pack.sh</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span>Kernel: brokerops • Command Center v1.0</span>
+    <span>Advisory routing is non-binding. Platform enforces based on token.</span>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+
+    // State
+    let decisions = [];
+    let latencies = [];
+    const API_URL = 'http://localhost:7001';
+
+    // Evidence artifacts mapping (must match demo-evidence-pack.sh output)
+    const evidenceFiles = {
+      contract: { 
+        name: 'authorize-response.json + openapi.yaml', 
+        desc: 'Live authorization capture + OpenAPI spec. /v1/authorize returns AUTHORIZED|BLOCKED with signed decision_token.',
+        packFiles: ['authorize-response.json', 'openapi.yaml']
+      },
+      sidecar: { 
+        name: 'sidecar-performance.json', 
+        desc: 'Gate 0 broker-DC sidecar benchmark: p99=4.25ms, 5,355 req/s. Proves sub-10ms is achievable at edge.',
+        packFiles: ['sidecar-performance.json']
+      },
+      tests: { 
+        name: 'test-run-output.txt', 
+        desc: 'Test suite output showing idempotency, concurrency, and correctness invariants passing.',
+        packFiles: ['test-run-output.txt']
+      }
+    };
+
+    // View evidence (shows what's in the evidence pack)
+    function viewEvidence(type) {
+      const evidence = evidenceFiles[type];
+      if (evidence) {
+        const packLocation = 'evidence/demo-pack-[timestamp]/';
+        const fileList = evidence.packFiles.map(f => `  • ${f}`).join('\n');
+        alert(
+          `📋 ${evidence.name}\n\n` +
+          `${evidence.desc}\n\n` +
+          `Evidence Pack Files:\n${fileList}\n\n` +
+          `Location: ${packLocation}\n\n` +
+          `Generate with: ./scripts/demo-evidence-pack.sh\n` +
+          `Verify with: sha256sum -c CHECKSUMS.sha256`
+        );
+      }
+    }
+
+    // Counters
+    let counters = {
+      total: 0,
+      authorized: 0,
+      blocked: 0,
+      notional: 0,
+      exposure: 0,
+      audit: 0
+    };
+
+    // Format time
+    function formatTime(date) {
+      return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // Update stats
+    function updateStats() {
+      document.getElementById('stat-total').textContent = counters.total;
+      document.getElementById('stat-authorized').textContent = counters.authorized;
+      document.getElementById('stat-blocked').textContent = counters.blocked;
+      
+      if (counters.total > 0) {
+        document.getElementById('stat-authorized-pct').textContent = 
+          `${((counters.authorized / counters.total) * 100).toFixed(1)}% of total`;
+        document.getElementById('stat-blocked-pct').textContent = 
+          `${((counters.blocked / counters.total) * 100).toFixed(1)}% of total`;
+      }
+
+      // Latency stats
+      if (latencies.length > 0) {
+        const sorted = [...latencies].sort((a, b) => a - b);
+        const avg = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+        const p50 = sorted[Math.floor(sorted.length * 0.5)];
+        const p95 = sorted[Math.floor(sorted.length * 0.95)];
+        const p99 = sorted[Math.floor(sorted.length * 0.99)] || sorted[sorted.length - 1];
+        
+        document.getElementById('stat-latency').textContent = `${avg.toFixed(1)}ms`;
+        document.getElementById('stat-p99').textContent = `${p99.toFixed(1)}ms`;
+        
+        document.getElementById('latency-min').textContent = `${sorted[0].toFixed(1)}ms`;
+        document.getElementById('latency-p50').textContent = `${p50.toFixed(1)}ms`;
+        document.getElementById('latency-p95').textContent = `${p95.toFixed(1)}ms`;
+        document.getElementById('latency-p99').textContent = `${p99.toFixed(1)}ms`;
+        document.getElementById('latency-max').textContent = `${sorted[sorted.length - 1].toFixed(1)}ms`;
+      }
+
+      // Reason counters
+      document.getElementById('counter-auth').textContent = counters.authorized;
+      document.getElementById('counter-notional').textContent = counters.notional;
+      document.getElementById('counter-exposure').textContent = counters.exposure;
+      document.getElementById('counter-audit').textContent = counters.audit;
+
+      document.getElementById('stream-count').textContent = decisions.length;
+    }
+
+    // Update latency chart
+    function updateLatencyChart() {
+      const barsContainer = document.getElementById('latency-bars');
+      const recentLatencies = latencies.slice(-60);
+      
+      if (recentLatencies.length === 0) {
+        barsContainer.innerHTML = '';
+        return;
+      }
+
+      const maxLatency = Math.max(...recentLatencies, 10);
+      barsContainer.innerHTML = recentLatencies.map(lat => {
+        const height = (lat / maxLatency) * 100;
+        return `<div class="latency-bar" style="height: ${height}%;" title="${lat.toFixed(1)}ms"></div>`;
+      }).join('');
+    }
+
+    // Add decision to stream
+    function addDecision(decision) {
+      decisions.unshift(decision);
+      if (decisions.length > 100) decisions.pop();
+
+      const streamBody = document.getElementById('stream-body');
+      
+      // Clear placeholder
+      if (decisions.length === 1) {
+        streamBody.innerHTML = '';
+      }
+
+      const row = document.createElement('div');
+      row.className = `decision-row ${decision.status.toLowerCase()}`;
+      row.innerHTML = `
+        <div class="decision-time">${formatTime(new Date())}</div>
+        <div class="decision-order">
+          <span class="symbol">${decision.symbol}</span>
+          ${decision.side} ${decision.qty} @ $${decision.price}
+        </div>
+        <div class="decision-status ${decision.status.toLowerCase()}">${decision.status}</div>
+        <div class="decision-latency">${decision.latency.toFixed(1)}ms</div>
+        <div class="decision-token">${decision.token?.slice(0, 8) || 'N/A'}...</div>
+      `;
+
+      streamBody.insertBefore(row, streamBody.firstChild);
+
+      // Update counters
+      counters.total++;
+      if (decision.status === 'AUTHORIZED') {
+        counters.authorized++;
+      } else {
+        counters.blocked++;
+        if (decision.reason?.includes('notional')) counters.notional++;
+        else if (decision.reason?.includes('exposure')) counters.exposure++;
+        else if (decision.reason?.includes('audit') || decision.reason?.includes('AUDIT')) counters.audit++;
+      }
+
+      // Track latency
+      latencies.push(decision.latency);
+      if (latencies.length > 60) latencies.shift();
+
+      updateStats();
+      updateLatencyChart();
+    }
+
+    // Clear stream
+    function clearStream() {
+      decisions = [];
+      latencies = [];
+      counters = { total: 0, authorized: 0, blocked: 0, notional: 0, exposure: 0, audit: 0 };
+      
+      document.getElementById('stream-body').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--slate-500);">
+          <p>Stream cleared. Click "Run Demo" to start.</p>
+        </div>
+      `;
+      
+      updateStats();
+      updateLatencyChart();
+      lucide.createIcons();
+    }
+
+    // Make authorization request
+    async function authorize(order) {
+      const start = performance.now();
+      try {
+        const res = await fetch(`${API_URL}/v1/authorize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order: {
+              client_order_id: `demo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              symbol: order.symbol,
+              side: order.side,
+              qty: order.qty,
+              price: order.price
+            },
+            context: {
+              client_id: order.clientId || 'demo-client'
+            }
+          })
+        });
+
+        const data = await res.json();
+        const latency = data.timing_ms?.total || (performance.now() - start);
+
+        return {
+          status: data.status,
+          symbol: order.symbol,
+          side: order.side,
+          qty: order.qty,
+          price: order.price,
+          latency: latency,
+          token: data.decision_token?.token_id || data.token?.token_id,
+          reason: data.reasons?.[0] || ''
+        };
+      } catch (err) {
+        console.error('Request failed:', err);
+        document.getElementById('status-dot').classList.add('error');
+        document.getElementById('status-text').textContent = 'CONNECTION ERROR';
+        return null;
+      }
+    }
+
+    // Run demo scenarios
+    async function runScenarios() {
+      document.getElementById('status-dot').classList.remove('error');
+      document.getElementById('status-text').textContent = 'RUNNING...';
+
+      const scenarios = [
+        // Normal orders - should be AUTHORIZED
+        { symbol: 'AAPL', side: 'BUY', qty: 100, price: 185.50, clientId: 'client-1' },
+        { symbol: 'MSFT', side: 'BUY', qty: 50, price: 420.00, clientId: 'client-2' },
+        { symbol: 'GOOGL', side: 'SELL', qty: 25, price: 175.00, clientId: 'client-3' },
+        { symbol: 'NVDA', side: 'BUY', qty: 30, price: 950.00, clientId: 'client-1' },
+        { symbol: 'TSLA', side: 'BUY', qty: 40, price: 250.00, clientId: 'client-2' },
+        
+        // Large order - should be BLOCKED (notional limit)
+        { symbol: 'AAPL', side: 'BUY', qty: 10000, price: 185.50, clientId: 'big-order' },
+        
+        // More normal orders
+        { symbol: 'META', side: 'BUY', qty: 60, price: 500.00, clientId: 'client-3' },
+        { symbol: 'AMZN', side: 'SELL', qty: 20, price: 185.00, clientId: 'client-1' },
+        
+        // Another large order
+        { symbol: 'NVDA', side: 'BUY', qty: 5000, price: 950.00, clientId: 'big-order-2' },
+        
+        // Normal orders
+        { symbol: 'AAPL', side: 'SELL', qty: 80, price: 186.00, clientId: 'client-2' },
+        { symbol: 'MSFT', side: 'BUY', qty: 45, price: 418.00, clientId: 'client-3' },
+        { symbol: 'GOOGL', side: 'BUY', qty: 35, price: 176.50, clientId: 'client-1' },
+      ];
+
+      for (const scenario of scenarios) {
+        const result = await authorize(scenario);
+        if (result) {
+          addDecision(result);
+        }
+        await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
+      }
+
+      document.getElementById('status-text').textContent = 'CONNECTED';
+    }
+
+    // Initialize
+    updateStats();
+  </script>
+</body>
+</html>
