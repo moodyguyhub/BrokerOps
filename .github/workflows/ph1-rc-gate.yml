@@ -167,6 +167,13 @@ jobs:
           chmod +x ./scripts/ph9-provenance-footer-contract-gate.sh
           ./scripts/ph9-provenance-footer-contract-gate.sh
 
+      - name: Smoke — Provenance Endpoint Runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph9-provenance-smoke.sh
+          ./scripts/ph9-provenance-smoke.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash
