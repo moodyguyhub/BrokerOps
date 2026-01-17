@@ -23,7 +23,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: "9"
+          version: "10"
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -40,11 +40,17 @@ jobs:
           docker -v
           docker compose version
 
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
       - name: Install deps (repo-level)
         shell: bash
         run: |
           set -euo pipefail
-          pnpm install --frozen-lockfile
+          pnpm install
 
       - name: Gate 1 — Clean boot verification
         shell: bash
