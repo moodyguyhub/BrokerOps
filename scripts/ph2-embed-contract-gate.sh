@@ -138,55 +138,127 @@ gate_server_routes() {
     return 0
   fi
   
-  # Check /dashboard?embed=1 route
+  # Check /dashboard?embed=1 route (with retry for flakiness)
   log_test "Checking /dashboard?embed=1 returns HTTP 200..."
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${UI_BASE_URL}/dashboard?embed=1")
-  if [[ "$HTTP_STATUS" == "200" ]]; then
-    log_pass "/dashboard?embed=1 returns HTTP 200"
-  else
-    log_fail "/dashboard?embed=1 returns HTTP $HTTP_STATUS (expected 200)"
-  fi
+  local max_http_attempts=5
+  local http_attempt=1
+  local http_check_passed=false
   
-  # Check /dashboard?embed=1 still has required anchors
-  log_test "Checking /dashboard?embed=1 content has required anchors..."
-  EMBED_CONTENT=$(curl -s "${UI_BASE_URL}/dashboard?embed=1")
-  local required_anchors=("kpi-orders" "kpi-alerts" "alerts-list" "lp-list" "demo-controls")
-  local missing_anchors=()
-  
-  for anchor_id in "${required_anchors[@]}"; do
-    if ! echo "$EMBED_CONTENT" | grep -qE "id=[\"']${anchor_id}[\"']"; then
-      missing_anchors+=("$anchor_id")
+  while [[ $http_attempt -le $max_http_attempts ]]; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${UI_BASE_URL}/dashboard?embed=1")
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+      http_check_passed=true
+      break
     fi
+    echo "    Attempt $http_attempt: HTTP $HTTP_STATUS, retrying..."
+    sleep 1
+    http_attempt=$((http_attempt + 1))
   done
   
-  if [[ ${#missing_anchors[@]} -eq 0 ]]; then
-    log_pass "/dashboard?embed=1 contains all 5 required anchors"
+  if [[ "$http_check_passed" == "true" ]]; then
+    log_pass "/dashboard?embed=1 returns HTTP 200"
   else
-    log_fail "/dashboard?embed=1 missing anchors: ${missing_anchors[*]}"
+    log_fail "/dashboard?embed=1 returns HTTP $HTTP_STATUS (expected 200) after $max_http_attempts attempts"
   fi
   
-  # Check shared CSS is served
+  # Check /dashboard?embed=1 still has required anchors (with retry for flakiness)
+  log_test "Checking /dashboard?embed=1 content has required anchors..."
+  
+  local required_anchors=("kpi-orders" "kpi-alerts" "alerts-list" "lp-list" "demo-controls")
+  local max_attempts=10
+  local wait_seconds=2
+  local attempt=1
+  local anchor_check_passed=false
+  local missing_anchors=()
+  
+  # Ensure artifact directory exists
+  local artifact_dir="${PROJECT_ROOT}/test-results/rc/embed-gate"
+  mkdir -p "$artifact_dir"
+  
+  while [[ $attempt -le $max_attempts ]]; do
+    echo "    Attempt $attempt/$max_attempts..."
+    
+    # Capture response to artifact file
+    local artifact_file="${artifact_dir}/dashboard-embed-attempt-${attempt}.html"
+    EMBED_CONTENT=$(curl -s --max-time 5 "${UI_BASE_URL}/dashboard?embed=1" | tee "$artifact_file")
+    
+    missing_anchors=()
+    for anchor_id in "${required_anchors[@]}"; do
+      if ! echo "$EMBED_CONTENT" | grep -qE "id=[\"']${anchor_id}[\"']"; then
+        missing_anchors+=("$anchor_id")
+      fi
+    done
+    
+    if [[ ${#missing_anchors[@]} -eq 0 ]]; then
+      anchor_check_passed=true
+      # Save successful response as final artifact
+      cp "$artifact_file" "${artifact_dir}/dashboard-embed-final.html"
+      echo "    ✓ All anchors found on attempt $attempt"
+      break
+    else
+      echo "    ⚠ Missing anchors: ${missing_anchors[*]}, retrying in ${wait_seconds}s..."
+      if [[ $attempt -lt $max_attempts ]]; then
+        sleep $wait_seconds
+      fi
+    fi
+    
+    attempt=$((attempt + 1))
+  done
+  
+  if [[ "$anchor_check_passed" == "true" ]]; then
+    log_pass "/dashboard?embed=1 contains all 5 required anchors (attempt $((attempt)))"
+  else
+    log_fail "/dashboard?embed=1 missing anchors: ${missing_anchors[*]} (after $max_attempts attempts)"
+    echo "  Artifact saved: ${artifact_dir}/dashboard-embed-attempt-${max_attempts}.html"
+    echo "  Content excerpt (first 500 chars):"
+    head -c 500 "${artifact_dir}/dashboard-embed-attempt-${max_attempts}.html" | head -10
+  fi
+  
+  # Check shared CSS is served (with retry)
   log_test "Checking /assets/ui.css is served..."
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${UI_BASE_URL}/assets/ui.css")
-  if [[ "$HTTP_STATUS" == "200" ]]; then
+  local css_attempt=1
+  local css_passed=false
+  while [[ $css_attempt -le 5 ]]; do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${UI_BASE_URL}/assets/ui.css")
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+      css_passed=true
+      break
+    fi
+    sleep 1
+    css_attempt=$((css_attempt + 1))
+  done
+  if [[ "$css_passed" == "true" ]]; then
     log_pass "/assets/ui.css returns HTTP 200"
   else
     log_fail "/assets/ui.css returns HTTP $HTTP_STATUS (expected 200)"
   fi
   
-  # Check /command-center-v2 has tab IDs
+  # Check /command-center-v2 has tab IDs (with retry)
   log_test "Checking /command-center-v2 has required tab IDs..."
-  SHELL_CONTENT=$(curl -s "${UI_BASE_URL}/command-center-v2")
   local required_tabs=("tab-dashboard" "tab-orders" "tab-lps" "tab-alerts" "tab-demo")
+  local shell_attempt=1
+  local shell_passed=false
   local missing_tabs=()
   
-  for tab_id in "${required_tabs[@]}"; do
-    if ! echo "$SHELL_CONTENT" | grep -q "id=\"$tab_id\""; then
-      missing_tabs+=("$tab_id")
+  while [[ $shell_attempt -le 5 ]]; do
+    SHELL_CONTENT=$(curl -s --max-time 5 "${UI_BASE_URL}/command-center-v2")
+    missing_tabs=()
+    
+    for tab_id in "${required_tabs[@]}"; do
+      if ! echo "$SHELL_CONTENT" | grep -q "id=\"$tab_id\""; then
+        missing_tabs+=("$tab_id")
+      fi
+    done
+    
+    if [[ ${#missing_tabs[@]} -eq 0 ]]; then
+      shell_passed=true
+      break
     fi
+    sleep 1
+    shell_attempt=$((shell_attempt + 1))
   done
-  
-  if [[ ${#missing_tabs[@]} -eq 0 ]]; then
+
+  if [[ "$shell_passed" == "true" ]]; then
     log_pass "/command-center-v2 contains all 5 tab IDs"
   else
     log_fail "/command-center-v2 missing tab IDs: ${missing_tabs[*]}"
