@@ -1,9 +1,35 @@
+# deps/build
 node_modules/
+**/node_modules/
 dist/
-*.log
-.env
-.DS_Store
-evidence/
+**/dist/
+build/
+**/build/
+coverage/
+.next/
+**/.next/
+*.sqlite
+*.db
 
-# Build artifacts
-services/ui/public/styles.css
+# env/secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# logs
+*.log
+**/*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# pnpm store (if local)
+.pnpm-store/
+**/.pnpm-store/
+
+# evidence/demo artifacts
+evidence/demo-pack-*/
+demo-kit-latest/
