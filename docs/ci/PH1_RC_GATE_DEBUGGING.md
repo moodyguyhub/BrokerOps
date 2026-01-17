@@ -6,6 +6,8 @@
 **Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095518611  
 **Commit:** [`256878e`](https://github.com/moodyguyhub/BrokerOps/commit/256878eb2fa691e54a231b969b6f4498b778ce97)  
 
+**Tag boundary policy:** RC tags are code-only baselines; documentation may advance on `main` after tagging.
+
 ---
 
 **Previous baseline:** `ph1-rc18` ([`0a0e120`](https://github.com/moodyguyhub/BrokerOps/commit/0a0e12000ce6974696d767a699cd8d6cbac5e5fe))  
