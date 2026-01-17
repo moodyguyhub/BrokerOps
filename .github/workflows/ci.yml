@@ -51,28 +51,33 @@ jobs:
       - name: Build all packages
         run: pnpm -r build
 
+      - name: Validate OPA policies
+        run: |
+          echo "=== Policy files ==="
+          ls -la policies/
+          echo "=== Policy content ==="
+          cat policies/order.rego
+          echo "=== Running OPA check ==="
+          docker run --rm -v ${{ github.workspace }}/policies:/policies openpolicyagent/opa:latest check --strict /policies
+          echo "OPA policy validation passed"
+
       - name: Start OPA server
         run: |
           docker run -d --name broker-opa \
             -p 8181:8181 \
             -v ${{ github.workspace }}/policies:/policies \
             openpolicyagent/opa:latest \
-            run --server --addr=0.0.0.0:8181 /policies
+            run --server --addr=0.0.0.0:8181 --log-level=debug /policies
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+              echo "OPA healthy after $i seconds"
               exit 0
             fi
             sleep 1
           done
           echo "OPA failed to become healthy" >&2
-          docker logs broker-opa || true
+          docker logs broker-opa 2>&1 | tail -100 || true
           exit 1
-
-      - name: Load OPA policy
-        run: |
-          curl -X PUT http://localhost:8181/v1/policies/broker \
-            -H "Content-Type: text/plain" \
-            --data-binary @policies/order.rego
 
       - name: Apply DB migrations
         run: |
@@ -145,28 +150,31 @@ jobs:
       - name: Build all packages
         run: pnpm -r build
 
+      - name: Validate OPA policies
+        run: |
+          echo "=== Policy files ==="
+          ls -la policies/
+          echo "=== Running OPA check ==="
+          docker run --rm -v ${{ github.workspace }}/policies:/policies openpolicyagent/opa:latest check --strict /policies
+          echo "OPA policy validation passed"
+
       - name: Start OPA server
         run: |
           docker run -d --name broker-opa \
             -p 8181:8181 \
             -v ${{ github.workspace }}/policies:/policies \
             openpolicyagent/opa:latest \
-            run --server --addr=0.0.0.0:8181 /policies
+            run --server --addr=0.0.0.0:8181 --log-level=debug /policies
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
+              echo "OPA healthy after $i seconds"
               exit 0
             fi
             sleep 1
           done
           echo "OPA failed to become healthy" >&2
-          docker logs broker-opa || true
+          docker logs broker-opa 2>&1 | tail -100 || true
           exit 1
-
-      - name: Load OPA policy
-        run: |
-          curl -X PUT http://localhost:8181/v1/policies/broker \
-            -H "Content-Type: text/plain" \
-            --data-binary @policies/order.rego
 
       - name: Apply DB migrations
         run: |
