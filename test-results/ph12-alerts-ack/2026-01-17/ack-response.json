@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "data": {
+    "alert_id": "1ecd6433-9eae-4705-b609-53296615bce7",
+    "action": "ACK",
+    "new_status": "ACKNOWLEDGED"
+  }
+}

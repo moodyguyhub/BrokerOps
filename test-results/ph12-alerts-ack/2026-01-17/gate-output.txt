@@ -1,0 +1,44 @@
+
+============================================
+Phase 12: Alerts Acknowledgment Contract Gate
+============================================
+
+--- Section 1: API Routes ---
+✓ PASS: UI server POST /api/alerts/:id/ack proxy route
+✓ PASS: Order API POST /api/alerts/:alertId/ack endpoint
+✓ PASS: API supports ACK/RESOLVE/SNOOZE actions
+✓ PASS: API updates alert status on ack
+✓ PASS: API inserts ack record (audit trail)
+✓ PASS: API sets acknowledged_at timestamp
+
+--- Section 2: UI Ack Panel ---
+✓ PASS: Ack panel DOM anchor (alerts-ack-panel)
+✓ PASS: Ack submit button (alerts-ack-submit)
+✓ PASS: Ack note textarea (alerts-ack-note)
+✓ PASS: Critical alerts require note
+✓ PASS: Bulk ack button (btn-ack-selected)
+
+--- Section 3: Ack Submission Logic ---
+✓ PASS: submitAck function defined
+✓ PASS: API body uses action/actor_name format
+✓ PASS: Comment/note sent in API body
+✓ PASS: Local state updated to acknowledged
+✓ PASS: Re-fetches alerts after ack
+✓ PASS: Toast notification on ack success
+
+--- Section 4: Acked State Display ---
+✓ PASS: Acknowledged row styling class
+✓ PASS: Acked-by display in detail panel
+✓ PASS: Acked-at timestamp display
+✓ PASS: Ack note display (with fallback)
+✓ PASS: Status badge for acknowledged state
+✓ PASS: Stats counter for acked alerts
+
+--- Section 5: Data Model ---
+✓ PASS: normalizeAlert includes alert_id for API
+✓ PASS: normalizeAlert handles ACKNOWLEDGED status
+✓ PASS: acknowledgedBy mapped from server ack info
+
+============================================
+GATE_SUMMARY gate=ph12-alerts-ack passed=26 failed=0
+============================================

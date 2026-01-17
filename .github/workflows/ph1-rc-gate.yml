@@ -181,6 +181,13 @@ jobs:
           chmod +x ./scripts/ph11-infra-sse-contract-gate.sh
           ./scripts/ph11-infra-sse-contract-gate.sh
 
+      - name: Gate 14 — Alerts Ack Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph12-alerts-ack-contract-gate.sh
+          ./scripts/ph12-alerts-ack-contract-gate.sh
+
       - name: Smoke — Provenance Endpoint Runtime
         shell: bash
         run: |
