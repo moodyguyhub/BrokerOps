@@ -1,0 +1,80 @@
+name: PH1 RC Gate
+
+on:
+  push:
+    tags:
+      - "ph1-rc*"
+
+concurrency:
+  group: ph1-rc-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rc-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Tooling versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -v
+          pnpm -v
+          docker -v
+          docker compose version
+
+      - name: Install deps (repo-level)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+
+      - name: Gate 1 — Clean boot verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/clean-boot-verification.sh
+          ./scripts/clean-boot-verification.sh
+
+      - name: Gate 2 — Demo choreography
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph1-demo-choreography.sh
+          ./scripts/ph1-demo-choreography.sh
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ph1-rc-gate-receipts-${{ github.ref_name }}
+          if-no-files-found: error
+          path: |
+            test-results/clean-boot-*/clean-boot-receipt.json
+            test-results/demo-run-*/ph1-demo-run.json
+            test-results/clean-boot-latest/**
+            test-results/demo-run-latest/**
+
+      - name: Teardown stack
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose down -v --remove-orphans || true
