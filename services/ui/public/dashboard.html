@@ -525,6 +525,193 @@
     }
 
     /* ============================================
+       Phase 7: Sparklines
+       ============================================ */
+    .sparkline-container {
+      display: flex;
+      align-items: flex-end;
+      height: 24px;
+      gap: 1px;
+      margin-top: 8px;
+    }
+
+    .sparkline-bar {
+      flex: 1;
+      min-width: 3px;
+      max-width: 8px;
+      background: var(--cyan-500);
+      border-radius: 1px;
+      transition: height 0.3s ease;
+    }
+
+    .sparkline-bar.danger { background: var(--rose-500); }
+    .sparkline-bar.warning { background: var(--amber-500); }
+    .sparkline-bar.success { background: var(--emerald-500); }
+
+    /* ============================================
+       Phase 7: Governance Funnel
+       ============================================ */
+    .governance-funnel {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .funnel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .funnel-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .funnel-period {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .funnel-stages {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .funnel-stages { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .funnel-stage {
+      background: var(--slate-800);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .funnel-stage.inbound { border-left: 3px solid var(--slate-500); }
+    .funnel-stage.authorized { border-left: 3px solid var(--emerald-500); }
+    .funnel-stage.pending { border-left: 3px solid var(--amber-500); }
+    .funnel-stage.blocked { border-left: 3px solid var(--rose-500); }
+
+    .funnel-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .funnel-stage.inbound .funnel-count { color: var(--slate-300); }
+    .funnel-stage.authorized .funnel-count { color: var(--emerald-400); }
+    .funnel-stage.pending .funnel-count { color: var(--amber-400); }
+    .funnel-stage.blocked .funnel-count { color: var(--rose-400); }
+
+    .funnel-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+
+    .funnel-stage.inbound .funnel-label { color: var(--slate-500); }
+    .funnel-stage.authorized .funnel-label { color: var(--emerald-500); }
+    .funnel-stage.pending .funnel-label { color: var(--amber-500); }
+    .funnel-stage.blocked .funnel-label { color: var(--rose-500); }
+
+    .funnel-bar-container {
+      margin-top: 16px;
+      height: 12px;
+      background: var(--slate-800);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .funnel-bar-segment {
+      height: 100%;
+      transition: width 0.5s ease;
+    }
+
+    .funnel-bar-segment.authorized { background: var(--emerald-500); }
+    .funnel-bar-segment.pending { background: var(--amber-500); }
+    .funnel-bar-segment.blocked { background: var(--rose-500); }
+
+    /* ============================================
+       Phase 7: LP Health Strip
+       ============================================ */
+    .lp-health-strip {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+
+    .health-strip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .health-strip-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .health-strip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .health-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+    }
+
+    .health-chip .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .health-chip.healthy .health-dot { background: var(--emerald-500); }
+    .health-chip.warning .health-dot { background: var(--amber-500); }
+    .health-chip.critical .health-dot { background: var(--rose-500); animation: pulse 1s infinite; }
+
+    .health-chip.healthy { border-color: rgba(16, 185, 129, 0.3); }
+    .health-chip.warning { border-color: rgba(245, 158, 11, 0.3); }
+    .health-chip.critical { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); }
+
+    .health-chip .lp-name {
+      color: var(--slate-300);
+    }
+
+    .health-chip .margin-value {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--slate-400);
+    }
+
+    /* ============================================
        Embed Mode (for iframe in command-center-v2)
        ============================================ */
     body.embed-mode .header {
@@ -609,8 +796,8 @@
       </div>
     </div>
 
-    <!-- KPI Grid -->
-    <div class="kpi-grid">
+    <!-- KPI Grid (Gate 9 anchor: kpi-grid) -->
+    <div class="kpi-grid" id="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">
           <i data-lucide="package" style="width: 14px; height: 14px;"></i>
@@ -618,6 +805,7 @@
         </div>
         <div class="kpi-value info" id="kpi-orders">--</div>
         <div class="kpi-sub" id="kpi-orders-sub">Last 1 hour</div>
+        <div class="sparkline-container" id="sparkline-orders"></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">
@@ -626,6 +814,7 @@
         </div>
         <div class="kpi-value success" id="kpi-fill-rate">--%</div>
         <div class="kpi-sub" id="kpi-fill-sub">Filled / Total</div>
+        <div class="sparkline-container" id="sparkline-fill-rate"></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">
@@ -634,6 +823,7 @@
         </div>
         <div class="kpi-value danger" id="kpi-rejections">--</div>
         <div class="kpi-sub" id="kpi-rejections-sub">Last 1 hour</div>
+        <div class="sparkline-container" id="sparkline-rejections"></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">
@@ -642,6 +832,54 @@
         </div>
         <div class="kpi-value warning" id="kpi-alerts">--</div>
         <div class="kpi-sub" id="kpi-alerts-sub">0 critical</div>
+        <div class="sparkline-container" id="sparkline-alerts"></div>
+      </div>
+    </div>
+
+    <!-- Governance Funnel (Gate 9 anchor: governance-funnel) -->
+    <div class="governance-funnel" id="governance-funnel">
+      <div class="funnel-header">
+        <div class="funnel-title">
+          <i data-lucide="filter" style="width: 16px; height: 16px;"></i>
+          Governance Funnel
+        </div>
+        <div class="funnel-period">Last 1 hour</div>
+      </div>
+      <div class="funnel-stages" id="funnel-stages">
+        <div class="funnel-stage inbound">
+          <div class="funnel-count" id="funnel-inbound">--</div>
+          <div class="funnel-label">Inbound</div>
+        </div>
+        <div class="funnel-stage authorized">
+          <div class="funnel-count" id="funnel-authorized">--</div>
+          <div class="funnel-label">Authorized</div>
+        </div>
+        <div class="funnel-stage pending">
+          <div class="funnel-count" id="funnel-pending">--</div>
+          <div class="funnel-label">Pending</div>
+        </div>
+        <div class="funnel-stage blocked">
+          <div class="funnel-count" id="funnel-blocked">--</div>
+          <div class="funnel-label">Blocked</div>
+        </div>
+      </div>
+      <div class="funnel-bar-container" id="funnel-bar">
+        <div class="funnel-bar-segment authorized" id="funnel-bar-authorized" style="width: 0%;"></div>
+        <div class="funnel-bar-segment pending" id="funnel-bar-pending" style="width: 0%;"></div>
+        <div class="funnel-bar-segment blocked" id="funnel-bar-blocked" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <!-- LP Health Strip (Gate 9 anchor: lp-health-strip) -->
+    <div class="lp-health-strip" id="lp-health-strip">
+      <div class="health-strip-header">
+        <div class="health-strip-title">
+          <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
+          LP Health Overview
+        </div>
+      </div>
+      <div class="health-strip-row" id="lp-health-row">
+        <div class="health-chip" style="color: var(--slate-500);">Loading...</div>
       </div>
     </div>
 
@@ -782,10 +1020,116 @@
           } else {
             alertValue.className = 'kpi-value success';
           }
+
+          // Update governance funnel from KPIs
+          updateGovernanceFunnel(kpis);
         }
       } catch (err) {
         console.error('Failed to fetch KPIs:', err);
       }
+    }
+
+    // Fetch Timeline for Sparklines
+    async function fetchTimeline() {
+      try {
+        const resp = await fetch('/api/dashboard/timeline?window=1h&bucket=5');
+        const result = await resp.json();
+        
+        if (result.success && result.data) {
+          renderSparklines(result.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch timeline:', err);
+      }
+    }
+
+    // Render sparklines from timeline data
+    function renderSparklines(buckets) {
+      if (!buckets || buckets.length === 0) return;
+
+      const maxOrders = Math.max(...buckets.map(b => parseInt(b.total) || 0), 1);
+      const maxRejections = Math.max(...buckets.map(b => parseInt(b.rejected) || 0), 1);
+
+      // Orders sparkline
+      const ordersContainer = document.getElementById('sparkline-orders');
+      ordersContainer.innerHTML = buckets.slice(-12).map(b => {
+        const val = parseInt(b.total) || 0;
+        const height = Math.max(4, (val / maxOrders) * 100);
+        return `<div class="sparkline-bar" style="height: ${height}%;"></div>`;
+      }).join('');
+
+      // Fill rate sparkline (percentage based)
+      const fillRateContainer = document.getElementById('sparkline-fill-rate');
+      fillRateContainer.innerHTML = buckets.slice(-12).map(b => {
+        const total = parseInt(b.total) || 0;
+        const filled = parseInt(b.filled) || 0;
+        const rate = total > 0 ? (filled / total) * 100 : 0;
+        const barClass = rate >= 90 ? 'success' : rate >= 70 ? 'warning' : 'danger';
+        return `<div class="sparkline-bar ${barClass}" style="height: ${Math.max(4, rate)}%;"></div>`;
+      }).join('');
+
+      // Rejections sparkline
+      const rejectionsContainer = document.getElementById('sparkline-rejections');
+      rejectionsContainer.innerHTML = buckets.slice(-12).map(b => {
+        const val = parseInt(b.rejected) || 0;
+        const height = Math.max(4, (val / maxRejections) * 100);
+        const barClass = val > 5 ? 'danger' : val > 2 ? 'warning' : '';
+        return `<div class="sparkline-bar ${barClass}" style="height: ${height}%;"></div>`;
+      }).join('');
+
+      // Alerts sparkline (placeholder - no timeline data for alerts)
+      const alertsContainer = document.getElementById('sparkline-alerts');
+      alertsContainer.innerHTML = '<div style="font-size: 10px; color: var(--slate-500);">—</div>';
+    }
+
+    // Update governance funnel visualization
+    function updateGovernanceFunnel(kpis) {
+      const total = kpis.orders?.total || 0;
+      const filled = kpis.orders?.filled || 0;
+      const rejected = kpis.orders?.rejected || 0;
+      const pending = Math.max(0, total - filled - rejected);
+
+      document.getElementById('funnel-inbound').textContent = total;
+      document.getElementById('funnel-authorized').textContent = filled;
+      document.getElementById('funnel-pending').textContent = pending;
+      document.getElementById('funnel-blocked').textContent = rejected;
+
+      // Update stacked bar
+      if (total > 0) {
+        const authPct = (filled / total) * 100;
+        const pendPct = (pending / total) * 100;
+        const blockPct = (rejected / total) * 100;
+
+        document.getElementById('funnel-bar-authorized').style.width = `${authPct}%`;
+        document.getElementById('funnel-bar-pending').style.width = `${pendPct}%`;
+        document.getElementById('funnel-bar-blocked').style.width = `${blockPct}%`;
+      }
+    }
+
+    // Render LP Health Strip
+    function renderLPHealthStrip(accounts) {
+      const container = document.getElementById('lp-health-row');
+      
+      if (!accounts || accounts.length === 0) {
+        container.innerHTML = '<div class="health-chip" style="color: var(--slate-500);">No LP accounts</div>';
+        return;
+      }
+
+      container.innerHTML = accounts.map(lp => {
+        const margin = parseFloat(lp.margin_level) || 0;
+        let healthClass = 'healthy';
+        if (margin < 50) healthClass = 'critical';
+        else if (margin < 100) healthClass = 'warning';
+
+        const name = lp.name || lp.id || 'Unknown';
+        return `
+          <div class="health-chip ${healthClass}">
+            <div class="health-dot"></div>
+            <span class="lp-name">${name}</span>
+            <span class="margin-value">${margin.toFixed(0)}%</span>
+          </div>
+        `;
+      }).join('');
     }
 
     // Fetch Alerts
@@ -880,6 +1224,7 @@
         
         if (result.success && result.data) {
           renderLPAccounts(result.data);
+          renderLPHealthStrip(result.data);
         }
       } catch (err) {
         console.error('Failed to fetch LP accounts:', err);
@@ -974,7 +1319,8 @@
         await Promise.all([
           fetchKPIs(),
           fetchAlerts(),
-          fetchLPAccounts()
+          fetchLPAccounts(),
+          fetchTimeline()
         ]);
         
         setStatus('connected');
