@@ -345,6 +345,39 @@ app.get("/api/orders/:id/lifecycle", async (req, res) => {
   }
 });
 
+// Evidence and Dispute Pack exports (proxied to reconstruction API)
+app.get("/api/orders/:id/evidence-pack", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.reconstruction}/orders/${req.params.id}/evidence-pack`);
+    if (!resp.ok) {
+      return res.status(resp.status).json({ success: false, error: "Failed to generate evidence pack" });
+    }
+    const contentType = resp.headers.get('content-type');
+    res.setHeader('Content-Type', contentType || 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="evidence-${req.params.id}.zip"`);
+    const buffer = await resp.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to generate evidence pack" });
+  }
+});
+
+app.get("/api/orders/:id/dispute-pack", async (req, res) => {
+  try {
+    const resp = await fetch(`${API_URLS.reconstruction}/orders/${req.params.id}/dispute-pack`);
+    if (!resp.ok) {
+      return res.status(resp.status).json({ success: false, error: "Failed to generate dispute pack" });
+    }
+    const contentType = resp.headers.get('content-type');
+    res.setHeader('Content-Type', contentType || 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="dispute-${req.params.id}.zip"`);
+    const buffer = await resp.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to generate dispute pack" });
+  }
+});
+
 // Rejections
 app.get("/api/rejections", async (req, res) => {
   try {
@@ -411,6 +444,16 @@ app.get("*", (req, res) => {
 });
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`BrokerOps UI running at http://localhost:${port}`);
 });
+
+// Handle port collision gracefully
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use.`);
+    console.error('To fix: fuser -k ' + port + '/tcp');
+    console.error('Or set PORT environment variable to use a different port.');
+    process.exit(1);
+  }
+  throw err;});

@@ -232,8 +232,23 @@ gate_api_contract() {
     log_fail "/api/orders returns unexpected HTTP $HTTP_STATUS"
   fi
   
-  # Note: evidence-pack and dispute-pack API routes need to be added
-  # For now, just check if the UI correctly references them
+  # Check evidence-pack and dispute-pack routes are defined in server.js
+  log_test "Checking server.js has evidence-pack route..."
+  SERVER_FILE="$PROJECT_ROOT/services/ui/server.js"
+  if grep -q 'evidence-pack' "$SERVER_FILE"; then
+    log_pass "server.js has evidence-pack route"
+  else
+    log_fail "server.js missing evidence-pack route"
+  fi
+  
+  log_test "Checking server.js has dispute-pack route..."
+  if grep -q 'dispute-pack' "$SERVER_FILE"; then
+    log_pass "server.js has dispute-pack route"
+  else
+    log_fail "server.js missing dispute-pack route"
+  fi
+  
+  # Check if the UI correctly references them
   log_test "Checking orders.html has export button handlers..."
   ORDERS_FILE="$PROJECT_ROOT/services/ui/public/orders.html"
   if grep -q 'evidence-pack\|exportEvidence' "$ORDERS_FILE" && grep -q 'dispute-pack\|exportDispute' "$ORDERS_FILE"; then
