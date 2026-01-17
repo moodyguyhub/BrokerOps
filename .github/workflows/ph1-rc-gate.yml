@@ -167,6 +167,13 @@ jobs:
           chmod +x ./scripts/ph9-provenance-footer-contract-gate.sh
           ./scripts/ph9-provenance-footer-contract-gate.sh
 
+      - name: Gate 12 — Infrastructure Status Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph10-infrastructure-contract-gate.sh
+          ./scripts/ph10-infrastructure-contract-gate.sh
+
       - name: Smoke — Provenance Endpoint Runtime
         shell: bash
         run: |

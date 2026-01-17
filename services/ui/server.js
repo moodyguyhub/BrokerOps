@@ -221,6 +221,119 @@ app.get("/api/provenance", (req, res) => {
 });
 
 // ============================================================================
+// Phase 10: Infrastructure Status Aggregator
+// ============================================================================
+
+// Service health check targets (extend API_URLS with additional services)
+const INFRA_TARGETS = {
+  orderApi: { name: "Order API", url: process.env.ORDER_API_URL ?? "http://localhost:7001", path: "/health" },
+  riskGate: { name: "Risk Gate", url: process.env.RISK_GATE_URL ?? "http://localhost:7002", path: "/health" },
+  auditWriter: { name: "Audit Writer", url: process.env.AUDIT_WRITER_URL ?? "http://localhost:7003", path: "/health" },
+  reconstruction: { name: "Reconstruction API", url: process.env.RECONSTRUCTION_URL ?? "http://localhost:7004", path: "/health" },
+  economics: { name: "Economics", url: process.env.ECONOMICS_URL ?? "http://localhost:7005", path: "/health" },
+  webhooks: { name: "Webhooks", url: process.env.WEBHOOKS_URL ?? "http://localhost:7006", path: "/health" },
+  opa: { name: "OPA", url: process.env.OPA_URL ?? "http://localhost:8181", path: "/health" }
+};
+
+// Check a single service health
+async function checkServiceHealth(key, target) {
+  const startTime = Date.now();
+  const checkedAt = new Date().toISOString();
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const resp = await fetch(`${target.url}${target.path}`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    
+    const latencyMs = Date.now() - startTime;
+    
+    if (!resp.ok) {
+      return {
+        name: target.name,
+        url: target.url,
+        status: "down",
+        latency_ms: latencyMs,
+        checked_at: checkedAt,
+        message: `HTTP ${resp.status}`
+      };
+    }
+    
+    // Degraded if latency > 200ms
+    const status = latencyMs > 200 ? "degraded" : "up";
+    
+    return {
+      name: target.name,
+      url: target.url,
+      status,
+      latency_ms: latencyMs,
+      checked_at: checkedAt,
+      message: status === "degraded" ? "High latency" : "OK"
+    };
+  } catch (err) {
+    const latencyMs = Date.now() - startTime;
+    return {
+      name: target.name,
+      url: target.url,
+      status: "down",
+      latency_ms: latencyMs,
+      checked_at: checkedAt,
+      message: err.name === "AbortError" ? "Timeout" : err.message
+    };
+  }
+}
+
+// Aggregated infrastructure status endpoint
+app.get("/api/infrastructure/status", async (req, res) => {
+  const timestamp = new Date().toISOString();
+  
+  // Check all services in parallel
+  const servicePromises = Object.entries(INFRA_TARGETS).map(([key, target]) => 
+    checkServiceHealth(key, target)
+  );
+  
+  const services = await Promise.all(servicePromises);
+  
+  // Compute aggregate status (worst-case)
+  let aggregateStatus = "ok";
+  for (const svc of services) {
+    if (svc.status === "down") {
+      aggregateStatus = "error";
+      break;
+    }
+    if (svc.status === "degraded") {
+      aggregateStatus = "warn";
+    }
+  }
+  
+  // Compute metrics
+  const upServices = services.filter(s => s.status === "up" || s.status === "degraded");
+  const avgLatency = upServices.length > 0 
+    ? Math.round(upServices.reduce((sum, s) => sum + s.latency_ms, 0) / upServices.length)
+    : 0;
+  
+  res.set("Cache-Control", "public, max-age=5");
+  res.json({
+    success: true,
+    schema_version: 1,
+    status: aggregateStatus,
+    timestamp,
+    data: {
+      services,
+      sidecars: [], // Phase 10: show empty; demo mode would populate
+      metrics: {
+        avg_latency_ms: avgLatency,
+        active_services: upServices.length,
+        total_services: services.length
+      }
+    }
+  });
+});
+
+// ============================================================================
 // Week 4 API Proxies - Dashboard, Alerts, LP Accounts, Orders
 // ============================================================================
 
@@ -475,6 +588,11 @@ app.get("/lp-accounts", (req, res) => {
 // Phase 5: Alerts page
 app.get("/alerts", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "alerts.html"));
+});
+
+// Phase 10: Infrastructure Status page
+app.get("/infrastructure", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "infrastructure.html"));
 });
 
 // SPA fallback

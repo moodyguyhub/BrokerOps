@@ -399,6 +399,12 @@ jobs:
           ./scripts/ph9-provenance-footer-contract-gate.sh | tee /tmp/gate11.log
           echo "GATE_SUMMARY gate=ph9-provenance-footer status=PASS"
 
+      - name: Gate 12 — Infrastructure Status Contract
+        run: |
+          chmod +x ./scripts/ph10-infrastructure-contract-gate.sh
+          ./scripts/ph10-infrastructure-contract-gate.sh | tee /tmp/gate12.log
+          echo "GATE_SUMMARY gate=ph10-infrastructure status=PASS"
+
       - name: Smoke — Provenance Endpoint Runtime
         run: |
           chmod +x ./scripts/ph9-provenance-smoke.sh
