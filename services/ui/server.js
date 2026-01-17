@@ -201,6 +201,25 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Provenance endpoint - single source of truth for build info
+// Returns kernel version, UI version, and build timestamp
+app.get("/api/provenance", (req, res) => {
+  const kernelSha = process.env.BROKEROPS_SHA || process.env.GIT_SHA || "dev";
+  const kernelTag = process.env.BROKEROPS_TAG || process.env.GIT_TAG || "";
+  const uiVersion = "0.2.0";
+  const buildTs = process.env.BUILD_TIMESTAMP || new Date().toISOString();
+  
+  res.json({
+    kernel: kernelTag || `brokerops@${kernelSha}`,
+    kernelSha,
+    kernelTag,
+    ui: `ui@${uiVersion}`,
+    uiVersion,
+    buildTs,
+    environment: process.env.NODE_ENV || "development"
+  });
+});
+
 // ============================================================================
 // Week 4 API Proxies - Dashboard, Alerts, LP Accounts, Orders
 // ============================================================================

@@ -393,6 +393,12 @@ jobs:
           ./scripts/ph8-orders-proof-contract-gate.sh | tee /tmp/gate10.log
           echo "GATE_SUMMARY gate=ph8-orders-proof status=PASS"
 
+      - name: Gate 11 — Provenance Footer Contract
+        run: |
+          chmod +x ./scripts/ph9-provenance-footer-contract-gate.sh
+          ./scripts/ph9-provenance-footer-contract-gate.sh | tee /tmp/gate11.log
+          echo "GATE_SUMMARY gate=ph9-provenance-footer status=PASS"
+
       - name: Upload gate logs
         uses: actions/upload-artifact@v4
         if: always()

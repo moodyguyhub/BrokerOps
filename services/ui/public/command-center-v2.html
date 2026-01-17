@@ -121,10 +121,15 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Tab content wrapper */
+    /* Tab content wrapper - account for provenance footer */
     .tab-content-wrapper {
       position: relative;
-      min-height: calc(100vh - 120px);
+      min-height: calc(100vh - 120px - 24px);
+    }
+
+    /* Embed container adjustment for footer */
+    .embed-container {
+      height: calc(100vh - 120px - 24px) !important;
     }
   </style>
 </head>
@@ -491,5 +496,8 @@
       setInterval(fetchAlertCount, 30000);
     }
   </script>
+
+  <!-- Provenance Footer (shell-level, covers all embedded content) -->
+  <script src="/assets/provenance-footer.js"></script>
 </body>
 </html>
