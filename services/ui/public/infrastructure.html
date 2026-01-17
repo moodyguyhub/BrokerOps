@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infrastructure Status - TRUVESTA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/ui.css">
+  <style>
+    /* Infrastructure-specific styles */
+    .infra-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+
+    .embed-mode .infra-container {
+      padding: var(--spacing-md);
+    }
+
+    .embed-mode .page-header {
+      display: none;
+    }
+
+    /* Status Banner */
+    .status-banner {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .status-banner.status-ok {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+      border: 1px solid var(--emerald-500);
+    }
+
+    .status-banner.status-warn {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
+      border: 1px solid var(--amber-500);
+    }
+
+    .status-banner.status-error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+      border: 1px solid var(--red-500);
+    }
+
+    .status-banner.status-loading {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+    }
+
+    /* Status shapes (accessibility: shape + color) */
+    .status-shape {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .status-shape-ok {
+      width: 16px;
+      height: 16px;
+      background: var(--emerald-500);
+      border-radius: 50%;
+    }
+
+    .status-shape-warn {
+      width: 0;
+      height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-bottom: 16px solid var(--amber-500);
+    }
+
+    .status-shape-error {
+      width: 16px;
+      height: 16px;
+      background: var(--red-500);
+      border-radius: 2px;
+    }
+
+    .status-shape-loading {
+      width: 16px;
+      height: 16px;
+      background: var(--slate-500);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-banner-text {
+      flex: 1;
+    }
+
+    .status-banner-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 2px;
+    }
+
+    .status-banner-subtitle {
+      font-size: 0.8125rem;
+      color: var(--slate-400);
+    }
+
+    .status-banner-subtitle.stale {
+      color: var(--amber-500);
+    }
+
+    /* Metrics Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .metric-card {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: white;
+    }
+
+    .metric-value.ok { color: var(--emerald-400); }
+    .metric-value.warn { color: var(--amber-400); }
+    .metric-value.error { color: var(--red-400); }
+
+    /* Services Section */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .section-title {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .section-badge {
+      font-size: 0.6875rem;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .section-badge.ok { background: rgba(16, 185, 129, 0.2); color: var(--emerald-400); }
+    .section-badge.warn { background: rgba(245, 158, 11, 0.2); color: var(--amber-400); }
+    .section-badge.error { background: rgba(239, 68, 68, 0.2); color: var(--red-400); }
+
+    /* Service Table */
+    .services-table {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .services-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .services-table th,
+    .services-table td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      text-align: left;
+      border-bottom: 1px solid var(--slate-700);
+    }
+
+    .services-table th {
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--slate-850, rgba(15, 23, 42, 0.5));
+    }
+
+    .services-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .services-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .service-name {
+      font-weight: 500;
+      color: white;
+    }
+
+    .service-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    .service-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+    }
+
+    .service-status.up { color: var(--emerald-400); }
+    .service-status.degraded { color: var(--amber-400); }
+    .service-status.down { color: var(--red-400); }
+
+    .service-latency {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--slate-300);
+    }
+
+    .service-checked {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .service-checked.stale {
+      color: var(--amber-500);
+    }
+
+    .service-message {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    /* Mini status dot for table */
+    .status-dot-mini {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot-mini.up {
+      background: var(--emerald-500);
+      border-radius: 50%;
+    }
+
+    .status-dot-mini.degraded {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-bottom: 8px solid var(--amber-500);
+    }
+
+    .status-dot-mini.down {
+      background: var(--red-500);
+      border-radius: 2px;
+    }
+
+    /* Sidecars Section */
+    .sidecars-empty {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      text-align: center;
+      color: var(--slate-400);
+    }
+
+    .sidecars-empty svg {
+      width: 32px;
+      height: 32px;
+      margin-bottom: var(--spacing-sm);
+      opacity: 0.5;
+    }
+
+    /* State containers */
+    .state-container {
+      display: none;
+    }
+
+    .state-container.active {
+      display: block;
+    }
+
+    /* Loading state */
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-xxl);
+      color: var(--slate-400);
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--slate-700);
+      border-top-color: var(--cyan-500);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: var(--spacing-md);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error state */
+    .error-state {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--red-500);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      text-align: center;
+    }
+
+    .error-state svg {
+      width: 40px;
+      height: 40px;
+      color: var(--red-500);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .error-state h3 {
+      color: var(--red-400);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .error-state p {
+      color: var(--slate-400);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .retry-btn {
+      background: var(--red-600);
+      color: white;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      border-radius: var(--radius-md);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .retry-btn:hover {
+      background: var(--red-500);
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header (hidden in embed mode) -->
+  <header class="page-header">
+    <div class="header-inner">
+      <div class="header-title">
+        <h1>Infrastructure Status</h1>
+        <span class="header-subtitle">Real-time service health monitoring</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="btn-manual-refresh">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 21h5v-5"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="infra-container">
+    <!-- Loading State -->
+    <div class="state-container active" id="infra-state-loading">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <span>Checking infrastructure status...</span>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div class="state-container" id="infra-state-error">
+      <div class="error-state">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h3>Unable to fetch infrastructure status</h3>
+        <p id="error-message">Connection to status endpoint failed</p>
+        <button class="retry-btn" id="btn-retry">Retry</button>
+      </div>
+    </div>
+
+    <!-- Ready State (main content) -->
+    <div class="state-container" id="infra-state-ready">
+      <!-- Status Banner -->
+      <div class="status-banner status-loading" id="infra-status-banner" role="status" aria-label="Infrastructure status">
+        <div class="status-shape" id="banner-shape" aria-hidden="true">
+          <div class="status-shape-loading"></div>
+        </div>
+        <div class="status-banner-text">
+          <div class="status-banner-title" id="banner-title">Checking Status...</div>
+          <div class="status-banner-subtitle" id="infra-last-check">Last check: --</div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="metrics-grid" id="infra-metrics">
+        <div class="metric-card">
+          <div class="metric-label">Active Services</div>
+          <div class="metric-value" id="metric-active">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Services</div>
+          <div class="metric-value" id="metric-total">--</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Latency</div>
+          <div class="metric-value" id="metric-latency">-- ms</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Overall Status</div>
+          <div class="metric-value" id="metric-status">--</div>
+        </div>
+      </div>
+
+      <!-- Services Section -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+              <line x1="6" y1="6" x2="6.01" y2="6"/>
+              <line x1="6" y1="18" x2="6.01" y2="18"/>
+            </svg>
+            Core Services
+          </h2>
+          <span class="section-badge" id="services-badge">--</span>
+        </div>
+        <div class="services-table" id="infra-services">
+          <table>
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Checked</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="services-tbody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Sidecars Section -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+              <line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
+            Dealer Sidecars
+          </h2>
+          <span class="section-badge" id="sidecars-badge">0</span>
+        </div>
+        <div id="infra-sidecars">
+          <div class="sidecars-empty">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <p>No sidecars configured</p>
+            <small>Dealer adapters will appear here when connected</small>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // Constants
+      const POLL_INTERVAL = 10000; // 10 seconds
+      const STALE_THRESHOLD = 5000; // 5 seconds
+      const HYSTERESIS_THRESHOLD = 3; // 3 consecutive checks before showing warn
+
+      // State
+      let currentState = 'loading'; // loading, ready, error
+      let warnCounter = 0; // Hysteresis counter for warn state
+      let lastFetchTime = null;
+      let pollTimer = null;
+
+      // Check for embed mode
+      const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1';
+      if (isEmbed) {
+        document.body.classList.add('embed-mode');
+      }
+
+      // DOM elements
+      const stateLoading = document.getElementById('infra-state-loading');
+      const stateError = document.getElementById('infra-state-error');
+      const stateReady = document.getElementById('infra-state-ready');
+      const statusBanner = document.getElementById('infra-status-banner');
+      const bannerShape = document.getElementById('banner-shape');
+      const bannerTitle = document.getElementById('banner-title');
+      const lastCheckEl = document.getElementById('infra-last-check');
+      const errorMessageEl = document.getElementById('error-message');
+      const servicesTbody = document.getElementById('services-tbody');
+      const servicesBadge = document.getElementById('services-badge');
+      const sidecarsBadge = document.getElementById('sidecars-badge');
+      const sidecarsContainer = document.getElementById('infra-sidecars');
+
+      // Metrics elements
+      const metricActive = document.getElementById('metric-active');
+      const metricTotal = document.getElementById('metric-total');
+      const metricLatency = document.getElementById('metric-latency');
+      const metricStatus = document.getElementById('metric-status');
+
+      // Buttons
+      const retryBtn = document.getElementById('btn-retry');
+      const manualRefreshBtn = document.getElementById('btn-manual-refresh');
+
+      function setState(state) {
+        currentState = state;
+        stateLoading.classList.toggle('active', state === 'loading');
+        stateError.classList.toggle('active', state === 'error');
+        stateReady.classList.toggle('active', state === 'ready');
+      }
+
+      function formatTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString();
+      }
+
+      function getTimeAgo(isoString) {
+        const diff = Date.now() - new Date(isoString).getTime();
+        if (diff < 1000) return 'just now';
+        if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+        return `${Math.floor(diff / 60000)}m ago`;
+      }
+
+      function isStale(isoString) {
+        return Date.now() - new Date(isoString).getTime() > STALE_THRESHOLD;
+      }
+
+      function getShapeHtml(status) {
+        switch (status) {
+          case 'ok': return '<div class="status-shape-ok"></div>';
+          case 'warn': return '<div class="status-shape-warn"></div>';
+          case 'error': return '<div class="status-shape-error"></div>';
+          default: return '<div class="status-shape-loading"></div>';
+        }
+      }
+
+      function getStatusTitle(status) {
+        switch (status) {
+          case 'ok': return 'All Systems Operational';
+          case 'warn': return 'Degraded Performance';
+          case 'error': return 'System Issues Detected';
+          default: return 'Checking Status...';
+        }
+      }
+
+      function renderServices(services) {
+        if (!services || services.length === 0) {
+          servicesTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--slate-500)">No services configured</td></tr>';
+          return;
+        }
+
+        servicesTbody.innerHTML = services.map(svc => {
+          const staleClass = isStale(svc.checked_at) ? 'stale' : '';
+          return `
+            <tr>
+              <td>
+                <div class="service-name">${escapeHtml(svc.name)}</div>
+                <div class="service-url">${escapeHtml(svc.url)}</div>
+              </td>
+              <td>
+                <span class="service-status ${svc.status}">
+                  <span class="status-dot-mini ${svc.status}"></span>
+                  ${svc.status.toUpperCase()}
+                </span>
+              </td>
+              <td class="service-latency">${svc.latency_ms}ms</td>
+              <td class="service-checked ${staleClass}">${getTimeAgo(svc.checked_at)}</td>
+              <td class="service-message">${escapeHtml(svc.message || '-')}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      function renderSidecars(sidecars) {
+        if (!sidecars || sidecars.length === 0) {
+          sidecarsBadge.textContent = '0';
+          sidecarsBadge.className = 'section-badge';
+          // Keep default empty state
+          return;
+        }
+
+        // If we have sidecars (future), render them here
+        sidecarsBadge.textContent = sidecars.length;
+        sidecarsBadge.className = 'section-badge ok';
+      }
+
+      function updateBanner(status, timestamp) {
+        // Apply hysteresis: warn only after 3 consecutive warn checks
+        let displayStatus = status;
+        if (status === 'warn') {
+          warnCounter++;
+          if (warnCounter < HYSTERESIS_THRESHOLD) {
+            displayStatus = 'ok'; // Don't show warn yet
+          }
+        } else if (status === 'ok') {
+          warnCounter = 0;
+        } else if (status === 'error') {
+          warnCounter = 0; // Reset on error (error is immediate)
+        }
+
+        // Update banner
+        statusBanner.className = `status-banner status-${displayStatus}`;
+        statusBanner.setAttribute('aria-label', `Infrastructure status: ${displayStatus}`);
+        bannerShape.innerHTML = getShapeHtml(displayStatus);
+        bannerTitle.textContent = getStatusTitle(displayStatus);
+
+        // Update last check with freshness indicator
+        const stale = isStale(timestamp);
+        lastCheckEl.textContent = `Last check: ${formatTime(timestamp)}`;
+        lastCheckEl.classList.toggle('stale', stale);
+        if (stale) {
+          lastCheckEl.textContent += ' (stale)';
+        }
+      }
+
+      function updateMetrics(metrics, status) {
+        metricActive.textContent = metrics.active_services;
+        metricActive.className = `metric-value ${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : 'error'}`;
+        
+        metricTotal.textContent = metrics.total_services;
+        
+        metricLatency.textContent = `${metrics.avg_latency_ms}ms`;
+        metricLatency.className = `metric-value ${metrics.avg_latency_ms > 200 ? 'warn' : 'ok'}`;
+        
+        metricStatus.textContent = status.toUpperCase();
+        metricStatus.className = `metric-value ${status}`;
+      }
+
+      function updateServicesBadge(services) {
+        const up = services.filter(s => s.status === 'up').length;
+        const total = services.length;
+        
+        servicesBadge.textContent = `${up}/${total}`;
+        if (up === total) {
+          servicesBadge.className = 'section-badge ok';
+        } else if (up > 0) {
+          servicesBadge.className = 'section-badge warn';
+        } else {
+          servicesBadge.className = 'section-badge error';
+        }
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      async function fetchStatus() {
+        try {
+          const response = await fetch('/api/infrastructure/status');
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const data = await response.json();
+          lastFetchTime = Date.now();
+          
+          if (!data.success) {
+            throw new Error(data.error || 'Unknown error');
+          }
+
+          setState('ready');
+          updateBanner(data.status, data.timestamp);
+          updateMetrics(data.data.metrics, data.status);
+          renderServices(data.data.services);
+          updateServicesBadge(data.data.services);
+          renderSidecars(data.data.sidecars);
+
+          // Notify parent window if in iframe (for shell badge updates)
+          if (window.parent !== window) {
+            window.parent.postMessage({
+              type: 'infra-status',
+              status: data.status,
+              metrics: data.data.metrics
+            }, '*');
+          }
+
+        } catch (err) {
+          console.error('Infrastructure status fetch failed:', err);
+          
+          if (currentState === 'loading') {
+            // First load failed - show error state
+            errorMessageEl.textContent = err.message;
+            setState('error');
+          }
+          // If already in ready state, keep showing last data but mark stale
+        }
+      }
+
+      function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(fetchStatus, POLL_INTERVAL);
+      }
+
+      function stopPolling() {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      // Event handlers
+      retryBtn.addEventListener('click', () => {
+        setState('loading');
+        fetchStatus();
+      });
+
+      if (manualRefreshBtn) {
+        manualRefreshBtn.addEventListener('click', fetchStatus);
+      }
+
+      // Visibility API - pause polling when tab is hidden
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopPolling();
+        } else {
+          fetchStatus();
+          startPolling();
+        }
+      });
+
+      // Initial load
+      fetchStatus();
+      startPolling();
+
+    })();
+  </script>
+</body>
+</html>

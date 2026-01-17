@@ -131,6 +131,59 @@
     .embed-container {
       height: calc(100vh - 120px - 24px) !important;
     }
+
+    /* Header Connection Indicator */
+    .header-connection {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      font-size: 0.75rem;
+    }
+
+    .connection-shape {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+    }
+
+    .connection-shape.ok {
+      background: var(--emerald-500);
+      border-radius: 50%;
+    }
+
+    .connection-shape.warn {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 10px solid var(--amber-500);
+    }
+
+    .connection-shape.error {
+      background: var(--red-500);
+      border-radius: 2px;
+    }
+
+    .connection-shape.loading {
+      background: var(--slate-500);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .connection-text {
+      color: var(--slate-300);
+      font-weight: 500;
+    }
+
+    .connection-latency {
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6875rem;
+    }
   </style>
 </head>
 <body>
@@ -212,6 +265,13 @@
       <!-- System Status -->
       <span class="system-status system-status-ok" id="global-system-status" title="System OK"></span>
 
+      <!-- Header Connection Indicator -->
+      <div class="header-connection" id="header-connection" role="status" aria-label="Infrastructure connection status">
+        <span class="connection-shape" id="connection-shape"></span>
+        <span class="connection-text" id="connection-text">--</span>
+        <span class="connection-latency" id="connection-latency"></span>
+      </div>
+
       <div class="status-indicator">
         <span class="status-dot" id="shell-status-dot"></span>
         <span id="shell-status-text">Connected</span>
@@ -285,6 +345,17 @@
           </svg>
           <span>Demo</span>
         </button>
+
+        <button class="shell-sidebar-item" id="tab-infra" data-tab="infra" title="Infrastructure Status">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+          <span>Infra</span>
+          <span class="item-badge" id="infra-badge" style="display: none;"></span>
+        </button>
       </div>
     </nav>
 
@@ -329,6 +400,13 @@
             <p>Demo scenario execution and controls. Coming in Phase 2.</p>
           </div>
         </section>
+
+        <!-- Infrastructure Tab -->
+        <section class="tab-panel" id="panel-infra">
+          <div class="embed-container" id="embed-infra">
+            <iframe src="/infrastructure?embed=1" title="Infrastructure Status" loading="lazy"></iframe>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -367,7 +445,7 @@
       // Handle initial hash
       function handleInitialHash() {
         const hash = window.location.hash.replace('#', '');
-        const validTabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo'];
+        const validTabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo', 'infra'];
         if (hash && validTabs.includes(hash)) {
           switchTab(hash);
         }
@@ -407,9 +485,9 @@
 
       // Keyboard navigation
       document.addEventListener('keydown', (e) => {
-        if (e.altKey && e.key >= '1' && e.key <= '5') {
+        if (e.altKey && e.key >= '1' && e.key <= '6') {
           e.preventDefault();
-          const tabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo'];
+          const tabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo', 'infra'];
           const index = parseInt(e.key) - 1;
           if (tabs[index]) {
             switchTab(tabs[index]);
@@ -425,6 +503,79 @@
       // Alerts badge button - switch to alerts tab
       document.getElementById('global-alerts-badge-btn').addEventListener('click', () => {
         switchTab('alerts');
+      });
+
+      // ========================================================================
+      // Infrastructure Status Polling (header connection indicator)
+      // ========================================================================
+      const connectionShape = document.getElementById('connection-shape');
+      const connectionText = document.getElementById('connection-text');
+      const connectionLatency = document.getElementById('connection-latency');
+      const infraBadge = document.getElementById('infra-badge');
+      
+      let infraWarnCounter = 0;
+      const INFRA_HYSTERESIS = 3;
+
+      async function fetchInfraStatus() {
+        try {
+          const response = await fetch('/api/infrastructure/status');
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          
+          const data = await response.json();
+          if (!data.success) throw new Error('Status check failed');
+
+          let displayStatus = data.status;
+          
+          // Apply hysteresis for warn state
+          if (data.status === 'warn') {
+            infraWarnCounter++;
+            if (infraWarnCounter < INFRA_HYSTERESIS) {
+              displayStatus = 'ok';
+            }
+          } else if (data.status === 'ok') {
+            infraWarnCounter = 0;
+          } else if (data.status === 'error') {
+            infraWarnCounter = 0;
+          }
+
+          // Update connection indicator
+          connectionShape.className = 'connection-shape ' + displayStatus;
+          connectionText.textContent = displayStatus === 'ok' ? 'OK' : displayStatus === 'warn' ? 'WARN' : 'ERR';
+          connectionLatency.textContent = data.data.metrics.avg_latency_ms + 'ms';
+
+          // Update infra badge (show if not ok)
+          if (displayStatus !== 'ok') {
+            infraBadge.textContent = displayStatus === 'error' ? '!' : '⚠';
+            infraBadge.style.display = 'inline-block';
+          } else {
+            infraBadge.style.display = 'none';
+          }
+
+        } catch (err) {
+          // On error, show error state
+          connectionShape.className = 'connection-shape error';
+          connectionText.textContent = 'ERR';
+          connectionLatency.textContent = '--';
+          infraBadge.textContent = '!';
+          infraBadge.style.display = 'inline-block';
+        }
+      }
+
+      // Initial fetch and polling
+      fetchInfraStatus();
+      setInterval(fetchInfraStatus, 10000);
+
+      // Listen for messages from infrastructure iframe
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'infra-status') {
+          // Update from embedded iframe (real-time sync)
+          const status = event.data.status;
+          connectionShape.className = 'connection-shape ' + status;
+          connectionText.textContent = status === 'ok' ? 'OK' : status === 'warn' ? 'WARN' : 'ERR';
+          if (event.data.metrics) {
+            connectionLatency.textContent = event.data.metrics.avg_latency_ms + 'ms';
+          }
+        }
       });
 
       // Expose API for programmatic control

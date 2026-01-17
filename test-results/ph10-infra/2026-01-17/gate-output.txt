@@ -1,0 +1,68 @@
+╔════════════════════════════════════════════════════════════════╗
+║  Phase 10: Infrastructure Status Dashboard Contract Gate       ║
+╚════════════════════════════════════════════════════════════════╝
+
+📁 File Existence Checks
+─────────────────────────────────────────────────────────────────
+
+🔍 Infrastructure Page DOM Anchors
+─────────────────────────────────────────────────────────────────
+
+🔄 State Container Anchors
+─────────────────────────────────────────────────────────────────
+
+🌐 Server Route Checks
+─────────────────────────────────────────────────────────────────
+
+🐚 Shell Integration (command-center-v2.html)
+─────────────────────────────────────────────────────────────────
+
+🔗 Header Connection Indicator
+─────────────────────────────────────────────────────────────────
+
+📋 API Contract Shape
+─────────────────────────────────────────────────────────────────
+
+⏱️ Hysteresis & Freshness Checks
+─────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
+
+✓ infrastructure.html exists
+✓ server.js exists
+✓ command-center-v2.html exists
+✓ id="infra-status-banner" in infrastructure.html
+✓ id="infra-last-check" in infrastructure.html
+✓ id="infra-sidecars" in infrastructure.html
+✓ id="infra-services" in infrastructure.html
+✓ id="infra-metrics" in infrastructure.html
+✓ id="infra-state-loading" in infrastructure.html
+✓ id="infra-state-error" in infrastructure.html
+✓ id="infra-state-ready" in infrastructure.html
+✓ /api/infrastructure/status endpoint in server.js
+✓ /infrastructure route in server.js
+✓ INFRA_TARGETS defined in server.js
+✓ checkServiceHealth function in server.js
+✓ id="tab-infra" in command-center-v2.html
+✓ id="panel-infra" in command-center-v2.html
+✓ id="infra-badge" in command-center-v2.html
+✓ validTabs includes infra
+✓ Infrastructure iframe embed in command-center-v2.html
+✓ id="header-connection" in command-center-v2.html
+✓ id="connection-shape" in command-center-v2.html
+✓ id="connection-text" in command-center-v2.html
+✓ id="connection-latency" in command-center-v2.html
+✓ schema_version in response
+✓ status field (ok|warn|error) in aggregator
+✓ data.services array
+✓ data.sidecars array
+✓ data.metrics object
+✓ Hysteresis constant in infrastructure.html
+✓ Stale threshold in infrastructure.html
+✓ Polling interval in infrastructure.html
+✓ Cache-Control header in server.js
+
+═══════════════════════════════════════════════════════════════════
+GATE_SUMMARY gate=ph10-infrastructure passed=33 failed=0
+
+✅ GATE PASSED: All 33 checks passed
