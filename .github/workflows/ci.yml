@@ -207,18 +207,39 @@ jobs:
 
       - name: Start services
         run: |
-          # Start all services in background
+          # Service ports:
+          # - order-api: 7001
+          # - risk-gate: 7002
+          # - audit-writer: 7003
+          # - reconstruction-api: 7004
+          # - economics: 7005
+          # - webhooks: 7006
+          
+          echo "Starting services..."
           node services/risk-gate/dist/index.js &
           node services/audit-writer/dist/index.js &
+          node services/reconstruction-api/dist/index.js &
           node services/order-api/dist/index.js &
           node services/economics/dist/index.js &
           node services/webhooks/dist/index.js &
-          # Wait for services to be ready
-          sleep 5
-          # Health checks
-          curl -sf http://localhost:7001/health || exit 1
-          curl -sf http://localhost:7004/health || exit 1
-          curl -sf http://localhost:7006/health || exit 1
+          
+          echo "Waiting for services to be healthy..."
+          for port in 7001 7004 7006; do
+            echo "Checking port $port..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:$port/health > /dev/null 2>&1; then
+                echo "Service on port $port is healthy after $i seconds"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "Service on port $port failed to become healthy" >&2
+                ps aux | grep node || true
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+          echo "All services healthy"
 
       - name: Run P2 acceptance tests
         run: ./scripts/p2-acceptance-test.sh
