@@ -1,0 +1,21 @@
+{
+  "id": "3",
+  "alert_id": "1ecd6433-9eae-4705-b609-53296615bce7",
+  "setting_id": "MARGIN_LOW",
+  "severity": "INFO",
+  "category": "MARGIN",
+  "lp_id": "LP-A",
+  "symbol": null,
+  "server_id": "srv-1",
+  "title": "MARGIN LOW: LP-A",
+  "message": "LP LP-A margin level dropped to 45.00% (threshold: 150%)",
+  "trigger_value": "45.0000",
+  "threshold_value": "150.0000",
+  "status": "ACKNOWLEDGED",
+  "triggered_at": "2026-01-17T13:07:03.782Z",
+  "acknowledged_at": "2026-01-17T18:50:09.470Z",
+  "resolved_at": null,
+  "expires_at": null,
+  "metadata": null,
+  "created_at": "2026-01-17T13:07:03.782Z"
+}

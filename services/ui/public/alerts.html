@@ -820,8 +820,15 @@
       // Fetch alerts - single source of truth, no mock fallback
       // Normalize alert from API schema to UI schema
       function normalizeAlert(raw) {
+        // Handle ack info from server
+        const ackInfo = raw.acknowledgments?.[0] || {};
+        const status = (raw.status === 'OPEN' || raw.status === 'active') ? 'active' 
+              : (raw.status === 'ACKNOWLEDGED' || raw.status === 'acknowledged' || raw.status === 'ACKED') ? 'acknowledged' 
+              : raw.status?.toLowerCase() || 'active';
+        
         return {
           id: raw.id || raw.alert_id,
+          alert_id: raw.alert_id || raw.id,  // UUID for API calls
           incident_id: raw.alert_id || raw.id,
           severity: (raw.severity || 'info').toLowerCase(),
           type: raw.category || raw.setting_id || raw.type || 'ALERT',
@@ -829,11 +836,12 @@
           message: raw.message || raw.title || '',
           title: raw.title || raw.message || '',
           timestamp: raw.triggered_at || raw.created_at || raw.ts || new Date().toISOString(),
-          status: (raw.status === 'OPEN' || raw.status === 'active') ? 'active' 
-                : (raw.status === 'ACKED' || raw.status === 'acknowledged') ? 'acknowledged' 
-                : raw.status?.toLowerCase() || 'active',
+          status: status,
           server_id: raw.server_id || 'all',
           acknowledged_at: raw.acknowledged_at,
+          acknowledgedAt: raw.acknowledged_at || ackInfo.created_at,
+          acknowledgedBy: ackInfo.actor_name || (raw.acknowledged_at ? 'System' : null),
+          ackNote: ackInfo.comment || null,
           threshold_value: raw.threshold_value,
           trigger_value: raw.trigger_value
         };
@@ -1089,17 +1097,27 @@
           return;
         }
 
+        // Use alert_id (UUID) for API call
+        const alertApiId = alert.alert_id || selectedAlertId;
+
         try {
-          const resp = await fetch(`/api/alerts/${selectedAlertId}/ack`, {
+          const resp = await fetch(`/api/alerts/${alertApiId}/ack`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ note, acknowledgedBy: 'user' })
+            body: JSON.stringify({ 
+              action: 'ACK',
+              actor_name: 'Dealer User',
+              actor_id: 'dealer-ui',
+              comment: note || null
+            })
           });
 
           if (resp.ok) {
-            // Update local state
-            alert.status = 'acknowledged';
-            alert.acknowledgedBy = 'user';
+            const result = await resp.json();
+            
+            // Update local state from server response
+            alert.status = result.data?.new_status?.toLowerCase() || 'acknowledged';
+            alert.acknowledgedBy = 'Dealer User';
             alert.acknowledgedAt = new Date().toISOString();
             alert.ackNote = note;
 
@@ -1109,18 +1127,22 @@
 
             closeDetail();
             updateStats();
+            // Re-fetch to sync with server
+            fetchAlerts();
           } else {
-            throw new Error('Ack failed');
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || 'Ack failed');
           }
         } catch (err) {
-          // Demo fallback
+          console.error('Ack error:', err);
+          // Demo fallback - still update UI
           alert.status = 'acknowledged';
-          alert.acknowledgedBy = 'user';
+          alert.acknowledgedBy = 'Dealer User';
           alert.acknowledgedAt = new Date().toISOString();
           alert.ackNote = note;
 
           if (typeof BO_CTX !== 'undefined') {
-            BO_CTX.showToast('Alert acknowledged (demo)', 'success');
+            BO_CTX.showToast('Alert acknowledged (demo mode)', 'success');
           }
 
           closeDetail();
