@@ -20,7 +20,7 @@ jobs:
         ports:
           - 5434:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U broker"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -37,6 +37,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          version: "10.27.0"
           run_install: false
 
       - name: Install PostgreSQL client
@@ -115,7 +116,7 @@ jobs:
         ports:
           - 5434:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U broker"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -133,6 +134,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          version: "10.27.0"
           run_install: false
 
       - name: Install PostgreSQL client
