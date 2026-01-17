@@ -188,6 +188,20 @@ jobs:
           chmod +x ./scripts/ph12-alerts-ack-contract-gate.sh
           ./scripts/ph12-alerts-ack-contract-gate.sh
 
+      - name: Gate 15 — ph13 Policies Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph13-policies-contract-gate.sh
+          ./scripts/ph13-policies-contract-gate.sh
+
+      - name: Gate 16 — ph14 Policies Dealer View Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph14-policies-dealer-view-contract-gate.sh
+          ./scripts/ph14-policies-dealer-view-contract-gate.sh
+
       - name: Smoke — Provenance Endpoint Runtime
         shell: bash
         run: |

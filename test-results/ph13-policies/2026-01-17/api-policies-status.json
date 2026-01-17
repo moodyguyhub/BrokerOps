@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "status": "ready",
+  "checked_at": "2026-01-17T20:03:06.111Z",
+  "bundle": {
+    "policy_version": "policy.v0.2",
+    "sha256": "7923a793619a2374639a3b2da4f2ad21d1060467db4dc66301e826c7a6ae799e",
+    "rules_count": 4,
+    "files_count": 1
+  },
+  "compile": {
+    "state": "ok",
+    "message": "OPA is reachable and healthy"
+  },
+  "rules": [
+    {
+      "id": "qty_limit",
+      "condition": "qty > 1000",
+      "action": "BLOCK"
+    },
+    {
+      "id": "symbol_gme",
+      "condition": "symbol = GME ∧ qty > 10",
+      "action": "BLOCK"
+    },
+    {
+      "id": "penny_stock",
+      "condition": "price < 1.0 ∧ qty > 100",
+      "action": "BLOCK"
+    },
+    {
+      "id": "allow_default",
+      "condition": "otherwise",
+      "action": "ALLOW"
+    }
+  ],
+  "error": null
+}

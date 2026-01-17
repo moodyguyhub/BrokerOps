@@ -221,6 +221,263 @@ app.get("/api/provenance", (req, res) => {
 });
 
 // ============================================================================
+// Phase 13: Policy Status Endpoint
+// ============================================================================
+
+import { createHash } from "crypto";
+import { readdirSync, readFileSync, existsSync } from "fs";
+
+const OPA_URL = process.env.OPA_URL ?? "http://localhost:8181";
+const POLICIES_DIR = path.join(__dirname, "..", "..", "policies");
+
+// Known rules from policies/order.rego (static until we parse Rego dynamically)
+const KNOWN_RULES = [
+  { id: "qty_limit", condition: "qty > 1000", action: "BLOCK" },
+  { id: "symbol_gme", condition: "symbol = GME ∧ qty > 10", action: "BLOCK" },
+  { id: "penny_stock", condition: "price < 1.0 ∧ qty > 100", action: "BLOCK" },
+  { id: "allow_default", condition: "otherwise", action: "ALLOW" }
+];
+
+// Normalization boundary: ensures stable JSON schema with safe defaults
+function normalizePolicyStatus(raw) {
+  return {
+    schema_version: "1.0.0",
+    status: raw?.status ?? "loading",
+    checked_at: raw?.checked_at ?? new Date().toISOString(),
+    bundle: {
+      policy_version: raw?.bundle?.policy_version ?? null,
+      sha256: raw?.bundle?.sha256 ?? null,
+      rules_count: raw?.bundle?.rules_count ?? 0,
+      files_count: raw?.bundle?.files_count ?? 0
+    },
+    compile: {
+      state: raw?.compile?.state ?? "unknown",
+      message: raw?.compile?.message ?? null
+    },
+    rules: raw?.rules ?? [],
+    error: raw?.error ?? null
+  };
+}
+
+// Compute policy bundle metadata from local files
+function computePolicyBundle() {
+  try {
+    if (!existsSync(POLICIES_DIR)) {
+      return { policy_version: null, sha256: null, rules_count: 0, files_count: 0 };
+    }
+
+    const files = readdirSync(POLICIES_DIR).filter(f => f.endsWith(".rego"));
+    if (files.length === 0) {
+      return { policy_version: null, sha256: null, rules_count: 0, files_count: 0 };
+    }
+
+    // Read and concatenate all .rego files for hash (sorted, normalized line endings)
+    let concatenated = "";
+    let policyVersion = null;
+    
+    for (const file of files.sort()) {
+      // Normalize CRLF to LF for cross-platform determinism
+      const content = readFileSync(path.join(POLICIES_DIR, file), "utf8").replace(/\r\n/g, "\n");
+      concatenated += content;
+      
+      // Extract policy_version if present
+      const versionMatch = content.match(/policy_version\s*:=\s*"([^"]+)"/);
+      if (versionMatch && !policyVersion) {
+        policyVersion = versionMatch[1];
+      }
+    }
+
+    const sha256 = createHash("sha256").update(concatenated).digest("hex");
+
+    return {
+      policy_version: policyVersion,
+      sha256,
+      rules_count: KNOWN_RULES.length,
+      files_count: files.length
+    };
+  } catch (err) {
+    console.error("[Policies] Error computing bundle:", err.message);
+    return { policy_version: null, sha256: null, rules_count: 0, files_count: 0 };
+  }
+}
+
+// Check OPA reachability
+async function checkOpaHealth() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    const resp = await fetch(`${OPA_URL}/health`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (resp.ok) {
+      return { state: "ok", message: "OPA is reachable and healthy" };
+    } else {
+      return { state: "warn", message: `OPA returned HTTP ${resp.status}` };
+    }
+  } catch (err) {
+    return { 
+      state: "error", 
+      message: err.name === "AbortError" ? "OPA health check timeout" : `OPA unreachable: ${err.message}` 
+    };
+  }
+}
+
+// GET /api/policies/status - Policy status with provable minimal truth
+app.get("/api/policies/status", async (req, res) => {
+  try {
+    const bundle = computePolicyBundle();
+    const compile = await checkOpaHealth();
+    
+    // Determine overall status
+    let status = "ready";
+    if (compile.state === "error") {
+      status = "error";
+    } else if (bundle.rules_count === 0) {
+      status = "empty";
+    }
+
+    const response = normalizePolicyStatus({
+      status,
+      checked_at: new Date().toISOString(),
+      bundle,
+      compile,
+      rules: KNOWN_RULES,
+      error: compile.state === "error" ? compile.message : null
+    });
+
+    res.set("Cache-Control", "public, max-age=5");
+    res.json(response);
+  } catch (err) {
+    console.error("[Policies] Status error:", err);
+    res.status(500).json(normalizePolicyStatus({
+      status: "error",
+      error: err.message
+    }));
+  }
+});
+
+// ============================================================================
+// Phase 14: Policies Dealer View (additive to Phase 13 contract)
+// ============================================================================
+
+// Allowed policy files (fail-closed: unknown files return 404)
+const POLICY_FILE_ALLOWLIST = ["order.rego"];
+
+// GET /api/policies/list - List all policy files with metadata
+app.get("/api/policies/list", (req, res) => {
+  try {
+    if (!existsSync(POLICIES_DIR)) {
+      return res.json({
+        schema_version: "1.0.0",
+        files: [],
+        total_count: 0,
+        fetched_at: new Date().toISOString()
+      });
+    }
+
+    const regoFiles = readdirSync(POLICIES_DIR).filter(f => f.endsWith(".rego")).sort();
+    
+    const files = regoFiles.map(filename => {
+      const filePath = path.join(POLICIES_DIR, filename);
+      const content = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+      const lines = content.split("\n").length;
+      
+      // Extract policy_version if present
+      const versionMatch = content.match(/policy_version\s*:=\s*"([^"]+)"/);
+      const packageMatch = content.match(/^package\s+(\S+)/m);
+      
+      // Count rule definitions (rough heuristic)
+      const ruleCount = (content.match(/^\s*\w+\s*:?=/gm) || []).length;
+      
+      return {
+        filename,
+        package: packageMatch ? packageMatch[1] : null,
+        policy_version: versionMatch ? versionMatch[1] : null,
+        line_count: lines,
+        rule_count_estimate: ruleCount,
+        sha256: createHash("sha256").update(content).digest("hex")
+      };
+    });
+
+    res.json({
+      schema_version: "1.0.0",
+      files,
+      total_count: files.length,
+      fetched_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("[Policies] List error:", err);
+    res.status(500).json({
+      schema_version: "1.0.0",
+      files: [],
+      total_count: 0,
+      fetched_at: new Date().toISOString(),
+      error: err.message
+    });
+  }
+});
+
+// GET /api/policies/detail - Get single policy file content (allowlisted)
+app.get("/api/policies/detail", (req, res) => {
+  try {
+    const filename = req.query.file;
+    
+    // Validate filename parameter
+    if (!filename || typeof filename !== "string") {
+      return res.status(400).json({
+        schema_version: "1.0.0",
+        error: "Missing required query parameter: file",
+        allowed_files: POLICY_FILE_ALLOWLIST
+      });
+    }
+
+    // Fail-closed: only serve allowlisted files
+    if (!POLICY_FILE_ALLOWLIST.includes(filename)) {
+      return res.status(404).json({
+        schema_version: "1.0.0",
+        error: `File not in allowlist: ${filename}`,
+        allowed_files: POLICY_FILE_ALLOWLIST
+      });
+    }
+
+    const filePath = path.join(POLICIES_DIR, filename);
+    
+    if (!existsSync(filePath)) {
+      return res.status(404).json({
+        schema_version: "1.0.0",
+        error: `Policy file not found: ${filename}`,
+        allowed_files: POLICY_FILE_ALLOWLIST
+      });
+    }
+
+    const content = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
+    const lines = content.split("\n");
+    
+    // Extract metadata
+    const versionMatch = content.match(/policy_version\s*:=\s*"([^"]+)"/);
+    const packageMatch = content.match(/^package\s+(\S+)/m);
+
+    res.json({
+      schema_version: "1.0.0",
+      filename,
+      package: packageMatch ? packageMatch[1] : null,
+      policy_version: versionMatch ? versionMatch[1] : null,
+      line_count: lines.length,
+      sha256: createHash("sha256").update(content).digest("hex"),
+      content,
+      fetched_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("[Policies] Detail error:", err);
+    res.status(500).json({
+      schema_version: "1.0.0",
+      error: err.message
+    });
+  }
+});
+
+// ============================================================================
 // Phase 10: Infrastructure Status Aggregator
 // ============================================================================
 
@@ -706,6 +963,11 @@ app.get("/alerts", (req, res) => {
 // Phase 10: Infrastructure Status page
 app.get("/infrastructure", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "infrastructure.html"));
+});
+
+// Phase 13: Policies page
+app.get("/policies", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "policies.html"));
 });
 
 // SPA fallback

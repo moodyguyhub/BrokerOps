@@ -1,0 +1,68 @@
+╔════════════════════════════════════════════════════════════════╗
+║  Phase 13: Policies Contract Gate                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+📁 File Existence Checks
+─────────────────────────────────────────────────────────────────
+
+🔍 Policies Page DOM Anchors
+─────────────────────────────────────────────────────────────────
+
+🌐 Server Route Checks
+─────────────────────────────────────────────────────────────────
+
+🐚 Shell Integration (command-center-v2.html)
+─────────────────────────────────────────────────────────────────
+
+📋 API Contract Schema (static checks)
+─────────────────────────────────────────────────────────────────
+
+📜 Policy File Content
+─────────────────────────────────────────────────────────────────
+
+🔗 Runtime API Checks (UI server detected)
+─────────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
+
+✓ policies.html exists
+✓ server.js exists
+✓ command-center-v2.html exists
+✓ policies/order.rego exists
+✓ id="policies-state-loading" in policies.html
+✓ id="policies-state-error" in policies.html
+✓ id="policies-state-empty" in policies.html
+✓ id="policies-state-ready" in policies.html
+✓ id="policies-status-banner" in policies.html
+✓ id="policies-version" in policies.html
+✓ id="policies-bundle-sha" in policies.html
+✓ id="policies-rules-count" in policies.html
+✓ id="policies-compile-state" in policies.html
+✓ /api/policies/status endpoint in server.js
+✓ normalizePolicyStatus function in server.js
+✓ computePolicyBundle function in server.js
+✓ checkOpaHealth function in server.js
+✓ /policies route in server.js
+✓ id="tab-policies" in command-center-v2.html
+✓ id="panel-policies" in command-center-v2.html
+✓ id="policies-badge" in command-center-v2.html
+✓ validTabs includes policies
+✓ Policies iframe embed URL
+✓ schema_version in normalizePolicyStatus
+✓ bundle.sha256 field in response
+✓ bundle.rules_count field in response
+✓ compile.state field in response
+✓ OPA_URL configuration
+✓ policy_version defined in order.rego
+✓ broker.risk.order package in order.rego
+✓ API returns schema_version
+✓ API returns status field
+✓ API returns bundle.sha256
+✓ API returns bundle.rules_count
+✓ API returns compile.state
+✓ API returns rules array
+✓ API status is not undefined
+═══════════════════════════════════════════════════════════════════
+GATE_SUMMARY gate=ph13-policies passed=37 failed=0
+
+✅ GATE PASSED: All 37 checks passed
