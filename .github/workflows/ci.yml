@@ -63,21 +63,32 @@ jobs:
 
       - name: Start OPA server
         run: |
+          # Start OPA without policies first, load them after healthy
           docker run -d --name broker-opa \
             -p 8181:8181 \
-            -v ${{ github.workspace }}/policies:/policies \
             openpolicyagent/opa:latest \
-            run --server --addr=0.0.0.0:8181 --log-level=debug /policies
+            run --server --addr=0.0.0.0:8181 --log-level=info
+          
+          echo "Waiting for OPA to be healthy..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
               echo "OPA healthy after $i seconds"
-              exit 0
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "OPA failed to become healthy" >&2
+              docker logs broker-opa 2>&1 || true
+              exit 1
             fi
             sleep 1
           done
-          echo "OPA failed to become healthy" >&2
-          docker logs broker-opa 2>&1 | tail -100 || true
-          exit 1
+          
+          echo "Loading policy via API..."
+          curl -X PUT http://localhost:8181/v1/policies/broker \
+            -H "Content-Type: text/plain" \
+            --data-binary @policies/order.rego
+          echo ""
+          echo "Policy loaded successfully"
 
       - name: Apply DB migrations
         run: |
@@ -160,21 +171,32 @@ jobs:
 
       - name: Start OPA server
         run: |
+          # Start OPA without policies first, load them after healthy
           docker run -d --name broker-opa \
             -p 8181:8181 \
-            -v ${{ github.workspace }}/policies:/policies \
             openpolicyagent/opa:latest \
-            run --server --addr=0.0.0.0:8181 --log-level=debug /policies
+            run --server --addr=0.0.0.0:8181 --log-level=info
+          
+          echo "Waiting for OPA to be healthy..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8181/health > /dev/null 2>&1; then
               echo "OPA healthy after $i seconds"
-              exit 0
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "OPA failed to become healthy" >&2
+              docker logs broker-opa 2>&1 || true
+              exit 1
             fi
             sleep 1
           done
-          echo "OPA failed to become healthy" >&2
-          docker logs broker-opa 2>&1 | tail -100 || true
-          exit 1
+          
+          echo "Loading policy via API..."
+          curl -X PUT http://localhost:8181/v1/policies/broker \
+            -H "Content-Type: text/plain" \
+            --data-binary @policies/order.rego
+          echo ""
+          echo "Policy loaded successfully"
 
       - name: Apply DB migrations
         run: |
