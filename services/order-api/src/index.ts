@@ -1649,10 +1649,10 @@ app.get("/api/orders/:id/evidence-pack", async (req, res) => {
     
     // Get related audit events (if trace_id matches order id pattern)
     const auditResult = await pool.query(`
-      SELECT seq, event_type, event_version, payload, prev_hash, hash, written_at
+      SELECT id, event_type, event_version, payload_json, prev_hash, hash, created_at
       FROM audit_events
-      WHERE payload::text LIKE $1
-      ORDER BY seq ASC
+      WHERE payload_json::text LIKE $1
+      ORDER BY id ASC
       LIMIT 100
     `, [`%${id}%`]);
     
@@ -1664,7 +1664,7 @@ app.get("/api/orders/:id/evidence-pack", async (req, res) => {
       WHERE lp_id = $1 OR message LIKE $2
       ORDER BY created_at DESC
       LIMIT 10
-    `, [order.lp_id, `%${id}%`]);
+    `, [order.lp_id || 'none', `%${id}%`]);
     
     // Build evidence pack
     const components = {
@@ -1760,13 +1760,13 @@ app.get("/api/orders/:id/dispute-pack", async (req, res) => {
     // Get related alerts for this LP around the order time
     const alertsResult = await pool.query(`
       SELECT alert_id, category, severity, status, trigger_value, threshold_value,
-             message, created_at, acknowledged_at, acknowledged_by
+             message, created_at, acknowledged_at
       FROM alerts
       WHERE lp_id = $1 
         AND created_at BETWEEN $2::timestamp - interval '1 hour' AND $2::timestamp + interval '1 hour'
       ORDER BY created_at DESC
       LIMIT 10
-    `, [order.lp_id, order.created_at]);
+    `, [order.lp_id || 'none', order.created_at]);
     
     // Get LP snapshot at time of order (if available)
     const lpSnapshotResult = await pool.query(`

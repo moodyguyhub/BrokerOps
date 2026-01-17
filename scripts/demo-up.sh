@@ -84,7 +84,7 @@ success "Database migrations applied"
 
 # Step 3: Build services
 log "Step 3/5: Building services..."
-pnpm -r build --filter="@broker/*" 2>/dev/null || pnpm -r build 2>/dev/null
+pnpm --filter "@broker/*" -r build 2>/dev/null || pnpm -r build 2>/dev/null
 success "Services built"
 
 # Step 4: Start services
