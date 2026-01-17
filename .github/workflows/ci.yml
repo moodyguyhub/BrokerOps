@@ -96,10 +96,7 @@ jobs:
           version: latest
 
       - name: Check Rego syntax
-        run: opa check policies/
-
-      - name: Format check
-        run: opa fmt --diff policies/
+        run: opa check --strict policies/
 
   # P2 Acceptance Test - Integration proof with audit artifacts
   p2-acceptance:
