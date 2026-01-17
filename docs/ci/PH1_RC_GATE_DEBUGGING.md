@@ -1,17 +1,21 @@
 # Phase 1 RC Gate Debugging Postmortem
 
 **Date:** 2026-01-17  
-**Current Verified Baseline:** `ph1-rc33`  
-**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21097918128  
-**Receipts:** `ph1-rc-gate-receipts-ph1-rc33` contains `test-results/ph9-provenance-smoke.json`  
-**Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095929594  
-**Commit:** [`b9d1dda`](https://github.com/moodyguyhub/BrokerOps/commit/b9d1dda6bc87e73e19b928a35350386e0a0e4011)  
+**Current Verified Baseline:** `ph1-rc39`  
+**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21100665007  
+**Receipts:** `ui-gate-logs-69` contains policy gate outputs  
+**Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21100665007  
+**Commit:** [`1488c60`](https://github.com/moodyguyhub/BrokerOps/commit/1488c6055fc679cdfcdab19f4ea336da26812ebd)  
 
 **Tag boundary policy:** RC tags are code-only baselines; documentation may advance on `main` after tagging.
 
 ---
 
-**Previous baseline:** `ph1-rc28` ([`256878e`](https://github.com/moodyguyhub/BrokerOps/commit/256878eb2fa691e54a231b969b6f4498b778ce97))  
+**Previous baselines:**
+- `ph1-rc38` ([`49425c7`](https://github.com/moodyguyhub/BrokerOps/commit/49425c76170964d14dc77cfc9df9a6bb9f9f17b7)) — Policies feature (ph13+ph14)
+- `ph1-rc33` ([`b9d1dda`](https://github.com/moodyguyhub/BrokerOps/commit/b9d1dda6bc87e73e19b928a35350386e0a0e4011))
+- `ph1-rc28` ([`256878e`](https://github.com/moodyguyhub/BrokerOps/commit/256878eb2fa691e54a231b969b6f4498b778ce97))
+
 **Actions Run URLs (legacy):**
 - PH1 RC Gate: https://github.com/moodyguyhub/BrokerOps/actions/runs?query=workflow%3A%22PH1+RC+Gate%22+branch%3Aph1-rc18
 - CI: https://github.com/moodyguyhub/BrokerOps/actions/runs?query=workflow%3ACI+branch%3Amain
