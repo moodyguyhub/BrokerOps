@@ -153,6 +153,13 @@ jobs:
           chmod +x ./scripts/ph7-dashboard-contract-gate.sh
           ./scripts/ph7-dashboard-contract-gate.sh
 
+      - name: Gate 10 — Orders Decision Proof Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph8-orders-proof-contract-gate.sh
+          ./scripts/ph8-orders-proof-contract-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash

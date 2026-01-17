@@ -353,6 +353,165 @@
       height: 16px;
     }
 
+    /* ============================================
+       Phase 8: Decision Proof Panel
+       ============================================ */
+    .decision-proof-section {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(168, 85, 247, 0.05));
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .decision-proof-section h4 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--cyan-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .decision-proof-section h4 svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .proof-verdict {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .proof-verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .proof-verdict-badge.authorized {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--emerald-400);
+    }
+
+    .proof-verdict-badge.blocked {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--rose-400);
+    }
+
+    .proof-verdict-badge.pending {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber-400);
+    }
+
+    .proof-reason {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    .proof-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .proof-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .proof-item label {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .proof-item-value {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+
+    .proof-item-value code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-300);
+      word-break: break-all;
+      flex: 1;
+    }
+
+    .proof-copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--slate-400);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .proof-copy-btn:hover {
+      color: var(--cyan-400);
+      background: rgba(6, 182, 212, 0.1);
+    }
+
+    .proof-copy-btn.copied {
+      color: var(--emerald-400);
+    }
+
+    .proof-copy-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .audit-chain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .audit-chain-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    .audit-chain-item .event-type {
+      background: var(--slate-700);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--slate-300);
+    }
+
+    .audit-chain-item .hash {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--slate-500);
+    }
+
+    .no-proof-data {
+      text-align: center;
+      padding: 16px;
+      color: var(--slate-500);
+      font-size: 0.875rem;
+    }
+
     /* Empty state */
     .empty-state {
       display: flex;
@@ -617,7 +776,7 @@
       }
 
       // Render order detail
-      function renderDetail(order) {
+      function renderDetail(order, lifecycle = []) {
         if (!order) {
           detailBody.innerHTML = `
             <div class="empty-state">
@@ -632,6 +791,19 @@
           exportActions.style.display = 'none';
           return;
         }
+
+        // Compute order digest (simple hash for demo)
+        const orderDigest = computeOrderDigest(order);
+        
+        // Derive verdict from status
+        const verdictClass = order.status === 'FILLED' ? 'authorized' : 
+                             order.status === 'REJECTED' ? 'blocked' : 'pending';
+        const verdictText = order.status === 'FILLED' ? 'AUTHORIZED' :
+                            order.status === 'REJECTED' ? 'BLOCKED' : 'PENDING';
+
+        // Get reason code
+        const reasonCode = order.rejection_reason_code || order.rejection_reason || 
+                           (order.status === 'FILLED' ? 'POLICY_PASS' : '--');
 
         detailBody.innerHTML = `
           <div class="detail-section">
@@ -655,7 +827,7 @@
               </div>
               <div class="detail-item">
                 <label>Quantity</label>
-                <span>${order.quantity?.toLocaleString() || '--'}</span>
+                <span>${order.qty?.toLocaleString() || order.quantity?.toLocaleString() || '--'}</span>
               </div>
               <div class="detail-item">
                 <label>Price</label>
@@ -669,21 +841,86 @@
             <div class="detail-grid">
               <div class="detail-item">
                 <label>LP Account</label>
-                <span>${order.lp_account || order.lp || '--'}</span>
+                <span>${order.lp_id || order.lp_account || order.lp || '--'}</span>
               </div>
               <div class="detail-item">
                 <label>Fill Price</label>
-                <span>${order.fill_price?.toFixed(5) || '--'}</span>
+                <span>${order.avg_fill_price?.toFixed(5) || order.fill_price?.toFixed(5) || '--'}</span>
               </div>
               <div class="detail-item">
                 <label>Fill Qty</label>
-                <span>${order.fill_quantity?.toLocaleString() || '--'}</span>
+                <span>${order.fill_qty?.toLocaleString() || order.fill_quantity?.toLocaleString() || '--'}</span>
               </div>
               <div class="detail-item">
-                <label>Slippage</label>
-                <span>${order.slippage ? (order.slippage * 10000).toFixed(2) + ' pips' : '--'}</span>
+                <label>Server</label>
+                <span>${order.server_name || order.server_id || '--'}</span>
               </div>
             </div>
+          </div>
+
+          <!-- Phase 8: Decision Proof Panel -->
+          <div class="decision-proof-section" id="decision-proof-panel">
+            <h4>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Decision Proof
+            </h4>
+            
+            <div class="proof-verdict">
+              <span class="proof-verdict-badge ${verdictClass}">${verdictText}</span>
+              <span class="proof-reason">${reasonCode}</span>
+            </div>
+
+            <div class="proof-item" id="proof-token-item">
+              <div class="proof-item-header">
+                <label>Decision Token</label>
+              </div>
+              <div class="proof-item-value">
+                <code id="proof-decision-token">${order.decision_token_id || '--'}</code>
+                <button class="proof-copy-btn" onclick="copyToClipboard('${order.decision_token_id || ''}', this)" title="Copy token" id="copy-decision-token">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="proof-item" id="proof-digest-item">
+              <div class="proof-item-header">
+                <label>Order Digest</label>
+              </div>
+              <div class="proof-item-value">
+                <code id="proof-order-digest">${orderDigest}</code>
+                <button class="proof-copy-btn" onclick="copyToClipboard('${orderDigest}', this)" title="Copy digest" id="copy-order-digest">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            ${lifecycle.length > 0 ? `
+            <div class="proof-item">
+              <label>Audit Chain (${lifecycle.length} events)</label>
+              <div class="audit-chain-list" id="audit-chain-list">
+                ${lifecycle.slice(0, 5).map(evt => `
+                  <div class="audit-chain-item">
+                    <span class="event-type">${evt.event_type || evt.status}</span>
+                    <span class="hash">${(evt.payload_hash || '').substring(0, 16)}...</span>
+                  </div>
+                `).join('')}
+                ${lifecycle.length > 5 ? `<div class="audit-chain-item"><span>+${lifecycle.length - 5} more</span></div>` : ''}
+              </div>
+            </div>
+            ` : `
+            <div class="proof-item">
+              <label>Audit Chain</label>
+              <div class="no-proof-data">Loading audit chain...</div>
+            </div>
+            `}
           </div>
 
           <div class="detail-section">
@@ -699,20 +936,43 @@
               </div>
             </div>
           </div>
-
-          ${order.rejection_reason ? `
-          <div class="detail-section">
-            <h4>Rejection</h4>
-            <div class="detail-item">
-              <label>Reason</label>
-              <span style="color: var(--rose-400);">${order.rejection_reason}</span>
-            </div>
-          </div>
-          ` : ''}
         `;
 
         exportActions.style.display = 'flex';
       }
+
+      // Compute a simple digest for demo purposes
+      function computeOrderDigest(order) {
+        const data = JSON.stringify({
+          id: order.id,
+          symbol: order.symbol,
+          side: order.side,
+          qty: order.qty || order.quantity,
+          price: order.price,
+          status: order.status,
+          decision_token_id: order.decision_token_id
+        });
+        // Simple hash (for demo - production would use SHA-256)
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+          const char = data.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash;
+        }
+        return 'ord-' + Math.abs(hash).toString(16).padStart(8, '0');
+      }
+
+      // Copy to clipboard utility
+      window.copyToClipboard = async function(text, btn) {
+        if (!text || text === '--') return;
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.classList.add('copied');
+          setTimeout(() => btn.classList.remove('copied'), 2000);
+        } catch (err) {
+          console.error('Copy failed:', err);
+        }
+      };
 
       // Fetch orders
       async function fetchOrders() {
@@ -759,17 +1019,32 @@
         }
       }
 
-      // Select order
+      // Select order and fetch lifecycle for Decision Proof
       window.selectOrder = async function(orderId) {
         const order = orders.find(o => o.id === orderId);
         if (!order) return;
         
         selectedOrder = order;
         renderOrders();
-        renderDetail(order);
+        
+        // Render detail immediately (without lifecycle)
+        renderDetail(order, []);
         
         // On mobile, show detail panel
         document.getElementById('order-detail').classList.add('active');
+        
+        // Fetch lifecycle data asynchronously for audit chain
+        try {
+          const resp = await fetch(`/api/orders/${orderId}/lifecycle`);
+          if (resp.ok) {
+            const data = await resp.json();
+            const lifecycle = data.data || [];
+            // Re-render with lifecycle data
+            renderDetail(order, lifecycle);
+          }
+        } catch (err) {
+          console.error('Failed to fetch lifecycle:', err);
+        }
       };
 
       // Close detail
