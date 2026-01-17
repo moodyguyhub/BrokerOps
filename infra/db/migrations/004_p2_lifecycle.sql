@@ -138,26 +138,34 @@ CREATE INDEX IF NOT EXISTS idx_realized_economics_status
 -- ============================================
 
 -- View for extended economics (projected + realized)
-CREATE OR REPLACE VIEW v_extended_economics AS
-SELECT 
-  ac.trace_id,
-  ac.payload->>'snapshotEconomics' as projected_economics,
-  re.realized_pnl,
-  re.pnl_status,
-  re.final_pnl,
-  re.discrepancy,
-  re.discrepancy_percent,
-  CASE 
-    WHEN re.realized_pnl IS NOT NULL AND 
-         (ac.payload->>'snapshotEconomics')::jsonb->>'projected_exposure_delta' IS NOT NULL
-    THEN 1 - ABS(
-      re.realized_pnl - ((ac.payload->>'snapshotEconomics')::jsonb->>'projected_exposure_delta')::numeric
-    ) / NULLIF(((ac.payload->>'snapshotEconomics')::jsonb->>'projected_exposure_delta')::numeric, 0)
-    ELSE NULL
-  END as projection_accuracy
-FROM audit_chain ac
-LEFT JOIN realized_economics re ON ac.trace_id = re.trace_id
-WHERE ac.event_type = 'decision';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'audit_events'
+  ) THEN
+    CREATE OR REPLACE VIEW v_extended_economics AS
+    SELECT 
+      ae.trace_id,
+      ae.payload_json->>'snapshotEconomics' as projected_economics,
+      re.realized_pnl,
+      re.pnl_status,
+      re.final_pnl,
+      re.discrepancy,
+      re.discrepancy_percent,
+      CASE 
+        WHEN re.realized_pnl IS NOT NULL AND 
+             (ae.payload_json->>'snapshotEconomics')::jsonb->>'projected_exposure_delta' IS NOT NULL
+        THEN 1 - ABS(
+          re.realized_pnl - ((ae.payload_json->>'snapshotEconomics')::jsonb->>'projected_exposure_delta')::numeric
+        ) / NULLIF(((ae.payload_json->>'snapshotEconomics')::jsonb->>'projected_exposure_delta')::numeric, 0)
+        ELSE NULL
+      END as projection_accuracy
+    FROM audit_events ae
+    LEFT JOIN realized_economics re ON ae.trace_id = re.trace_id
+    WHERE ae.event_type IN ('risk.decision', 'order.authorized', 'order.blocked');
+  END IF;
+END $$;
 
 -- ============================================
 -- Cleanup function for old idempotency records
