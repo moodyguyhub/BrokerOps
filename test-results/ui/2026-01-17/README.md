@@ -6,6 +6,12 @@ This evidence pack validates **P0 Alerts Coherence** and **Phase 4-6 UI Kit Inte
 
 ## Screenshots
 
+> **Note**: Screenshots to be added manually. Take screenshots at:
+> - `/command-center-v2` — Shell with Server=All Servers, alert badges
+> - `/alerts` — Standalone alerts page with 3 active alerts
+> - `/alerts?embed=1` — Embedded with context chip
+> - `/lp-accounts` — LP page with explicit loading/empty state
+
 | File | URL | Validates |
 |------|-----|-----------|
 | `command-center.png` | `/command-center-v2` | Shell coherence: Server=All Servers, badges=3, KPI=3, Active Alerts list=3 titled rows |
@@ -43,6 +49,28 @@ All of the following show **count = 3**:
 - Dashboard "Active Alerts" list
 - Standalone `/alerts` Total Active
 - Embedded `/alerts?embed=1` Total Active
+
+## API Response Evidence
+
+**GET /api/alerts** (captured 2026-01-17):
+
+```json
+{
+  "success": true,
+  "data": [
+    {"id":"3","setting_id":"MARGIN_LOW","severity":"INFO","category":"MARGIN","status":"OPEN","title":"MARGIN LOW: LP-A"},
+    {"id":"2","setting_id":"MARGIN_WARNING","severity":"WARNING","category":"MARGIN","status":"OPEN","title":"MARGIN WARNING: LP-A"},
+    {"id":"1","setting_id":"MARGIN_CRITICAL","severity":"CRITICAL","category":"MARGIN","status":"OPEN","title":"MARGIN CRITICAL: LP-A"}
+  ],
+  "meta": {"count": 3}
+}
+```
+
+**Schema mapping (normalizeAlert)**:
+- `status: "OPEN"` → `status: "active"`
+- `category: "MARGIN"` → `type: "MARGIN"`
+- `triggered_at` → `timestamp`
+- `title || category || setting_id` → display title (no `undefined`)
 
 ## PR Acceptance Criteria
 
