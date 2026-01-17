@@ -53,6 +53,16 @@ jobs:
           set -euo pipefail
           pnpm install
 
+      - name: Validate OPA policies
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking OPA policy files..."
+          ls -la policies/
+          cat policies/order.rego
+          docker run --rm -v "${{ github.workspace }}/policies:/policies" openpolicyagent/opa:latest check --strict /policies
+          echo "OPA policy check passed"
+
       - name: Gate 1 — Clean boot verification
         shell: bash
         run: |
@@ -68,7 +78,12 @@ jobs:
           DEMO_HEALTH_ATTEMPTS=120 DEMO_HEALTH_SLEEP_SECONDS=1 ./scripts/demo-up.sh || {
             echo "demo-up failed; dumping docker compose status/logs";
             docker compose ps || true;
-            docker compose logs postgres opa || true;
+            docker compose logs postgres opa 2>&1 | tail -100 || true;
+            echo "--- OPA container inspect ---";
+            docker inspect broker-opa 2>&1 | tail -50 || true;
+            echo "--- Policies directory content ---";
+            ls -la policies/ || true;
+            cat policies/order.rego || true;
             echo "demo-up failed; dumping service logs";
             ls -la /tmp/brokerops-demo || true;
             tail -n 200 /tmp/brokerops-demo/*.log || true;
