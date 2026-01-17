@@ -1,0 +1,99 @@
+
+[0;36m╔════════════════════════════════════════════════════════════════╗[0m
+[0;36m║       Phase 6 Shell Header Contract Gate (Gate 8)              ║[0m
+[0;36m╚════════════════════════════════════════════════════════════════╝[0m
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 1: Global Context Module Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking global-context.js exists...
+  [0;32m✓ PASS[0m: global-context.js exists
+[1;33m► [0mChecking global-context.js exports BO_CTX...
+  [0;32m✓ PASS[0m: global-context.js exports BO_CTX
+[1;33m► [0mChecking global-context.js has initShell function...
+  [0;32m✓ PASS[0m: global-context.js has initShell function
+[1;33m► [0mChecking global-context.js has relativeTime function...
+  [0;32m✓ PASS[0m: global-context.js has relativeTime function
+[1;33m► [0mChecking global-context.js has copyToClipboard function...
+  [0;32m✓ PASS[0m: global-context.js has copyToClipboard function
+[1;33m► [0mChecking global-context.js has keyboard shortcuts...
+  [0;32m✓ PASS[0m: global-context.js has keyboard shortcuts
+[1;33m► [0mChecking global-context.js has EventBus...
+  [0;32m✓ PASS[0m: global-context.js has EventBus for cross-component communication
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 2: Shell Header DOM Anchors[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking command-center-v2.html exists...
+  [0;32m✓ PASS[0m: command-center-v2.html exists
+[1;33m► [0mChecking shell header has required DOM anchors...
+  [0;32m✓ PASS[0m: Present anchors: global-server-select global-time-window global-alerts-badge global-search-trigger global-system-status
+[1;33m► [0mChecking command-center-v2.html includes global-context.js...
+  [0;32m✓ PASS[0m: command-center-v2.html includes global-context.js
+[1;33m► [0mChecking default server is 'all' (All Servers)...
+  [0;32m✓ PASS[0m: Default server is set to 'all' (All Servers)
+[1;33m► [0mChecking server list has 'All Servers' option...
+  [0;32m✓ PASS[0m: Server list includes 'All Servers' as first option
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 3: Runtime Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking UI server availability...
+  [0;32m✓ PASS[0m: UI server is running
+[1;33m► [0mChecking global-context.js is served...
+  [0;32m✓ PASS[0m: global-context.js is served at /assets/global-context.js
+[1;33m► [0mChecking GET /command-center-v2 returns HTTP 200...
+  [0;32m✓ PASS[0m: GET /command-center-v2.html returns HTTP 200
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 4: Tab Integration Check[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking dashboard tab exists...
+  [0;32m✓ PASS[0m: dashboard tab exists
+[1;33m► [0mChecking orders tab exists...
+  [0;32m✓ PASS[0m: orders tab exists
+[1;33m► [0mChecking lps tab exists...
+  [0;32m✓ PASS[0m: lps tab exists
+[1;33m► [0mChecking alerts tab exists...
+  [0;32m✓ PASS[0m: alerts tab exists
+[1;33m► [0mChecking dashboard panel exists...
+  [0;32m✓ PASS[0m: dashboard panel exists
+[1;33m► [0mChecking orders panel exists...
+  [0;32m✓ PASS[0m: orders panel exists
+[1;33m► [0mChecking lps panel exists...
+  [0;32m✓ PASS[0m: lps panel exists
+[1;33m► [0mChecking alerts panel exists...
+  [0;32m✓ PASS[0m: alerts panel exists
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 8 SUMMARY: Shell Header Completeness[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+
+Results:
+  [0;32m✓[0m global-context.js exists
+  [0;32m✓[0m global-context.js exports BO_CTX
+  [0;32m✓[0m global-context.js has initShell function
+  [0;32m✓[0m global-context.js has relativeTime function
+  [0;32m✓[0m global-context.js has copyToClipboard function
+  [0;32m✓[0m global-context.js has keyboard shortcuts
+  [0;32m✓[0m global-context.js has EventBus for cross-component communication
+  [0;32m✓[0m command-center-v2.html exists
+  [0;32m✓[0m Present anchors: global-server-select global-time-window global-alerts-badge global-search-trigger global-system-status
+  [0;32m✓[0m command-center-v2.html includes global-context.js
+  [0;32m✓[0m Default server is set to 'all' (All Servers)
+  [0;32m✓[0m Server list includes 'All Servers' as first option
+  [0;32m✓[0m UI server is running
+  [0;32m✓[0m global-context.js is served at /assets/global-context.js
+  [0;32m✓[0m GET /command-center-v2.html returns HTTP 200
+  [0;32m✓[0m dashboard tab exists
+  [0;32m✓[0m orders tab exists
+  [0;32m✓[0m lps tab exists
+  [0;32m✓[0m alerts tab exists
+  [0;32m✓[0m dashboard panel exists
+  [0;32m✓[0m orders panel exists
+  [0;32m✓[0m lps panel exists
+  [0;32m✓[0m alerts panel exists
+
+Total: [0;32m23 passed[0m, [0;31m0 failed[0m
+
+[0;32mGATE 8 PASSED[0m

@@ -1,0 +1,95 @@
+
+[0;36m╔══════════════════════════════════════════════════════════════════╗[0m
+[0;36m║   Phase 4 LP Accounts Contract Gate                              ║[0m
+[0;36m╚══════════════════════════════════════════════════════════════════╝[0m
+
+UI Base URL: http://localhost:3000
+Order API URL: http://localhost:7001
+CI Mode: false
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 1: Static File Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking lp-accounts.html exists...
+  [0;32m✓ PASS[0m: lp-accounts.html exists
+[1;33m► [0mChecking lp-accounts.html links shared ui.css...
+  [0;32m✓ PASS[0m: lp-accounts.html links shared ui.css
+[1;33m► [0mChecking lp-accounts.html has required DOM anchors...
+  [0;32m✓ PASS[0m: All required DOM anchors present: lp-table lp-filters lp-detail lp-summary lp-export-snapshot lp-view-history
+[1;33m► [0mChecking lp-accounts.html has non-blank invariant anchors...
+  [0;32m✓ PASS[0m: Non-blank invariant anchors present: lp-loading lp-empty-state lp-error-banner
+[1;33m► [0mChecking lp-accounts.html has embed mode support...
+  [0;32m✓ PASS[0m: lp-accounts.html has embed mode CSS
+[1;33m► [0mChecking command-center-v2 LPs tab uses /lp-accounts?embed=1...
+  [0;32m✓ PASS[0m: command-center-v2 LPs tab uses /lp-accounts?embed=1
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 2: Route Definition Check[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking server.js has /lp-accounts route...
+  [0;32m✓ PASS[0m: server.js has /lp-accounts route defined
+[1;33m► [0mChecking route serves lp-accounts.html...
+  [0;32m✓ PASS[0m: Route correctly references lp-accounts.html
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 3: Proxy Ownership Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking /api/lp-accounts proxy targets orderApi...
+  [0;32m✓ PASS[0m: /api/lp-accounts proxy targets orderApi
+[1;33m► [0mChecking /api/lp-accounts/:id proxy targets orderApi...
+  [0;32m✓ PASS[0m: /api/lp-accounts/:id proxy targets orderApi
+[1;33m► [0mChecking /api/lp-accounts/:id/history proxy targets orderApi...
+  [0;32m✓ PASS[0m: /api/lp-accounts/:id/history proxy targets orderApi
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 4: Server Route Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking /lp-accounts returns HTTP 200...
+  [0;32m✓ PASS[0m: /lp-accounts returns HTTP 200
+[1;33m► [0mChecking /lp-accounts?embed=1 contains required anchors...
+  [0;32m✓ PASS[0m: /lp-accounts?embed=1 contains all required anchors
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 5: API Contract Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking /api/lp-accounts returns valid JSON shape...
+  [0;32m✓ PASS[0m: /api/lp-accounts returns JSON with success field
+  [0;32m✓ PASS[0m: /api/lp-accounts.data is an array (3 items)
+[1;33m► [0mChecking /api/lp-accounts/LP-B returns valid JSON...
+  [0;32m✓ PASS[0m: /api/lp-accounts/:id returns valid single LP
+[1;33m► [0mChecking /api/lp-accounts/LP-B/history returns valid JSON...
+  [0;32m✓ PASS[0m: /api/lp-accounts/:id/history returns valid array (5 items)
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 6: UI Proxy Contract Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking UI proxy /api/lp-accounts works...
+  [0;32m✓ PASS[0m: UI proxy /api/lp-accounts returns valid response
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 6 SUMMARY: LP Accounts Contract[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+
+Results:
+  [0;32m✓[0m lp-accounts.html exists
+  [0;32m✓[0m lp-accounts.html links shared ui.css
+  [0;32m✓[0m All required DOM anchors present: lp-table lp-filters lp-detail lp-summary lp-export-snapshot lp-view-history
+  [0;32m✓[0m Non-blank invariant anchors present: lp-loading lp-empty-state lp-error-banner
+  [0;32m✓[0m lp-accounts.html has embed mode CSS
+  [0;32m✓[0m command-center-v2 LPs tab uses /lp-accounts?embed=1
+  [0;32m✓[0m server.js has /lp-accounts route defined
+  [0;32m✓[0m Route correctly references lp-accounts.html
+  [0;32m✓[0m /api/lp-accounts proxy targets orderApi
+  [0;32m✓[0m /api/lp-accounts/:id proxy targets orderApi
+  [0;32m✓[0m /api/lp-accounts/:id/history proxy targets orderApi
+  [0;32m✓[0m /lp-accounts returns HTTP 200
+  [0;32m✓[0m /lp-accounts?embed=1 contains all required anchors
+  [0;32m✓[0m /api/lp-accounts returns JSON with success field
+  [0;32m✓[0m /api/lp-accounts.data is an array (3 items)
+  [0;32m✓[0m /api/lp-accounts/:id returns valid single LP
+  [0;32m✓[0m /api/lp-accounts/:id/history returns valid array (5 items)
+  [0;32m✓[0m UI proxy /api/lp-accounts returns valid response
+
+Total: [0;32m18 passed[0m, [0;31m0 failed[0m
+
+[0;32mGate 6 PASSED[0m

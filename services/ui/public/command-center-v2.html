@@ -148,9 +148,50 @@
         </svg>
         DEMO
       </span>
+
+      <!-- Global Shell Controls -->
+      <div class="shell-controls">
+        <div class="shell-control-group">
+          <span class="shell-control-label">Server</span>
+          <select class="shell-select" id="global-server-select">
+            <option value="all" selected>All Servers</option>
+            <option value="demo-1">Demo Server 1</option>
+            <option value="demo-2">Demo Server 2</option>
+          </select>
+        </div>
+        <div class="shell-control-group">
+          <span class="shell-control-label">Window</span>
+          <select class="shell-select" id="global-time-window">
+            <option value="15m">15 min</option>
+            <option value="1h">1 hour</option>
+            <option value="6h">6 hours</option>
+            <option value="24h" selected>24 hours</option>
+            <option value="7d">7 days</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <div class="shell-topbar-right">
+      <!-- Search Trigger -->
+      <button class="search-trigger" id="global-search-trigger" title="Search (/)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        Search
+        <kbd>/</kbd>
+      </button>
+
+      <!-- Alerts Badge -->
+      <button class="header-alerts-badge" id="global-alerts-badge-btn" title="View Alerts">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="badge-count" id="global-alerts-badge" style="display: none;">0</span>
+      </button>
+
       <div class="quick-actions">
         <button class="quick-action-btn" id="btn-refresh" title="Refresh current view">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -162,6 +203,9 @@
           Refresh
         </button>
       </div>
+
+      <!-- System Status -->
+      <span class="system-status system-status-ok" id="global-system-status" title="System OK"></span>
 
       <div class="status-indicator">
         <span class="status-dot" id="shell-status-dot"></span>
@@ -265,13 +309,8 @@
 
         <!-- Alerts Tab -->
         <section class="tab-panel" id="panel-alerts">
-          <div class="placeholder-content">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <h2>Alerts</h2>
-            <p>System alerts and notifications. Coming in Phase 2.</p>
+          <div class="embed-container" id="embed-alerts">
+            <iframe src="/alerts?embed=1" title="Alerts" loading="lazy"></iframe>
           </div>
         </section>
 
@@ -378,12 +417,79 @@
       checkStatus();
       setInterval(checkStatus, 30000);
 
+      // Alerts badge button - switch to alerts tab
+      document.getElementById('global-alerts-badge-btn').addEventListener('click', () => {
+        switchTab('alerts');
+      });
+
       // Expose API for programmatic control
       window.CommandCenterV2 = {
         switchTab,
         refresh: () => refreshBtn.click()
       };
     })();
+  </script>
+
+  <!-- Global Context Bus -->
+  <script src="/assets/global-context.js"></script>
+  <script>
+    // Initialize global context after DOM is ready
+    if (typeof BO_CTX !== 'undefined') {
+      BO_CTX.initShell({
+        serverSelectId: 'global-server-select',
+        timeWindowId: 'global-time-window',
+        alertsBadgeId: 'global-alerts-badge',
+        searchTriggerId: 'global-search-trigger',
+        systemStatusId: 'global-system-status',
+        servers: [
+          { id: 'all', name: 'All Servers' },
+          { id: 'demo-1', name: 'Demo Server 1' },
+          { id: 'demo-2', name: 'Demo Server 2' }
+        ],
+        defaultServer: 'all',
+        defaultTimeWindow: '24h',
+        onNavigate: (tabKey) => {
+          if (window.CommandCenterV2) {
+            window.CommandCenterV2.switchTab(tabKey);
+          }
+        },
+        onServerChange: (serverId) => {
+          console.log('[Shell] Server changed:', serverId);
+          // Refresh all iframes when server changes
+          document.querySelectorAll('.embed-container iframe').forEach(iframe => {
+            const url = new URL(iframe.src, window.location.origin);
+            url.searchParams.set('server', serverId);
+            iframe.src = url.toString();
+          });
+        },
+        onTimeWindowChange: (windowKey, minutes) => {
+          console.log('[Shell] Time window changed:', windowKey, minutes);
+          BO_CTX.broadcastToIframes('TIME_WINDOW_CHANGE', { window: windowKey, minutes });
+        }
+      });
+
+      // Fetch initial alert count - single source of truth
+      async function fetchAlertCount() {
+        try {
+          const res = await fetch('/api/alerts');
+          const json = await res.json();
+          // Handle multiple API response shapes: {data:[...]}, {alerts:[...]}, or [...]
+          const alerts = json.data || json.alerts || (Array.isArray(json) ? json : []);
+          // Count OPEN/active alerts (API uses uppercase "OPEN")
+          const activeCount = alerts.filter(a => 
+            a.status === 'OPEN' || a.status === 'active'
+          ).length;
+          BO_CTX.updateAlertBadge(activeCount);
+        } catch (err) {
+          // On error, show 0 - don't show fake counts
+          BO_CTX.updateAlertBadge(0);
+        }
+      }
+
+      fetchAlertCount();
+      // Poll for alert count updates every 30s
+      setInterval(fetchAlertCount, 30000);
+    }
   </script>
 </body>
 </html>

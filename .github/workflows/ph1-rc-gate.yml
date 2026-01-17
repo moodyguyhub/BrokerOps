@@ -132,6 +132,20 @@ jobs:
           chmod +x ./scripts/ph4-lp-accounts-contract-gate.sh
           ./scripts/ph4-lp-accounts-contract-gate.sh
 
+      - name: Gate 7 — Alerts Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph5-alerts-contract-gate.sh
+          ./scripts/ph5-alerts-contract-gate.sh
+
+      - name: Gate 8 — Shell Header Completeness
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph6-shell-contract-gate.sh
+          ./scripts/ph6-shell-contract-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash

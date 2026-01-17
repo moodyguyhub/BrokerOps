@@ -1,913 +1,555 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TRUVESTA — LP Accounts</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <!-- Shared UI design system -->
-  <link rel="stylesheet" href="/assets/ui.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BrokerOps — LP Accounts</title>
+  <link rel="stylesheet" href="/assets/ui.css" />
+  <script src="/assets/global-context.js"></script>
   <style>
-    /* Page-specific styles */
-    .lp-layout {
-      display: grid;
-      grid-template-columns: 1fr 400px;
-      gap: var(--spacing-lg);
-      min-height: calc(100vh - 120px);
-    }
-
-    @media (max-width: 1200px) {
-      .lp-layout {
-        grid-template-columns: 1fr;
-      }
-      
-      .lp-detail-panel {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
-        display: none;
-      }
-      
-      .lp-detail-panel.active {
-        display: block;
-      }
-    }
-
-    /* Filters */
-    .lp-filters {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-md);
-      margin-bottom: var(--spacing-md);
-      flex-wrap: wrap;
-    }
-
-    .filter-group {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-    }
-
-    .filter-group label {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--slate-400);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .filter-select {
-      background: var(--slate-800);
-      border: 1px solid var(--slate-700);
-      border-radius: var(--radius-md);
-      color: var(--slate-200);
-      font-size: 0.875rem;
-      padding: 6px 12px;
-      min-width: 120px;
-    }
-
-    .filter-select:focus {
-      outline: none;
-      border-color: var(--cyan-500);
-    }
-
-    .filter-input {
-      background: var(--slate-800);
-      border: 1px solid var(--slate-700);
-      border-radius: var(--radius-md);
-      color: var(--slate-200);
-      font-size: 0.875rem;
-      padding: 6px 12px;
-      width: 200px;
-    }
-
-    .filter-input:focus {
-      outline: none;
-      border-color: var(--cyan-500);
-    }
-
-    .filter-actions {
-      margin-left: auto;
-      display: flex;
-      gap: var(--spacing-sm);
-    }
-
-    /* LP Table */
-    .lp-table-wrapper {
-      background: var(--slate-900);
-      border: 1px solid var(--slate-800);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .lp-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.875rem;
-    }
-
-    .lp-table th {
-      background: var(--slate-800);
-      padding: 12px 16px;
-      text-align: left;
-      font-weight: 600;
-      color: var(--slate-300);
-      border-bottom: 1px solid var(--slate-700);
-      white-space: nowrap;
-    }
-
-    .lp-table td {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--slate-800);
-      color: var(--slate-300);
-    }
-
-    .lp-table tbody tr {
-      cursor: pointer;
-      transition: background var(--transition-fast);
-    }
-
-    .lp-table tbody tr:hover {
-      background: var(--slate-800);
-    }
-
-    .lp-table tbody tr.selected {
-      background: rgba(6, 182, 212, 0.1);
-      border-left: 3px solid var(--cyan-500);
-    }
-
-    .lp-id {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8125rem;
-      color: var(--cyan-400);
-    }
-
-    .lp-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      border-radius: var(--radius-sm);
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-
-    .lp-status.active {
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--emerald-400);
-    }
-
-    .lp-status.inactive {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--red-400);
-    }
-
-    .lp-status.warning {
-      background: rgba(245, 158, 11, 0.15);
-      color: var(--amber-400);
-    }
-
-    .lp-status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    /* Balance columns */
-    .balance-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8125rem;
-    }
-
-    .balance-positive {
-      color: var(--emerald-400);
-    }
-
-    .balance-negative {
-      color: var(--red-400);
-    }
-
-    .margin-level {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8125rem;
-    }
-
-    .margin-level.healthy {
-      color: var(--emerald-400);
-    }
-
-    .margin-level.warning {
-      color: var(--amber-400);
-    }
-
-    .margin-level.critical {
-      color: var(--red-400);
-    }
-
-    /* Detail Panel */
-    .lp-detail-panel {
-      background: var(--slate-900);
-      border: 1px solid var(--slate-800);
-      border-radius: var(--radius-lg);
-      display: flex;
-      flex-direction: column;
-      height: fit-content;
-      max-height: calc(100vh - 140px);
-      overflow: hidden;
-    }
-
-    .detail-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: var(--spacing-md);
-      border-bottom: 1px solid var(--slate-800);
-    }
-
-    .detail-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--slate-100);
-    }
-
-    .detail-close {
-      background: none;
-      border: none;
-      color: var(--slate-400);
-      cursor: pointer;
-      padding: 4px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .detail-close:hover {
-      background: var(--slate-800);
-      color: var(--slate-200);
-    }
-
-    .detail-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: var(--spacing-md);
-    }
-
-    .detail-section {
-      margin-bottom: var(--spacing-lg);
-    }
-
-    .detail-section:last-child {
-      margin-bottom: 0;
-    }
-
-    .detail-section-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--slate-400);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: var(--spacing-sm);
-    }
-
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--slate-800);
-    }
-
-    .detail-row:last-child {
-      border-bottom: none;
-    }
-
-    .detail-label {
-      font-size: 0.8125rem;
-      color: var(--slate-400);
-    }
-
-    .detail-value {
-      font-size: 0.8125rem;
-      color: var(--slate-200);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* History Chart Section */
-    .history-chart {
-      background: var(--slate-800);
-      border-radius: var(--radius-md);
-      padding: var(--spacing-md);
-      min-height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .history-chart-placeholder {
-      color: var(--slate-500);
-      font-size: 0.875rem;
-    }
-
-    /* Action buttons */
-    .detail-actions {
-      display: flex;
-      gap: var(--spacing-sm);
-      padding: var(--spacing-md);
-      border-top: 1px solid var(--slate-800);
-    }
-
-    .detail-action-btn {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 16px;
-      border-radius: var(--radius-md);
-      font-size: 0.8125rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-
-    .detail-action-btn.primary {
-      background: var(--cyan-600);
-      color: white;
-      border: none;
-    }
-
-    .detail-action-btn.primary:hover {
-      background: var(--cyan-500);
-    }
-
-    .detail-action-btn.secondary {
-      background: var(--slate-800);
-      color: var(--slate-300);
-      border: 1px solid var(--slate-700);
-    }
-
-    .detail-action-btn.secondary:hover {
-      background: var(--slate-700);
-    }
-
-    .detail-action-btn svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    /* Empty state */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: var(--spacing-xl);
-      color: var(--slate-500);
-    }
-
-    .empty-state svg {
-      width: 48px;
-      height: 48px;
-      margin-bottom: var(--spacing-md);
-      opacity: 0.5;
-    }
-
-    .empty-state h3 {
-      font-size: 1rem;
-      font-weight: 500;
-      color: var(--slate-400);
-      margin-bottom: var(--spacing-xs);
-    }
-
-    .empty-state p {
-      font-size: 0.875rem;
-      text-align: center;
-    }
-
-    /* Loading state */
-    .loading-state {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: var(--spacing-xl);
-    }
-
-    .loading-spinner {
-      width: 24px;
-      height: 24px;
-      border: 2px solid var(--slate-700);
-      border-top-color: var(--cyan-500);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Embed mode adjustments */
-    body.embed-mode {
-      background: transparent;
-    }
-
-    body.embed-mode .page-header {
-      display: none;
-    }
-
-    body.embed-mode .page-container {
-      padding: var(--spacing-md);
-    }
-
-    /* Summary cards */
-    .lp-summary-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: var(--spacing-md);
-      margin-bottom: var(--spacing-lg);
-    }
-
-    .summary-card {
-      background: var(--slate-900);
-      border: 1px solid var(--slate-800);
-      border-radius: var(--radius-lg);
-      padding: var(--spacing-md);
-    }
-
-    .summary-card-label {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--slate-400);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: var(--spacing-xs);
-    }
-
-    .summary-card-value {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--slate-100);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .summary-card-subtext {
-      font-size: 0.75rem;
-      color: var(--slate-500);
-      margin-top: 4px;
-    }
+    body.embed-mode .shell-frame { padding: 0; }
   </style>
 </head>
 <body>
-  <div class="page-container">
-    <!-- Page Header (hidden in embed mode) -->
+  <div class="shell-frame">
     <header class="page-header">
-      <h1 class="page-title">LP Accounts</h1>
-      <p class="page-subtitle">Manage and monitor liquidity provider accounts</p>
+      <div>
+        <h1 class="page-title">LP Accounts</h1>
+        <div class="page-subtitle">Margin health • rejection reasons • investigation-first</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost" id="lp-export-snapshot">Export Snapshot</button>
+        <button class="btn btn-ghost" id="lp-view-history">Snapshot History</button>
+        <button class="btn" id="lp-refresh">Refresh</button>
+      </div>
     </header>
 
-    <!-- Summary Cards -->
-    <div class="lp-summary-cards" id="lp-summary">
-      <div class="summary-card">
-        <div class="summary-card-label">Total LPs</div>
-        <div class="summary-card-value" id="summary-total">--</div>
+    <!-- Summary cards (required anchor: lp-summary) -->
+    <section class="panel" id="lp-summary">
+      <div class="kpi-row" id="lp-kpis">
+        <div class="kpi">
+          <div class="kpi-label">LPs</div>
+          <div class="kpi-value" id="lp-kpi-count">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Reject rate (window)</div>
+          <div class="kpi-value" id="lp-kpi-reject-rate">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Worst margin</div>
+          <div class="kpi-value" id="lp-kpi-worst">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Orders (window)</div>
+          <div class="kpi-value" id="lp-kpi-orders">—</div>
+        </div>
       </div>
-      <div class="summary-card">
-        <div class="summary-card-label">Active</div>
-        <div class="summary-card-value" id="summary-active">--</div>
-        <div class="summary-card-subtext">Heartbeat &lt; 5min</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">Total Balance</div>
-        <div class="summary-card-value" id="summary-balance">--</div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-card-label">Avg Margin Level</div>
-        <div class="summary-card-value" id="summary-margin">--</div>
-      </div>
-    </div>
+    </section>
 
-    <!-- Filters -->
-    <div class="lp-filters" id="lp-filters">
-      <div class="filter-group">
-        <label>Status</label>
-        <select class="filter-select" id="filter-status">
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="warning">Warning</option>
+    <!-- Filters (required anchor: lp-filters) -->
+    <section class="panel" id="lp-filters">
+      <div class="filter-row">
+        <input class="input" id="lp-search" data-local-search placeholder="/ search LP name, id" />
+        <select class="select" id="lp-health">
+          <option value="">All health</option>
+          <option value="HEALTHY">Healthy</option>
+          <option value="WARN">Warn</option>
+          <option value="CRITICAL">Critical</option>
         </select>
+        <div class="segmented" role="tablist" aria-label="View">
+          <button class="seg-btn active" id="lp-view-cards">Cards</button>
+          <button class="seg-btn" id="lp-view-table">Table</button>
+        </div>
       </div>
+    </section>
 
-      <div class="filter-group">
-        <label>Search</label>
-        <input type="text" class="filter-input" id="filter-search" placeholder="Search by name or server...">
+    <!-- Loading state (required anchor: lp-loading) -->
+    <section class="panel" id="lp-loading" style="display:flex; justify-content:center; align-items:center; padding:40px;">
+      <div style="text-align:center;">
+        <div class="spinner" style="margin:0 auto 16px;"></div>
+        <div class="muted">Loading LP accounts…</div>
       </div>
+    </section>
 
-      <div class="filter-actions">
-        <button class="btn btn-secondary btn-sm" id="btn-refresh-lps">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;">
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-            <path d="M3 3v5h5"/>
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-            <path d="M16 21h5v-5"/>
-          </svg>
-          Refresh
-        </button>
+    <!-- Empty state (required anchor: lp-empty-state) -->
+    <section class="panel" id="lp-empty-state" style="display:none; padding:40px; text-align:center;">
+      <div style="max-width:400px; margin:0 auto;">
+        <div style="font-size:48px; margin-bottom:16px; opacity:0.3;">📊</div>
+        <h3 style="color:var(--slate-200); margin-bottom:8px;">No LP accounts in window</h3>
+        <p class="muted" style="margin-bottom:16px;">No LP accounts match the current filters or time window.</p>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button class="btn" id="lp-empty-refresh">Refresh</button>
+          <button class="btn btn-ghost" id="lp-empty-clear-filters">Clear Filters</button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Main Layout -->
-    <div class="lp-layout">
-      <!-- LP Table -->
-      <div class="lp-table-wrapper" id="lp-table-wrapper">
-        <table class="lp-table" id="lp-table">
+    <!-- Error state (required anchor: lp-error-banner) -->
+    <section class="panel" id="lp-error-banner" style="display:none; padding:24px; background:rgba(244,63,94,0.1); border-color:rgba(244,63,94,0.3);">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:24px;">⚠️</span>
+        <div style="flex:1;">
+          <div style="color:var(--rose-400); font-weight:600;">Failed to load LP accounts</div>
+          <div class="muted" id="lp-error-message">API unavailable. Check your connection and try again.</div>
+        </div>
+        <button class="btn" id="lp-error-retry">Retry</button>
+      </div>
+    </section>
+
+    <!-- Cards grid (information dense, anomaly-first) -->
+    <section class="panel" id="lp-cards" style="display:none;">
+      <div class="card-grid" id="lp-grid"></div>
+    </section>
+
+    <!-- Table (required anchor: lp-table) -->
+    <section class="panel" id="lp-table" style="display:none;">
+      <div class="table-wrap">
+        <table class="table table-dense">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Server</th>
-              <th>Status</th>
-              <th>Balance</th>
+              <th>LP</th>
+              <th>Margin</th>
               <th>Equity</th>
-              <th>Margin Level</th>
-              <th>Last Heartbeat</th>
+              <th>Free</th>
+              <th>Rejects</th>
+              <th>Reject rate</th>
+              <th>Server</th>
             </tr>
           </thead>
-          <tbody id="lp-table-body">
-            <!-- LP rows will be rendered here -->
-          </tbody>
+          <tbody id="lp-tbody"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
         </table>
       </div>
+    </section>
 
-      <!-- Detail Panel -->
-      <div class="lp-detail-panel" id="lp-detail">
-        <div class="detail-header">
-          <span class="detail-title" id="detail-title">LP Details</span>
-          <button class="detail-close" id="detail-close" title="Close">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+    <!-- Slide-in detail panel (required anchor: lp-detail) -->
+    <aside class="slide-panel" id="lp-detail" aria-hidden="true">
+      <div class="slide-header">
+        <div>
+          <div class="kicker">LP</div>
+          <div class="slide-title" id="lp-detail-title">—</div>
         </div>
-
-        <div class="detail-content">
-          <div class="detail-section">
-            <div class="detail-section-title">Account Info</div>
-            <div class="detail-row">
-              <span class="detail-label">ID</span>
-              <span class="detail-value" id="detail-id">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Name</span>
-              <span class="detail-value" id="detail-name">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Server</span>
-              <span class="detail-value" id="detail-server">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Currency</span>
-              <span class="detail-value" id="detail-currency">--</span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="detail-section-title">Balances</div>
-            <div class="detail-row">
-              <span class="detail-label">Balance</span>
-              <span class="detail-value" id="detail-balance">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Equity</span>
-              <span class="detail-value" id="detail-equity">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Margin</span>
-              <span class="detail-value" id="detail-margin">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Free Margin</span>
-              <span class="detail-value" id="detail-free-margin">--</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Margin Level</span>
-              <span class="detail-value" id="detail-margin-level">--</span>
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="detail-section-title">History (Last 24h)</div>
-            <div class="history-chart" id="lp-history-chart">
-              <span class="history-chart-placeholder">Loading history...</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="detail-actions">
-          <button class="detail-action-btn secondary" id="lp-export-snapshot" title="Export current snapshot">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Export Snapshot
-          </button>
-          <button class="detail-action-btn primary" id="lp-view-history" title="View full history">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            View History
-          </button>
-        </div>
+        <button class="btn btn-ghost" id="lp-detail-close" title="Esc">✕</button>
       </div>
-    </div>
+      <div class="slide-body" id="lp-detail-body">
+        <div class="muted">Select an LP</div>
+      </div>
+      <div class="slide-footer">
+        <button class="btn btn-ghost" id="lp-detail-view-orders">View Orders</button>
+      </div>
+    </aside>
+
   </div>
 
-  <script>
-    (function() {
-      'use strict';
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  if (params.get('embed') === '1') document.body.classList.add('embed-mode');
 
-      // Check embed mode
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('embed') === '1') {
-        document.body.classList.add('embed-mode');
-      }
+  let ctx = { server:'all', window:'24h', q:'' };
+  let lps = [];
+  let selected = null;
 
-      // State
-      let lpAccounts = [];
-      let selectedLpId = null;
+  const $grid = document.getElementById('lp-grid');
+  const $tbody = document.getElementById('lp-tbody');
+  const $empty = document.getElementById('lp-empty');
+  const $cards = document.getElementById('lp-cards');
+  const $tablePanel = document.getElementById('lp-table');
 
-      // DOM refs
-      const tableBody = document.getElementById('lp-table-body');
-      const detailPanel = document.getElementById('lp-detail');
-      const filterStatus = document.getElementById('filter-status');
-      const filterSearch = document.getElementById('filter-search');
-      const refreshBtn = document.getElementById('btn-refresh-lps');
-      const closeBtn = document.getElementById('detail-close');
-      const exportSnapshotBtn = document.getElementById('lp-export-snapshot');
-      const viewHistoryBtn = document.getElementById('lp-view-history');
+  function pct(n){
+    if (n === null || n === undefined || n === '') return '—';
+    const v = Number(n);
+    if (!Number.isFinite(v)) return String(n);
+    return `${v.toFixed(0)}%`;
+  }
 
-      // Formatters
-      function formatCurrency(value, currency = 'USD') {
-        if (value == null) return '--';
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: currency,
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        }).format(value);
-      }
+  function money(n){
+    if (n === null || n === undefined || n === '') return '—';
+    const v = Number(n);
+    if (!Number.isFinite(v)) return String(n);
+    return v.toLocaleString(undefined,{minimumFractionDigits:0, maximumFractionDigits:0});
+  }
 
-      function formatPercent(value) {
-        if (value == null) return '--';
-        return `${value.toFixed(2)}%`;
-      }
+  function healthFromMargin(m){
+    const v = Number(m);
+    if (!Number.isFinite(v)) return 'UNKNOWN';
+    if (v < 35) return 'CRITICAL';
+    if (v < 55) return 'WARN';
+    return 'HEALTHY';
+  }
 
-      function formatRelativeTime(dateStr) {
-        if (!dateStr) return '--';
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours < 24) return `${diffHours}h ago`;
-        
-        const diffDays = Math.floor(diffHours / 24);
-        return `${diffDays}d ago`;
-      }
+  function bullet(m){
+    const v = Math.max(0, Math.min(100, Number(m) || 0));
+    const health = healthFromMargin(v);
+    const cls = health === 'CRITICAL' ? 'bg-critical' : (health === 'WARN' ? 'bg-warn' : 'bg-ok');
+    return `
+      <div class="bullet">
+        <div class="bullet-track">
+          <div class="bullet-fill ${cls}" style="width:${v}%;"></div>
+        </div>
+        <div class="bullet-labels">
+          <span>0%</span><span class="warn">50%</span><span class="crit">100%</span>
+        </div>
+      </div>
+    `;
+  }
 
-      function getStatusClass(lp) {
-        if (!lp.last_heartbeat_at) return 'inactive';
-        const lastHb = new Date(lp.last_heartbeat_at);
-        const now = new Date();
-        const diffMins = (now - lastHb) / 60000;
-        
-        if (diffMins < 5) return 'active';
-        if (diffMins < 30) return 'warning';
-        return 'inactive';
-      }
+  function renderKPIs(){
+    const count = lps.length;
+    document.getElementById('lp-kpi-count').textContent = count;
 
-      function getMarginLevelClass(marginLevel) {
-        if (marginLevel == null) return '';
-        if (marginLevel >= 200) return 'healthy';
-        if (marginLevel >= 100) return 'warning';
-        return 'critical';
-      }
+    // best-effort metrics
+    let worst = null;
+    let orders = 0;
+    let rejects = 0;
+    for (const lp of lps){
+      const m = Number(lp.margin_level ?? lp.margin ?? lp.marginLevel);
+      if (Number.isFinite(m)) worst = worst === null ? m : Math.min(worst, m);
+      orders += Number(lp.orders_count ?? lp.orders ?? 0) || 0;
+      rejects += Number(lp.reject_count ?? lp.rejects ?? 0) || 0;
+    }
+    document.getElementById('lp-kpi-worst').textContent = worst === null ? '—' : pct(worst);
+    document.getElementById('lp-kpi-orders').textContent = orders ? orders.toLocaleString() : '—';
+    document.getElementById('lp-kpi-reject-rate').textContent = orders ? `${((rejects/orders)*100).toFixed(2)}%` : '—';
+  }
 
-      // Render functions
-      function renderTable() {
-        const statusFilter = filterStatus.value;
-        const searchFilter = filterSearch.value.toLowerCase();
+  function cardHtml(lp){
+    const id = lp.id ?? lp.lp_id ?? lp.account_id ?? '—';
+    const name = lp.name ?? lp.label ?? lp.display_name ?? id;
+    const server = lp.server ?? lp.server_id ?? lp.serverId ?? '—';
+    const margin = lp.margin_level ?? lp.margin ?? lp.marginLevel;
+    const equity = lp.equity ?? lp.Equity;
+    const free = lp.free_margin ?? lp.free ?? lp.Free;
+    const rejects = lp.reject_count ?? lp.rejects ?? 0;
+    const orders = lp.orders_count ?? lp.orders ?? 0;
+    const rejectRate = (Number(orders) > 0) ? (Number(rejects)/Number(orders))*100 : null;
+    const health = healthFromMargin(margin);
 
-        const filtered = lpAccounts.filter(lp => {
-          const status = getStatusClass(lp);
-          if (statusFilter && status !== statusFilter) return false;
-          if (searchFilter) {
-            const searchable = `${lp.name} ${lp.server_name}`.toLowerCase();
-            if (!searchable.includes(searchFilter)) return false;
-          }
-          return true;
-        });
+    return `
+      <article class="lp-card" data-id="${String(id).replace(/"/g,'')}">
+        <div class="lp-card-top">
+          <div>
+            <div class="lp-title">${escapeHtml(String(name))}</div>
+            <div class="lp-sub">
+              <span class="mono copy" data-copy="${escapeHtml(String(id))}">${escapeHtml(String(id))}</span>
+              <span class="badge badge-neutral">${escapeHtml(String(server))}</span>
+            </div>
+          </div>
+          <div class="badge ${healthBadgeCls(health)}">${health}</div>
+        </div>
 
-        if (filtered.length === 0) {
-          tableBody.innerHTML = `
-            <tr>
-              <td colspan="7">
-                <div class="empty-state">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="1" x2="12" y2="23"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                  </svg>
-                  <h3>No LP Accounts Found</h3>
-                  <p>No accounts match your current filters.</p>
-                </div>
-              </td>
-            </tr>
-          `;
-          return;
+        <div class="lp-section">
+          <div class="lp-section-title">Margin level</div>
+          ${bullet(margin)}
+          <div class="lp-metrics">
+            <div><span class="muted">Equity</span><span class="mono">${money(equity)}</span></div>
+            <div><span class="muted">Free</span><span class="mono">${money(free)}</span></div>
+            <div><span class="muted">Reject rate</span><span class="mono">${rejectRate === null ? '—' : rejectRate.toFixed(2)+'%'}</span></div>
+          </div>
+        </div>
+
+        <div class="lp-actions">
+          <button class="btn btn-ghost" data-action="details">Details</button>
+          <button class="btn btn-ghost" data-action="orders">View Orders</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function escapeHtml(s){
+    return s
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function healthBadgeCls(h){
+    if (h === 'CRITICAL') return 'badge-critical';
+    if (h === 'WARN') return 'badge-warn';
+    if (h === 'HEALTHY') return 'badge-ok';
+    return 'badge-neutral';
+  }
+
+  function renderCards(filtered){
+    $grid.innerHTML = '';
+    if (!filtered.length){
+      $empty.style.display = 'block';
+      return;
+    }
+    $empty.style.display = 'none';
+    for (const lp of filtered){
+      const wrap = document.createElement('div');
+      wrap.innerHTML = cardHtml(lp).trim();
+      $grid.appendChild(wrap.firstElementChild);
+    }
+    BO_CTX.attachCopyHandlers(document.body);
+  }
+
+  function renderTable(filtered){
+    $tbody.innerHTML = '';
+    if (!filtered.length){
+      $tbody.innerHTML = '<tr><td colspan="7" class="muted">No LP accounts</td></tr>';
+      return;
+    }
+    for (const lp of filtered){
+      const id = lp.id ?? lp.lp_id ?? lp.account_id ?? '—';
+      const name = lp.name ?? lp.label ?? lp.display_name ?? id;
+      const server = lp.server ?? lp.server_id ?? lp.serverId ?? '—';
+      const margin = lp.margin_level ?? lp.margin ?? lp.marginLevel;
+      const equity = lp.equity ?? lp.Equity;
+      const free = lp.free_margin ?? lp.free ?? lp.Free;
+      const rejects = Number(lp.reject_count ?? lp.rejects ?? 0) || 0;
+      const orders = Number(lp.orders_count ?? lp.orders ?? 0) || 0;
+      const rejectRate = orders ? (rejects/orders)*100 : null;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="row-title">${escapeHtml(String(name))}</div>
+          <div class="row-sub mono copy" data-copy="${escapeHtml(String(id))}">${escapeHtml(String(id))}</div>
+        </td>
+        <td>
+          <div class="mono">${pct(margin)}</div>
+          ${bullet(margin)}
+        </td>
+        <td class="mono">${money(equity)}</td>
+        <td class="mono">${money(free)}</td>
+        <td class="mono">${rejects}</td>
+        <td class="mono">${rejectRate === null ? '—' : rejectRate.toFixed(2)+'%'}</td>
+        <td><span class="badge badge-neutral">${escapeHtml(String(server))}</span></td>
+      `;
+      tr.addEventListener('click', () => openDetail(lp));
+      $tbody.appendChild(tr);
+    }
+    BO_CTX.attachCopyHandlers(document.body);
+  }
+
+  async function fetchJson(url){
+    const res = await fetch(BO_CTX.withParams(url), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  // State machine: loading | empty | error | ready
+  let currentState = 'loading';
+  const $loading = document.getElementById('lp-loading');
+  const $emptyState = document.getElementById('lp-empty-state');
+  const $errorBanner = document.getElementById('lp-error-banner');
+
+  function setState(state, errorMsg = null) {
+    currentState = state;
+    // Hide all state panels first
+    $loading.style.display = 'none';
+    $emptyState.style.display = 'none';
+    $errorBanner.style.display = 'none';
+    $cards.style.display = 'none';
+    $tablePanel.style.display = 'none';
+
+    switch (state) {
+      case 'loading':
+        $loading.style.display = 'flex';
+        break;
+      case 'empty':
+        $emptyState.style.display = 'block';
+        break;
+      case 'error':
+        $errorBanner.style.display = 'block';
+        if (errorMsg) document.getElementById('lp-error-message').textContent = errorMsg;
+        break;
+      case 'ready':
+        // Show cards or table based on current view toggle
+        if (document.getElementById('lp-view-table').classList.contains('active')) {
+          $tablePanel.style.display = 'block';
+        } else {
+          $cards.style.display = 'block';
         }
+        break;
+    }
+  }
 
-        tableBody.innerHTML = filtered.map(lp => {
-          const status = getStatusClass(lp);
-          const marginClass = getMarginLevelClass(lp.margin_level);
-          const isSelected = lp.id === selectedLpId;
-          
-          return `
-            <tr data-lp-id="${lp.id}" class="${isSelected ? 'selected' : ''}">
-              <td>
-                <span class="lp-id">${lp.name || lp.id}</span>
-              </td>
-              <td>${lp.server_name || '--'}</td>
-              <td>
-                <span class="lp-status ${status}">
-                  <span class="lp-status-dot"></span>
-                  ${status.charAt(0).toUpperCase() + status.slice(1)}
-                </span>
-              </td>
-              <td class="balance-value">${formatCurrency(lp.balance, lp.currency)}</td>
-              <td class="balance-value">${formatCurrency(lp.equity, lp.currency)}</td>
-              <td class="margin-level ${marginClass}">${formatPercent(lp.margin_level)}</td>
-              <td>${formatRelativeTime(lp.last_heartbeat_at)}</td>
-            </tr>
-          `;
-        }).join('');
+  async function refresh(){
+    setState('loading');
+    try{
+      const data = await fetchJson('/api/lp-accounts');
+      lps = Array.isArray(data?.data) ? data.data : [];
+      renderKPIs();
+      applyFiltersAndRender();
+    }catch(e){
+      lps = [];
+      renderKPIs();
+      setState('error', e.message || 'API unavailable. Check your connection and try again.');
+    }
+  }
 
-        // Add click handlers
-        tableBody.querySelectorAll('tr[data-lp-id]').forEach(row => {
-          row.addEventListener('click', () => {
-            selectLp(row.dataset.lpId);
-          });
-        });
+  function applyFiltersAndRender(){
+    const q = (document.getElementById('lp-search').value || '').trim().toLowerCase();
+    const health = document.getElementById('lp-health').value;
+
+    const filtered = lps.filter(lp => {
+      const id = String(lp.id ?? lp.lp_id ?? lp.account_id ?? '').toLowerCase();
+      const name = String(lp.name ?? lp.label ?? lp.display_name ?? '').toLowerCase();
+      const m = Number(lp.margin_level ?? lp.margin ?? lp.marginLevel);
+      const h = healthFromMargin(m);
+      const okQ = !q || id.includes(q) || name.includes(q);
+      const okH = !health || h === health;
+      return okQ && okH;
+    });
+
+    // Use state machine for empty vs ready
+    if (filtered.length === 0) {
+      setState('empty');
+    } else {
+      setState('ready');
+      if (document.getElementById('lp-view-table').classList.contains('active')) {
+        renderTable(filtered);
+      } else {
+        renderCards(filtered);
       }
+    }
+  }
 
-      function renderSummary() {
-        const total = lpAccounts.length;
-        const active = lpAccounts.filter(lp => getStatusClass(lp) === 'active').length;
-        const totalBalance = lpAccounts.reduce((sum, lp) => sum + (lp.balance || 0), 0);
-        const avgMargin = lpAccounts.length > 0
-          ? lpAccounts.reduce((sum, lp) => sum + (lp.margin_level || 0), 0) / lpAccounts.length
-          : 0;
+  function showPanel(id){
+    const el = document.getElementById(id);
+    el.setAttribute('aria-hidden','false');
+    el.classList.add('open');
+  }
 
-        document.getElementById('summary-total').textContent = total;
-        document.getElementById('summary-active').textContent = active;
-        document.getElementById('summary-balance').textContent = formatCurrency(totalBalance);
-        document.getElementById('summary-margin').textContent = formatPercent(avgMargin);
+  function hidePanel(id){
+    const el = document.getElementById(id);
+    el.setAttribute('aria-hidden','true');
+    el.classList.remove('open');
+  }
+
+  async function openDetail(lp){
+    selected = lp;
+    const id = lp.id ?? lp.lp_id ?? lp.account_id;
+    document.getElementById('lp-detail-title').textContent = (lp.name ?? lp.label ?? lp.display_name ?? id ?? 'LP');
+
+    showPanel('lp-detail');
+    document.getElementById('lp-detail-body').innerHTML = '<div class="muted">Loading…</div>';
+
+    try{
+      const single = id ? await fetchJson(`/api/lp-accounts/${encodeURIComponent(id)}`) : null;
+      const hist = id ? await fetchJson(`/api/lp-accounts/${encodeURIComponent(id)}/history?limit=20`) : null;
+
+      const s = single?.data ?? lp;
+      const h = Array.isArray(hist?.data) ? hist.data : [];
+
+      const margin = s.margin_level ?? s.margin ?? s.marginLevel;
+      const equity = s.equity ?? s.Equity;
+      const free = s.free_margin ?? s.free ?? s.Free;
+      const server = s.server ?? s.server_id ?? s.serverId ?? '—';
+
+      const last = h[0]?.timestamp ?? h[0]?.ts ?? h[0]?.created_at;
+
+      document.getElementById('lp-detail-body').innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-item"><div class="muted">Server</div><div><span class="badge badge-neutral">${escapeHtml(String(server))}</span></div></div>
+          <div class="detail-item"><div class="muted">Margin</div><div class="mono">${pct(margin)}</div>${bullet(margin)}</div>
+          <div class="detail-item"><div class="muted">Equity</div><div class="mono">${money(equity)}</div></div>
+          <div class="detail-item"><div class="muted">Free</div><div class="mono">${money(free)}</div></div>
+          <div class="detail-item"><div class="muted">Last snapshot</div><div class="mono" title="${escapeHtml(String(last||''))}">${last ? BO_CTX.formatRelativeTime(last) : '—'}</div></div>
+        </div>
+        <hr class="hr" />
+        <div class="muted">Snapshots (latest 20)</div>
+        <div class="snapshots">
+          ${h.length ? h.map(row => {
+            const t = row.timestamp ?? row.ts ?? row.created_at ?? '';
+            const m = row.margin_level ?? row.margin ?? '';
+            return `<div class="snap-row"><span class="mono" title="${escapeHtml(String(t))}">${BO_CTX.formatRelativeTime(t)}</span><span class="mono">${pct(m)}</span></div>`;
+          }).join('') : '<div class="muted">No history</div>'}
+        </div>
+      `;
+    }catch(e){
+      document.getElementById('lp-detail-body').innerHTML = '<div class="muted">Failed to load LP details</div>';
+    }
+  }
+
+  function initUI(){
+    document.getElementById('lp-refresh').addEventListener('click', refresh);
+    document.getElementById('lp-search').addEventListener('input', applyFiltersAndRender);
+    document.getElementById('lp-health').addEventListener('change', applyFiltersAndRender);
+
+    // Empty state actions
+    document.getElementById('lp-empty-refresh').addEventListener('click', refresh);
+    document.getElementById('lp-empty-clear-filters').addEventListener('click', () => {
+      document.getElementById('lp-search').value = '';
+      document.getElementById('lp-health').value = '';
+      applyFiltersAndRender();
+    });
+
+    // Error state retry
+    document.getElementById('lp-error-retry').addEventListener('click', refresh);
+
+    document.getElementById('lp-view-cards').addEventListener('click', () => {
+      document.getElementById('lp-view-cards').classList.add('active');
+      document.getElementById('lp-view-table').classList.remove('active');
+      if (currentState === 'ready') {
+        $tablePanel.style.display = 'none';
+        $cards.style.display = 'block';
       }
-
-      function renderDetail(lp) {
-        document.getElementById('detail-title').textContent = lp.name || 'LP Details';
-        document.getElementById('detail-id').textContent = lp.id;
-        document.getElementById('detail-name').textContent = lp.name || '--';
-        document.getElementById('detail-server').textContent = lp.server_name || '--';
-        document.getElementById('detail-currency').textContent = lp.currency || 'USD';
-        document.getElementById('detail-balance').textContent = formatCurrency(lp.balance, lp.currency);
-        document.getElementById('detail-equity').textContent = formatCurrency(lp.equity, lp.currency);
-        document.getElementById('detail-margin').textContent = formatCurrency(lp.margin, lp.currency);
-        document.getElementById('detail-free-margin').textContent = formatCurrency(lp.free_margin, lp.currency);
-        document.getElementById('detail-margin-level').textContent = formatPercent(lp.margin_level);
-
-        // Load history
-        loadHistory(lp.id);
+      applyFiltersAndRender();
+    });
+    document.getElementById('lp-view-table').addEventListener('click', () => {
+      document.getElementById('lp-view-table').classList.add('active');
+      document.getElementById('lp-view-cards').classList.remove('active');
+      if (currentState === 'ready') {
+        $cards.style.display = 'none';
+        $tablePanel.style.display = 'block';
       }
+      applyFiltersAndRender();
+    });
 
-      async function loadHistory(lpId) {
-        const chartEl = document.getElementById('lp-history-chart');
-        chartEl.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div></div>';
+    document.getElementById('lp-detail-close').addEventListener('click', () => hidePanel('lp-detail'));
 
-        try {
-          const resp = await fetch(`/api/lp-accounts/${lpId}/history?limit=50`);
-          const data = await resp.json();
+    $grid.addEventListener('click', (e) => {
+      const card = e.target.closest('.lp-card');
+      if (!card) return;
+      const id = card.getAttribute('data-id');
+      const lp = lps.find(x => String(x.id ?? x.lp_id ?? x.account_id ?? '') === String(id));
+      if (!lp) return;
 
-          if (data.success && data.data && data.data.length > 0) {
-            // Simple text-based history for now
-            const latest = data.data[0];
-            chartEl.innerHTML = `
-              <div style="text-align: center; color: var(--slate-400); font-size: 0.875rem;">
-                <p>${data.data.length} snapshots available</p>
-                <p style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
-                  Latest: ${new Date(latest.snapshot_at).toLocaleString()}
-                </p>
-              </div>
-            `;
-          } else {
-            chartEl.innerHTML = '<span class="history-chart-placeholder">No history available</span>';
-          }
-        } catch (err) {
-          chartEl.innerHTML = '<span class="history-chart-placeholder">Failed to load history</span>';
-        }
+      const action = e.target.getAttribute('data-action');
+      if (action === 'orders') {
+        BO_CTX.update({ q: String(id) });
+        BO_CTX.navigate('orders');
+        return;
       }
+      openDetail(lp);
+    });
 
-      function selectLp(lpId) {
-        selectedLpId = lpId;
-        const lp = lpAccounts.find(l => l.id === lpId);
-        if (lp) {
-          renderDetail(lp);
-          detailPanel.classList.add('active');
-        }
-        renderTable();
-      }
+    document.getElementById('lp-detail-view-orders').addEventListener('click', () => {
+      const id = selected?.id ?? selected?.lp_id ?? selected?.account_id;
+      BO_CTX.update({ q: String(id || '') });
+      BO_CTX.navigate('orders');
+    });
 
-      // API calls
-      async function fetchLpAccounts() {
-        tableBody.innerHTML = `
-          <tr>
-            <td colspan="7">
-              <div class="loading-state">
-                <div class="loading-spinner"></div>
-              </div>
-            </td>
-          </tr>
-        `;
+    // Export snapshot: download JSON list
+    document.getElementById('lp-export-snapshot').addEventListener('click', async () => {
+      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), data: lps }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `lp-snapshot-${Date.now()}.json`;
+      a.click();
+    });
 
-        try {
-          const resp = await fetch('/api/lp-accounts');
-          const data = await resp.json();
+    // History button: open first LP detail if any
+    document.getElementById('lp-view-history').addEventListener('click', () => {
+      if (lps.length) openDetail(lps[0]);
+      else showPanel('lp-detail');
+    });
+  }
 
-          if (data.success && Array.isArray(data.data)) {
-            lpAccounts = data.data;
-          } else {
-            lpAccounts = [];
-          }
-        } catch (err) {
-          console.error('Failed to fetch LP accounts:', err);
-          lpAccounts = [];
-        }
+  // Context handshake + keyboard
+  BO_CTX.initEmbedPage({
+    onContext: (next) => { ctx = next; refresh(); },
+    onEsc: () => { hidePanel('lp-detail'); }
+  });
 
-        renderTable();
-        renderSummary();
-      }
+  initUI();
+  refresh();
+})();
+</script>
 
-      // Export snapshot as JSON
-      function exportSnapshot() {
-        if (!selectedLpId) return;
-        const lp = lpAccounts.find(l => l.id === selectedLpId);
-        if (!lp) return;
-
-        const blob = new Blob([JSON.stringify(lp, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `lp-snapshot-${lp.id}-${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-
-      // Event listeners
-      refreshBtn.addEventListener('click', fetchLpAccounts);
-      filterStatus.addEventListener('change', renderTable);
-      filterSearch.addEventListener('input', renderTable);
-      closeBtn.addEventListener('click', () => {
-        selectedLpId = null;
-        detailPanel.classList.remove('active');
-        renderTable();
-      });
-      exportSnapshotBtn.addEventListener('click', exportSnapshot);
-      viewHistoryBtn.addEventListener('click', () => {
-        if (selectedLpId) {
-          window.open(`/api/lp-accounts/${selectedLpId}/history?limit=100`, '_blank');
-        }
-      });
-
-      // Initialize
-      fetchLpAccounts();
-
-      // Auto-refresh every 30s
-      setInterval(fetchLpAccounts, 30000);
-
-      // Expose for testing
-      window.LPAccountsPage = {
-        refresh: fetchLpAccounts,
-        getLpAccounts: () => lpAccounts,
-        selectLp
-      };
-    })();
-  </script>
 </body>
 </html>

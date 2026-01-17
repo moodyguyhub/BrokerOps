@@ -823,6 +823,8 @@
       container.innerHTML = alerts.map(alert => {
         const isCritical = alert.severity === 'CRITICAL';
         const isAcked = alert.status === 'ACKNOWLEDGED';
+        // Derive type from available fields: title, category, setting_id, or fallback
+        const alertType = alert.title || alert.category || alert.setting_id || alert.type || 'Alert';
         
         return `
           <div class="alert-item ${isAcked ? 'acked' : ''}" data-id="${alert.id}">
@@ -830,7 +832,7 @@
               <i data-lucide="${isCritical ? 'alert-octagon' : 'alert-triangle'}" style="width: 18px; height: 18px;"></i>
             </div>
             <div class="alert-content">
-              <div class="alert-title">${alert.alert_type || alert.type}</div>
+              <div class="alert-title">${alertType}</div>
               <div class="alert-desc">${alert.lp_id || ''} ${alert.symbol || ''} — ${alert.message || ''}</div>
               <div class="alert-time">${formatRelativeTime(alert.created_at)}</div>
             </div>

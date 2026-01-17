@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUVESTA — Alerts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Shared UI design system -->
+  <link rel="stylesheet" href="/assets/ui.css">
+  <style>
+    /* Page-specific styles */
+    .alerts-layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: var(--spacing-lg);
+      min-height: calc(100vh - 120px);
+    }
+
+    @media (max-width: 1200px) {
+      .alerts-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Filters Bar */
+    .alerts-filters {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .filter-group label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .filter-select {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      min-width: 120px;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .filter-actions {
+      margin-left: auto;
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Severity Pills */
+    .severity-filter {
+      display: flex;
+      gap: 4px;
+      background: var(--slate-800);
+      padding: 4px;
+      border-radius: var(--radius-md);
+    }
+
+    .severity-btn {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-transform: uppercase;
+    }
+
+    .severity-btn.all {
+      background: transparent;
+      color: var(--slate-400);
+    }
+
+    .severity-btn.all.active {
+      background: var(--slate-700);
+      color: white;
+    }
+
+    .severity-btn.critical {
+      background: transparent;
+      color: var(--rose-400);
+    }
+
+    .severity-btn.critical.active {
+      background: rgba(244, 63, 94, 0.3);
+    }
+
+    .severity-btn.warning {
+      background: transparent;
+      color: var(--amber-400);
+    }
+
+    .severity-btn.warning.active {
+      background: rgba(245, 158, 11, 0.3);
+    }
+
+    .severity-btn.info {
+      background: transparent;
+      color: var(--cyan-400);
+    }
+
+    .severity-btn.info.active {
+      background: rgba(6, 182, 212, 0.3);
+    }
+
+    /* Alerts Table */
+    .alerts-table-wrapper {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .alerts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .alerts-table th {
+      background: var(--slate-800);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--slate-300);
+      border-bottom: 1px solid var(--slate-700);
+      white-space: nowrap;
+    }
+
+    .alerts-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-800);
+      color: var(--slate-300);
+    }
+
+    .alerts-table tbody tr {
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .alerts-table tbody tr:hover {
+      background: var(--slate-800);
+    }
+
+    .alerts-table tbody tr.selected {
+      background: rgba(6, 182, 212, 0.1);
+      border-left: 3px solid var(--cyan-500);
+    }
+
+    .alerts-table tbody tr.acknowledged {
+      opacity: 0.6;
+    }
+
+    /* Severity Badge */
+    .severity-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .severity-badge.critical {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--rose-400);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    .severity-badge.warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber-400);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .severity-badge.info {
+      background: rgba(6, 182, 212, 0.2);
+      color: var(--cyan-400);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+    }
+
+    .severity-badge svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Alert ID */
+    .alert-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--cyan-400);
+    }
+
+    /* Alert Type */
+    .alert-type {
+      font-weight: 500;
+    }
+
+    /* Time */
+    .alert-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: var(--slate-500);
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.active {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--rose-400);
+    }
+
+    .status-badge.acknowledged {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--emerald-400);
+    }
+
+    /* Incident Group */
+    .incident-group {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .incident-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: 8px 12px;
+      background: var(--slate-800);
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--slate-300);
+      cursor: pointer;
+    }
+
+    .incident-header:hover {
+      background: var(--slate-700);
+    }
+
+    .incident-count {
+      background: var(--slate-700);
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      color: var(--slate-400);
+    }
+
+    .incident-expand {
+      margin-left: auto;
+      transition: transform var(--transition-fast);
+    }
+
+    .incident-expand.expanded {
+      transform: rotate(180deg);
+    }
+
+    /* Detail Panel (Slide-in) */
+    .alerts-detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 450px;
+      height: 100vh;
+      background: var(--slate-900);
+      border-left: 1px solid var(--slate-800);
+      transform: translateX(100%);
+      transition: transform var(--transition-normal);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    .alerts-detail-panel.active {
+      transform: translateX(0);
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid var(--slate-800);
+      position: sticky;
+      top: 0;
+      background: var(--slate-900);
+    }
+
+    .detail-header h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .detail-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--slate-800);
+      color: var(--slate-400);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .detail-close:hover {
+      background: var(--slate-700);
+      color: white;
+    }
+
+    .detail-body {
+      padding: var(--spacing-md);
+    }
+
+    .detail-section {
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .detail-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      color: var(--slate-500);
+      font-size: 0.8125rem;
+    }
+
+    .detail-value {
+      color: var(--slate-200);
+      font-size: 0.8125rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Ack Panel */
+    .ack-panel {
+      background: var(--slate-800);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+
+    .ack-panel h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .ack-note-input {
+      width: 100%;
+      min-height: 80px;
+      padding: var(--spacing-sm);
+      background: var(--slate-900);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      color: var(--slate-200);
+      font-size: 0.875rem;
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .ack-note-input:focus {
+      outline: none;
+      border-color: var(--cyan-500);
+    }
+
+    .ack-note-input.required {
+      border-color: var(--rose-500);
+    }
+
+    .ack-hint {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .ack-hint.critical {
+      color: var(--rose-400);
+    }
+
+    .ack-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Summary Stats */
+    .alerts-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .summary-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-md);
+    }
+
+    .summary-label {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .summary-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .summary-value.critical {
+      color: var(--rose-400);
+    }
+
+    .summary-value.warning {
+      color: var(--amber-400);
+    }
+
+    @media (max-width: 768px) {
+      .alerts-summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Overlay for slide panel */
+    .panel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-normal);
+    }
+
+    .panel-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Empty state */
+    .alerts-empty {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--slate-500);
+    }
+
+    .alerts-empty svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.5;
+    }
+
+    .alerts-empty h3 {
+      font-size: 1rem;
+      color: var(--slate-400);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    /* Context Chip - shows inherited context in embed mode */
+    .context-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: var(--radius-md);
+      font-size: 0.75rem;
+      margin-bottom: var(--spacing-md);
+      width: fit-content;
+    }
+
+    .context-chip-label {
+      color: var(--slate-500);
+      font-weight: 500;
+    }
+
+    .context-chip-server,
+    .context-chip-window {
+      color: var(--cyan-400);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .context-chip-sep {
+      color: var(--slate-600);
+    }
+
+    .context-chip-server.filtered {
+      color: var(--amber-400);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Page Header (only shown in standalone mode) -->
+    <header class="header" id="page-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>TRUVESTA</h1>
+          <span>Alerts Monitor</span>
+        </div>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot" id="connection-status"></span>
+        <span id="connection-text">Connected</span>
+      </div>
+    </header>
+
+    <!-- Context Chip (shown in embed mode to confirm inherited context) -->
+    <div class="context-chip" id="context-chip" style="display: none;">
+      <span class="context-chip-label">Context:</span>
+      <span class="context-chip-server" id="context-server">All Servers</span>
+      <span class="context-chip-sep">•</span>
+      <span class="context-chip-window" id="context-window">24h</span>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="alerts-summary">
+      <div class="summary-card">
+        <div class="summary-label">Total Active</div>
+        <div class="summary-value" id="stat-total">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Critical</div>
+        <div class="summary-value critical" id="stat-critical">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Warning</div>
+        <div class="summary-value warning" id="stat-warning">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Acknowledged</div>
+        <div class="summary-value" id="stat-acked">0</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="alerts-filters" id="alerts-filters">
+      <div class="severity-filter">
+        <button class="severity-btn all active" data-severity="all">All</button>
+        <button class="severity-btn critical" data-severity="critical">Critical</button>
+        <button class="severity-btn warning" data-severity="warning">Warning</button>
+        <button class="severity-btn info" data-severity="info">Info</button>
+      </div>
+
+      <div class="filter-group">
+        <label>Status</label>
+        <select class="filter-select" id="filter-status">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="acknowledged">Acknowledged</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Type</label>
+        <select class="filter-select" id="filter-type">
+          <option value="all">All Types</option>
+          <option value="exposure_breach">Exposure Breach</option>
+          <option value="lp_disconnect">LP Disconnect</option>
+          <option value="latency_spike">Latency Spike</option>
+          <option value="quote_stale">Quote Stale</option>
+          <option value="policy_violation">Policy Violation</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn btn-secondary" id="btn-ack-selected" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20,6 9,17 4,12"/>
+          </svg>
+          Ack Selected
+        </button>
+        <button class="btn btn-ghost" id="btn-refresh">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Alerts Table -->
+    <div class="alerts-table-wrapper" id="alerts-table">
+      <table class="alerts-table">
+        <thead>
+          <tr>
+            <th style="width: 30px;">
+              <input type="checkbox" id="select-all" title="Select all">
+            </th>
+            <th>Severity</th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Message</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="alerts-tbody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+
+      <!-- Empty state -->
+      <div class="alerts-empty" id="alerts-empty" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <h3>No Alerts</h3>
+        <p>All systems operating normally.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Overlay -->
+  <div class="panel-overlay" id="panel-overlay"></div>
+
+  <!-- Detail Slide Panel -->
+  <div class="alerts-detail-panel" id="alerts-detail">
+    <div class="detail-header">
+      <h3>Alert Details</h3>
+      <button class="detail-close" id="close-detail" title="Close (Esc)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section">
+        <div class="detail-section-title">Alert Info</div>
+        <div class="detail-row">
+          <span class="detail-label">ID</span>
+          <span class="detail-value" id="detail-id">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Severity</span>
+          <span class="detail-value" id="detail-severity">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Type</span>
+          <span class="detail-value" id="detail-type">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Source</span>
+          <span class="detail-value" id="detail-source">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Triggered At</span>
+          <span class="detail-value" id="detail-time">—</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Message</div>
+        <p id="detail-message" style="color: var(--slate-300); font-size: 0.875rem; line-height: 1.5;">—</p>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Context</div>
+        <pre id="detail-context" style="background: var(--slate-800); padding: var(--spacing-sm); border-radius: var(--radius-md); font-size: 0.75rem; color: var(--slate-400); overflow-x: auto;">—</pre>
+      </div>
+
+      <!-- Ack Panel -->
+      <div class="ack-panel" id="alerts-ack-panel">
+        <h4>Acknowledge Alert</h4>
+        <p class="ack-hint" id="ack-hint">Add a note explaining the action taken.</p>
+        <textarea 
+          class="ack-note-input" 
+          id="alerts-ack-note" 
+          placeholder="Enter acknowledgement note..."
+        ></textarea>
+        <div class="ack-actions">
+          <button class="btn btn-primary" id="alerts-ack-submit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20,6 9,17 4,12"/>
+            </svg>
+            Acknowledge
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/global-context.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      // State
+      let alerts = [];
+      let selectedAlertId = null;
+      let selectedAlerts = new Set();
+      let currentFilter = { severity: 'all', status: 'all', type: 'all' };
+      let currentContext = { server: 'all', window: '24h' };
+
+      // Parse URL params for context
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('server')) currentContext.server = urlParams.get('server');
+      if (urlParams.get('window')) currentContext.window = urlParams.get('window');
+
+      // DOM Elements
+      const tbody = document.getElementById('alerts-tbody');
+      const detailPanel = document.getElementById('alerts-detail');
+      const overlay = document.getElementById('panel-overlay');
+      const emptyState = document.getElementById('alerts-empty');
+
+      // Check embed mode
+      const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1';
+      if (isEmbed) {
+        document.getElementById('page-header').style.display = 'none';
+        document.body.style.background = 'transparent';
+        document.documentElement.style.background = 'transparent';
+        document.body.style.padding = '0';
+        document.body.style.margin = '0';
+        
+        // Show context chip in embed mode to confirm inherited context
+        const contextChip = document.getElementById('context-chip');
+        if (contextChip) {
+          contextChip.style.display = 'flex';
+          updateContextChip();
+        }
+      }
+
+      // Update context chip display
+      function updateContextChip() {
+        const serverEl = document.getElementById('context-server');
+        const windowEl = document.getElementById('context-window');
+        if (serverEl) {
+          const isFiltered = currentContext.server !== 'all';
+          serverEl.textContent = isFiltered ? currentContext.server : 'All Servers';
+          serverEl.classList.toggle('filtered', isFiltered);
+        }
+        if (windowEl) {
+          windowEl.textContent = currentContext.window;
+        }
+      }
+
+      // Listen for context changes from parent shell
+      window.addEventListener('message', (e) => {
+        if (!e.data || !e.data.type) return;
+        
+        if (e.data.type === 'BO_SERVER_CHANGE') {
+          currentContext.server = e.data.payload?.server || 'all';
+          updateContextChip();
+          fetchAlerts();
+        }
+        if (e.data.type === 'BO_TIME_WINDOW_CHANGE') {
+          currentContext.window = e.data.payload?.window || '24h';
+          updateContextChip();
+          fetchAlerts();
+        }
+      });
+
+      // Fetch alerts - single source of truth, no mock fallback
+      // Normalize alert from API schema to UI schema
+      function normalizeAlert(raw) {
+        return {
+          id: raw.id || raw.alert_id,
+          incident_id: raw.alert_id || raw.id,
+          severity: (raw.severity || 'info').toLowerCase(),
+          type: raw.category || raw.setting_id || raw.type || 'ALERT',
+          source: raw.lp_id || raw.source || raw.server_id || 'System',
+          message: raw.message || raw.title || '',
+          title: raw.title || raw.message || '',
+          timestamp: raw.triggered_at || raw.created_at || raw.ts || new Date().toISOString(),
+          status: (raw.status === 'OPEN' || raw.status === 'active') ? 'active' 
+                : (raw.status === 'ACKED' || raw.status === 'acknowledged') ? 'acknowledged' 
+                : raw.status?.toLowerCase() || 'active',
+          server_id: raw.server_id || 'all',
+          acknowledged_at: raw.acknowledged_at,
+          threshold_value: raw.threshold_value,
+          trigger_value: raw.trigger_value
+        };
+      }
+
+      async function fetchAlerts() {
+        try {
+          const resp = await fetch('/api/alerts');
+          if (resp.ok) {
+            const json = await resp.json();
+            // Handle multiple API response shapes: {data:[...]}, {alerts:[...]}, or [...]
+            const rawAlerts = json.data || json.alerts || (Array.isArray(json) ? json : []);
+            alerts = rawAlerts.map(normalizeAlert);
+          } else {
+            // API error - show empty state, don't use mock data
+            alerts = [];
+          }
+        } catch (err) {
+          console.log('API unavailable - showing empty state');
+          // No mock fallback - keeps coherence with shell badge
+          alerts = [];
+        }
+        renderAlerts();
+        updateStats();
+      }
+
+      // Update stats
+      function updateStats() {
+        const active = alerts.filter(a => a.status === 'active');
+        const critical = active.filter(a => a.severity === 'critical');
+        const warning = active.filter(a => a.severity === 'warning');
+        const acked = alerts.filter(a => a.status === 'acknowledged');
+
+        document.getElementById('stat-total').textContent = active.length;
+        document.getElementById('stat-critical').textContent = critical.length;
+        document.getElementById('stat-warning').textContent = warning.length;
+        document.getElementById('stat-acked').textContent = acked.length;
+
+        // Update global alert badge if available
+        if (typeof BO_CTX !== 'undefined') {
+          BO_CTX.updateAlertBadge(active.length);
+        }
+      }
+
+      // Render alerts table
+      function renderAlerts() {
+        const filtered = alerts.filter(alert => {
+          if (currentFilter.severity !== 'all' && alert.severity !== currentFilter.severity) return false;
+          if (currentFilter.status !== 'all' && alert.status !== currentFilter.status) return false;
+          if (currentFilter.type !== 'all' && alert.type !== currentFilter.type) return false;
+          return true;
+        });
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = '';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+
+        // Sort by severity (critical first) then by time
+        filtered.sort((a, b) => {
+          const severityOrder = { critical: 0, high: 1, warning: 2, medium: 3, info: 4, low: 5 };
+          const aSev = severityOrder[a.severity] ?? 99;
+          const bSev = severityOrder[b.severity] ?? 99;
+          if (aSev !== bSev) {
+            return aSev - bSev;
+          }
+          return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+
+        tbody.innerHTML = filtered.map(alert => {
+          const relTime = typeof BO_CTX !== 'undefined' 
+            ? BO_CTX.relativeTime(alert.timestamp) 
+            : new Date(alert.timestamp).toLocaleTimeString();
+
+          const isSelected = selectedAlerts.has(alert.id);
+          const isActive = selectedAlertId === alert.id;
+
+          return `
+            <tr 
+              data-id="${alert.id}" 
+              class="${isActive ? 'selected' : ''} ${alert.status === 'acknowledged' ? 'acknowledged' : ''}"
+            >
+              <td>
+                <input 
+                  type="checkbox" 
+                  class="alert-checkbox" 
+                  data-id="${alert.id}"
+                  ${isSelected ? 'checked' : ''}
+                  ${alert.status === 'acknowledged' ? 'disabled' : ''}
+                >
+              </td>
+              <td>
+                <span class="severity-badge ${alert.severity}">
+                  ${getSeverityIcon(alert.severity)}
+                  ${alert.severity}
+                </span>
+              </td>
+              <td><span class="alert-type">${formatType(alert.type)}</span></td>
+              <td><span class="alert-id">${alert.source}</span></td>
+              <td>${alert.message}</td>
+              <td><span class="alert-time">${relTime}</span></td>
+              <td>
+                <span class="status-badge ${alert.status}">
+                  ${alert.status === 'acknowledged' ? '✓ Acked' : 'Active'}
+                </span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // Re-attach event listeners
+        attachRowListeners();
+      }
+
+      function getSeverityIcon(severity) {
+        if (severity === 'critical') {
+          return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+        }
+        if (severity === 'warning') {
+          return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        }
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+      }
+
+      function formatType(type) {
+        return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }
+
+      // Attach row click listeners
+      function attachRowListeners() {
+        document.querySelectorAll('#alerts-tbody tr').forEach(row => {
+          row.addEventListener('click', (e) => {
+            if (e.target.type === 'checkbox') return;
+            const id = row.dataset.id;
+            openDetail(id);
+          });
+        });
+
+        document.querySelectorAll('.alert-checkbox').forEach(cb => {
+          cb.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (e.target.checked) {
+              selectedAlerts.add(e.target.dataset.id);
+            } else {
+              selectedAlerts.delete(e.target.dataset.id);
+            }
+            updateAckButton();
+          });
+        });
+      }
+
+      function updateAckButton() {
+        const btn = document.getElementById('btn-ack-selected');
+        btn.disabled = selectedAlerts.size === 0;
+      }
+
+      // Open detail panel
+      function openDetail(alertId) {
+        const alert = alerts.find(a => a.id === alertId);
+        if (!alert) return;
+
+        selectedAlertId = alertId;
+
+        // Update detail fields
+        document.getElementById('detail-id').textContent = alert.id;
+        document.getElementById('detail-severity').innerHTML = `<span class="severity-badge ${alert.severity}">${alert.severity}</span>`;
+        document.getElementById('detail-type').textContent = formatType(alert.type);
+        document.getElementById('detail-source').textContent = alert.source;
+        document.getElementById('detail-time').textContent = new Date(alert.timestamp).toLocaleString();
+        document.getElementById('detail-message').textContent = alert.message;
+        document.getElementById('detail-context').textContent = JSON.stringify(alert.context, null, 2);
+
+        // Update ack hint for critical alerts
+        const ackHint = document.getElementById('ack-hint');
+        const ackNote = document.getElementById('alerts-ack-note');
+        if (alert.severity === 'critical') {
+          ackHint.textContent = '⚠️ Critical alert - acknowledgement note is REQUIRED';
+          ackHint.classList.add('critical');
+          ackNote.setAttribute('required', 'true');
+        } else {
+          ackHint.textContent = 'Add a note explaining the action taken.';
+          ackHint.classList.remove('critical');
+          ackNote.removeAttribute('required');
+        }
+
+        // Show/hide ack panel based on status
+        const ackPanel = document.getElementById('alerts-ack-panel');
+        if (alert.status === 'acknowledged') {
+          ackPanel.innerHTML = `
+            <h4>Acknowledged</h4>
+            <p style="color: var(--emerald-400); font-size: 0.875rem;">
+              ✓ By ${alert.acknowledgedBy} at ${new Date(alert.acknowledgedAt).toLocaleString()}
+            </p>
+            <p style="color: var(--slate-400); font-size: 0.8125rem; margin-top: var(--spacing-sm);">
+              ${alert.ackNote || 'No note provided'}
+            </p>
+          `;
+        } else {
+          ackPanel.innerHTML = `
+            <h4>Acknowledge Alert</h4>
+            <p class="ack-hint" id="ack-hint">${alert.severity === 'critical' ? '⚠️ Critical alert - acknowledgement note is REQUIRED' : 'Add a note explaining the action taken.'}</p>
+            <textarea 
+              class="ack-note-input ${alert.severity === 'critical' ? 'required' : ''}" 
+              id="alerts-ack-note" 
+              placeholder="Enter acknowledgement note..."
+              ${alert.severity === 'critical' ? 'required' : ''}
+            ></textarea>
+            <div class="ack-actions">
+              <button class="btn btn-primary" id="alerts-ack-submit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20,6 9,17 4,12"/>
+                </svg>
+                Acknowledge
+              </button>
+            </div>
+          `;
+          
+          // Re-attach submit listener
+          document.getElementById('alerts-ack-submit').addEventListener('click', submitAck);
+        }
+
+        // Show panel
+        detailPanel.classList.add('active');
+        overlay.classList.add('active');
+        renderAlerts();
+      }
+
+      // Close detail panel
+      function closeDetail() {
+        detailPanel.classList.remove('active');
+        overlay.classList.remove('active');
+        selectedAlertId = null;
+        renderAlerts();
+      }
+
+      // Submit acknowledgement
+      async function submitAck() {
+        const alert = alerts.find(a => a.id === selectedAlertId);
+        if (!alert) return;
+
+        const noteInput = document.getElementById('alerts-ack-note');
+        const note = noteInput?.value?.trim() || '';
+
+        // Validate required note for critical
+        if (alert.severity === 'critical' && !note) {
+          noteInput.classList.add('required');
+          if (typeof BO_CTX !== 'undefined') {
+            BO_CTX.showToast('Note is required for critical alerts', 'error');
+          }
+          return;
+        }
+
+        try {
+          const resp = await fetch(`/api/alerts/${selectedAlertId}/ack`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note, acknowledgedBy: 'user' })
+          });
+
+          if (resp.ok) {
+            // Update local state
+            alert.status = 'acknowledged';
+            alert.acknowledgedBy = 'user';
+            alert.acknowledgedAt = new Date().toISOString();
+            alert.ackNote = note;
+
+            if (typeof BO_CTX !== 'undefined') {
+              BO_CTX.showToast('Alert acknowledged', 'success');
+            }
+
+            closeDetail();
+            updateStats();
+          } else {
+            throw new Error('Ack failed');
+          }
+        } catch (err) {
+          // Demo fallback
+          alert.status = 'acknowledged';
+          alert.acknowledgedBy = 'user';
+          alert.acknowledgedAt = new Date().toISOString();
+          alert.ackNote = note;
+
+          if (typeof BO_CTX !== 'undefined') {
+            BO_CTX.showToast('Alert acknowledged (demo)', 'success');
+          }
+
+          closeDetail();
+          updateStats();
+        }
+      }
+
+      // Event listeners
+      document.getElementById('close-detail').addEventListener('click', closeDetail);
+      overlay.addEventListener('click', closeDetail);
+
+      // Severity filter buttons
+      document.querySelectorAll('.severity-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.severity-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter.severity = btn.dataset.severity;
+          renderAlerts();
+        });
+      });
+
+      // Status filter
+      document.getElementById('filter-status').addEventListener('change', (e) => {
+        currentFilter.status = e.target.value;
+        renderAlerts();
+      });
+
+      // Type filter
+      document.getElementById('filter-type').addEventListener('change', (e) => {
+        currentFilter.type = e.target.value;
+        renderAlerts();
+      });
+
+      // Refresh button
+      document.getElementById('btn-refresh').addEventListener('click', fetchAlerts);
+
+      // Select all
+      document.getElementById('select-all').addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.alert-checkbox:not(:disabled)');
+        checkboxes.forEach(cb => {
+          cb.checked = e.target.checked;
+          if (e.target.checked) {
+            selectedAlerts.add(cb.dataset.id);
+          } else {
+            selectedAlerts.delete(cb.dataset.id);
+          }
+        });
+        updateAckButton();
+      });
+
+      // Keyboard shortcut for close
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && detailPanel.classList.contains('active')) {
+          closeDetail();
+        }
+      });
+
+      // Listen for global context events
+      if (typeof BO_CTX !== 'undefined') {
+        BO_CTX.on('CLOSE_PANELS', closeDetail);
+        BO_CTX.on('SERVER_CHANGE', fetchAlerts);
+        BO_CTX.on('TIME_WINDOW_CHANGE', fetchAlerts);
+      }
+
+      // Initial fetch
+      fetchAlerts();
+
+      // Poll for updates
+      setInterval(fetchAlerts, 30000);
+
+    })();
+  </script>
+</body>
+</html>
