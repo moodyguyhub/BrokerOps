@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Policy Status — TRUVESTA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/ui.css">
+  <style>
+    /* Page-specific styles */
+    .policies-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .policies-title {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .policies-title h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--slate-100);
+      margin: 0;
+    }
+
+    .policies-title svg {
+      width: 24px;
+      height: 24px;
+      color: var(--cyan-500);
+    }
+
+    .policies-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      font-size: 0.75rem;
+      color: var(--slate-500);
+    }
+
+    .policies-meta .last-check {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Status Banner */
+    .policies-status-banner {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .policies-status-banner.ok {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--emerald-700);
+    }
+
+    .policies-status-banner.warn {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--amber-700);
+    }
+
+    .policies-status-banner.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--red-700);
+    }
+
+    .policies-status-banner.loading {
+      background: rgba(100, 116, 139, 0.1);
+      border: 1px solid var(--slate-700);
+    }
+
+    .status-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-icon.ok { background: var(--emerald-500); }
+    .status-icon.warn { background: var(--amber-500); }
+    .status-icon.error { background: var(--red-500); }
+    .status-icon.loading { background: var(--slate-600); animation: pulse 1.5s ease-in-out infinite; }
+
+    .status-icon svg {
+      width: 18px;
+      height: 18px;
+      color: white;
+    }
+
+    .status-text h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 2px 0;
+    }
+
+    .status-text p {
+      font-size: 0.8125rem;
+      color: var(--slate-400);
+      margin: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Policy Info Cards */
+    .policies-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .policy-card {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+    }
+
+    .policy-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .policy-card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--slate-300);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .policy-card-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--slate-100);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .policy-card-detail {
+      font-size: 0.75rem;
+      color: var(--slate-500);
+      margin-top: var(--spacing-sm);
+    }
+
+    /* Rules Table */
+    .rules-section {
+      background: var(--slate-900);
+      border: 1px solid var(--slate-800);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .rules-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--slate-850);
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .rules-header h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--slate-200);
+      margin: 0;
+    }
+
+    .rules-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .rules-table th,
+    .rules-table td {
+      padding: var(--spacing-sm) var(--spacing-lg);
+      text-align: left;
+      border-bottom: 1px solid var(--slate-800);
+    }
+
+    .rules-table th {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--slate-850);
+    }
+
+    .rules-table td {
+      font-size: 0.8125rem;
+      color: var(--slate-300);
+    }
+
+    .rules-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .rule-id {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-400);
+    }
+
+    /* State containers */
+    .state-container {
+      display: none;
+      padding: var(--spacing-xl);
+      text-align: center;
+    }
+
+    .state-container.active {
+      display: block;
+    }
+
+    .state-container svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.5;
+    }
+
+    .state-container h2 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--slate-300);
+      margin: 0 0 var(--spacing-sm) 0;
+    }
+
+    .state-container p {
+      font-size: 0.875rem;
+      color: var(--slate-500);
+      margin: 0;
+    }
+
+    #policies-state-loading svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #policies-state-error svg {
+      color: var(--red-500);
+      opacity: 1;
+    }
+
+    /* Embed mode */
+    body.embed-mode {
+      background: transparent;
+      padding: var(--spacing-lg);
+    }
+
+    body.embed-mode .policies-header {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <!-- Header (hidden in embed mode) -->
+    <header class="policies-header">
+      <div class="policies-title">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <h1>Policy Status</h1>
+      </div>
+      <div class="policies-meta">
+        <span>Last check: <span class="last-check" id="policies-last-check">--</span></span>
+      </div>
+    </header>
+
+    <!-- Loading State -->
+    <div class="state-container active" id="policies-state-loading">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      </svg>
+      <h2>Loading Policy Status</h2>
+      <p>Checking OPA policy engine and bundle state...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="state-container" id="policies-state-error">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <h2>Failed to Load Policy Status</h2>
+      <p id="policies-error-message">Unable to connect to policy status endpoint.</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="state-container" id="policies-state-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <h2>No Policies Configured</h2>
+      <p>No OPA policies are currently loaded. Check policies/ directory.</p>
+    </div>
+
+    <!-- Ready State (main content) -->
+    <div class="state-container" id="policies-state-ready" style="display: none; text-align: left; padding: 0;">
+      <!-- Status Banner -->
+      <div class="policies-status-banner ok" id="policies-status-banner" role="status" aria-label="Policy engine status">
+        <div class="status-icon ok" id="policies-status-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20,6 9,17 4,12"/>
+          </svg>
+        </div>
+        <div class="status-text">
+          <h2 id="policies-status-title">Policy Engine Healthy</h2>
+          <p id="policies-status-subtitle">OPA is reachable and policies are compiled</p>
+        </div>
+      </div>
+
+      <!-- Policy Info Grid -->
+      <div class="policies-grid" id="policies-grid">
+        <div class="policy-card">
+          <div class="policy-card-header">
+            <span class="policy-card-title">Policy Version</span>
+          </div>
+          <div class="policy-card-value" id="policies-version">--</div>
+          <div class="policy-card-detail" id="policies-version-detail">from policies/order.rego</div>
+        </div>
+
+        <div class="policy-card">
+          <div class="policy-card-header">
+            <span class="policy-card-title">Bundle SHA256</span>
+          </div>
+          <div class="policy-card-value" id="policies-bundle-sha" style="font-size: 0.875rem; word-break: break-all;">--</div>
+          <div class="policy-card-detail">Hash of policy files content</div>
+        </div>
+
+        <div class="policy-card">
+          <div class="policy-card-header">
+            <span class="policy-card-title">Rules Count</span>
+          </div>
+          <div class="policy-card-value" id="policies-rules-count">--</div>
+          <div class="policy-card-detail">Active policy rules loaded</div>
+        </div>
+
+        <div class="policy-card">
+          <div class="policy-card-header">
+            <span class="policy-card-title">Compile State</span>
+          </div>
+          <div class="policy-card-value" id="policies-compile-state">--</div>
+          <div class="policy-card-detail" id="policies-compile-detail">OPA policy compilation status</div>
+        </div>
+      </div>
+
+      <!-- Rules Table -->
+      <div class="rules-section" id="policies-rules-section">
+        <div class="rules-header">
+          <h3>Active Rules</h3>
+        </div>
+        <table class="rules-table">
+          <thead>
+            <tr>
+              <th>Rule ID</th>
+              <th>Condition</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="policies-rules-tbody">
+            <!-- Populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- Phase 14: Dealer View Section (additive to Phase 13 contract) -->
+      <!-- ================================================================ -->
+      <div class="dealer-view-section" id="policies-dealer-section" style="margin-top: var(--spacing-xl);">
+        <!-- Dealer View Header -->
+        <div class="rules-header" style="background: var(--slate-900); border: 1px solid var(--slate-800); border-radius: var(--radius-lg) var(--radius-lg) 0 0; margin-top: var(--spacing-lg);">
+          <h3>📋 Policy Source Viewer</h3>
+          <span id="policies-dealer-file-count" style="font-size: 0.75rem; color: var(--slate-500);">Loading...</span>
+        </div>
+
+        <!-- File List -->
+        <div id="policies-dealer-file-list" style="background: var(--slate-900); border: 1px solid var(--slate-800); border-top: none; padding: var(--spacing-md);">
+          <p style="color: var(--slate-500); font-size: 0.875rem; margin: 0;">Loading policy files...</p>
+        </div>
+
+        <!-- Source Code Viewer -->
+        <div id="policies-dealer-source-viewer" style="display: none; background: var(--slate-950); border: 1px solid var(--slate-800); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm) var(--spacing-md); background: var(--slate-900); border-bottom: 1px solid var(--slate-800);">
+            <span id="policies-dealer-source-filename" style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--cyan-400);">--</span>
+            <span id="policies-dealer-source-meta" style="font-size: 0.6875rem; color: var(--slate-500);">--</span>
+          </div>
+          <pre id="policies-dealer-source-content" style="margin: 0; padding: var(--spacing-md); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--slate-300); overflow-x: auto; max-height: 400px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap;"><code>-- Select a file to view source --</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // DOM references
+      const stateLoading = document.getElementById('policies-state-loading');
+      const stateError = document.getElementById('policies-state-error');
+      const stateEmpty = document.getElementById('policies-state-empty');
+      const stateReady = document.getElementById('policies-state-ready');
+      const errorMessage = document.getElementById('policies-error-message');
+      const lastCheck = document.getElementById('policies-last-check');
+
+      // Ready state elements
+      const statusBanner = document.getElementById('policies-status-banner');
+      const statusIcon = document.getElementById('policies-status-icon');
+      const statusTitle = document.getElementById('policies-status-title');
+      const statusSubtitle = document.getElementById('policies-status-subtitle');
+      const policyVersion = document.getElementById('policies-version');
+      const bundleSha = document.getElementById('policies-bundle-sha');
+      const rulesCount = document.getElementById('policies-rules-count');
+      const compileState = document.getElementById('policies-compile-state');
+      const compileDetail = document.getElementById('policies-compile-detail');
+      const rulesTableBody = document.getElementById('policies-rules-tbody');
+
+      const POLL_INTERVAL = 15000;
+
+      // Check for embed mode
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('embed') === '1') {
+        document.body.classList.add('embed-mode');
+      }
+
+      function showState(state) {
+        stateLoading.classList.remove('active');
+        stateError.classList.remove('active');
+        stateEmpty.classList.remove('active');
+        stateReady.style.display = 'none';
+
+        switch (state) {
+          case 'loading':
+            stateLoading.classList.add('active');
+            break;
+          case 'error':
+            stateError.classList.add('active');
+            break;
+          case 'empty':
+            stateEmpty.classList.add('active');
+            break;
+          case 'ready':
+            stateReady.style.display = 'block';
+            break;
+        }
+      }
+
+      function updateStatusBanner(status) {
+        const statusClass = status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : 'error';
+        statusBanner.className = 'policies-status-banner ' + statusClass;
+        statusIcon.className = 'status-icon ' + statusClass;
+
+        if (status === 'ok') {
+          statusTitle.textContent = 'Policy Engine Healthy';
+          statusSubtitle.textContent = 'OPA is reachable and policies are compiled';
+        } else if (status === 'warn') {
+          statusTitle.textContent = 'Policy Engine Degraded';
+          statusSubtitle.textContent = 'Some policy checks failed';
+        } else {
+          statusTitle.textContent = 'Policy Engine Unreachable';
+          statusSubtitle.textContent = 'Cannot verify policy state';
+        }
+      }
+
+      function renderRules(rules) {
+        if (!rules || rules.length === 0) {
+          rulesTableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--slate-500);">No rules available</td></tr>';
+          return;
+        }
+
+        rulesTableBody.innerHTML = rules.map(rule => `
+          <tr>
+            <td><span class="rule-id">${rule.id || '--'}</span></td>
+            <td>${rule.condition || '--'}</td>
+            <td>${rule.action || 'BLOCK'}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function fetchPolicyStatus() {
+        try {
+          const response = await fetch('/api/policies/status');
+          if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+          }
+
+          const data = await response.json();
+          lastCheck.textContent = new Date().toLocaleTimeString();
+
+          // Handle states based on response
+          if (data.status === 'loading') {
+            showState('loading');
+            return;
+          }
+
+          if (data.status === 'error') {
+            errorMessage.textContent = data.error || 'Unknown error occurred';
+            showState('error');
+            return;
+          }
+
+          if (data.bundle && data.bundle.rules_count === 0) {
+            showState('empty');
+            return;
+          }
+
+          // Ready state
+          showState('ready');
+          updateStatusBanner(data.compile?.state === 'ok' ? 'ok' : data.compile?.state === 'warn' ? 'warn' : 'error');
+
+          // Update card values
+          policyVersion.textContent = data.bundle?.policy_version || 'unknown';
+          bundleSha.textContent = data.bundle?.sha256 ? data.bundle.sha256.substring(0, 16) + '...' : '--';
+          bundleSha.title = data.bundle?.sha256 || '';
+          rulesCount.textContent = data.bundle?.rules_count ?? '--';
+          compileState.textContent = (data.compile?.state || 'unknown').toUpperCase();
+          compileDetail.textContent = data.compile?.message || 'OPA policy compilation status';
+
+          // Update rules table
+          renderRules(data.rules || []);
+
+        } catch (err) {
+          console.error('[Policies] Fetch error:', err);
+          errorMessage.textContent = 'Failed to fetch policy status: ' + err.message;
+          showState('error');
+        }
+      }
+
+      // Initial fetch
+      fetchPolicyStatus();
+
+      // Poll for updates
+      setInterval(fetchPolicyStatus, POLL_INTERVAL);
+
+      // ================================================================
+      // Phase 14: Dealer View Logic (additive to Phase 13)
+      // ================================================================
+      const dealerSection = document.getElementById('policies-dealer-section');
+      const dealerFileCount = document.getElementById('policies-dealer-file-count');
+      const dealerFileList = document.getElementById('policies-dealer-file-list');
+      const dealerSourceViewer = document.getElementById('policies-dealer-source-viewer');
+      const dealerSourceFilename = document.getElementById('policies-dealer-source-filename');
+      const dealerSourceMeta = document.getElementById('policies-dealer-source-meta');
+      const dealerSourceContent = document.getElementById('policies-dealer-source-content');
+
+      async function fetchPolicyList() {
+        try {
+          const response = await fetch('/api/policies/list');
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          
+          const data = await response.json();
+          renderPolicyFileList(data);
+        } catch (err) {
+          console.error('[Policies] Dealer list error:', err);
+          dealerFileList.innerHTML = '<p style="color: var(--red-400); font-size: 0.875rem; margin: 0;">Failed to load policy files</p>';
+        }
+      }
+
+      function renderPolicyFileList(data) {
+        if (!data.files || data.files.length === 0) {
+          dealerFileCount.textContent = '0 files';
+          dealerFileList.innerHTML = '<p style="color: var(--slate-500); font-size: 0.875rem; margin: 0;">No policy files found</p>';
+          return;
+        }
+
+        dealerFileCount.textContent = data.total_count + ' file' + (data.total_count !== 1 ? 's' : '');
+
+        dealerFileList.innerHTML = data.files.map(file => `
+          <div class="dealer-file-item" data-filename="${file.filename}" 
+               style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm) var(--spacing-md); background: var(--slate-850); border-radius: var(--radius-md); margin-bottom: var(--spacing-xs); cursor: pointer; transition: background 0.15s;"
+               onmouseover="this.style.background='var(--slate-800)'" 
+               onmouseout="this.style.background='var(--slate-850)'">
+            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8125rem; color: var(--cyan-400);">${file.filename}</span>
+              <span style="font-size: 0.6875rem; color: var(--slate-500);">pkg: ${file.package || '?'}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+              <span style="font-size: 0.6875rem; color: var(--slate-500);">${file.line_count} lines</span>
+              <span style="font-size: 0.6875rem; font-family: 'JetBrains Mono', monospace; color: var(--slate-600);">${file.sha256.substring(0, 8)}...</span>
+            </div>
+          </div>
+        `).join('');
+
+        // Add click handlers
+        document.querySelectorAll('.dealer-file-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const filename = item.getAttribute('data-filename');
+            fetchPolicyDetail(filename);
+          });
+        });
+      }
+
+      async function fetchPolicyDetail(filename) {
+        try {
+          dealerSourceViewer.style.display = 'block';
+          dealerSourceFilename.textContent = filename;
+          dealerSourceMeta.textContent = 'Loading...';
+          dealerSourceContent.querySelector('code').textContent = 'Loading source...';
+
+          const response = await fetch('/api/policies/detail?file=' + encodeURIComponent(filename));
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'HTTP ' + response.status);
+          }
+
+          const data = await response.json();
+          renderPolicyDetail(data);
+        } catch (err) {
+          console.error('[Policies] Dealer detail error:', err);
+          dealerSourceMeta.textContent = 'Error';
+          dealerSourceContent.querySelector('code').textContent = 'Failed to load: ' + err.message;
+        }
+      }
+
+      function renderPolicyDetail(data) {
+        dealerSourceFilename.textContent = data.filename;
+        dealerSourceMeta.textContent = `v${data.policy_version || '?'} • ${data.line_count} lines • sha256:${data.sha256.substring(0, 12)}...`;
+        dealerSourceContent.querySelector('code').textContent = data.content;
+      }
+
+      // Initial dealer view load (after first policy status fetch succeeds)
+      setTimeout(fetchPolicyList, 500);
+
+      // Expose for debugging
+      window.PoliciesPage = {
+        refresh: fetchPolicyStatus,
+        refreshDealer: fetchPolicyList
+      };
+    })();
+  </script>
+
+  <!-- Provenance Footer (if not embedded) -->
+  <script src="/assets/provenance-footer.js"></script>
+</body>
+</html>

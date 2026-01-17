@@ -1,0 +1,79 @@
+═══════════════════════════════════════════════════════════════════
+Phase 14: Policies Dealer View Contract Gate
+═══════════════════════════════════════════════════════════════════
+
+Section 1: File existence
+-------------------------------------------------------------------
+[0;32m✓[0m policies.html exists
+[0;32m✓[0m server.js exists
+[0;32m✓[0m ph13 gate exists (dependency)
+
+Section 2: Dealer View DOM Anchors
+-------------------------------------------------------------------
+[0;32m✓[0m policies-dealer-section anchor exists
+[0;32m✓[0m policies-dealer-file-count anchor exists
+[0;32m✓[0m policies-dealer-file-list anchor exists
+[0;32m✓[0m policies-dealer-source-viewer anchor exists
+[0;32m✓[0m policies-dealer-source-filename anchor exists
+[0;32m✓[0m policies-dealer-source-meta anchor exists
+[0;32m✓[0m policies-dealer-source-content anchor exists
+
+Section 3: Phase 14 API Route Definitions
+-------------------------------------------------------------------
+[0;32m✓[0m /api/policies/list route defined
+[0;32m✓[0m /api/policies/detail route defined
+[0;32m✓[0m POLICY_FILE_ALLOWLIST defined (fail-closed)
+[0;32m✓[0m Phase 14 section header in server.js
+
+Section 4: List Endpoint Schema
+-------------------------------------------------------------------
+[0;32m✓[0m list endpoint returns schema_version
+[0;32m✓[0m list endpoint returns files array
+[0;32m✓[0m list endpoint returns total_count
+[0;32m✓[0m list endpoint returns fetched_at
+
+Section 5: Detail Endpoint Schema
+-------------------------------------------------------------------
+[0;32m✓[0m detail endpoint returns filename
+[0;32m✓[0m detail endpoint returns content
+[0;32m✓[0m detail endpoint validates allowlist
+[0;32m✓[0m detail endpoint returns 404 for unknown files
+
+Section 6: JavaScript Fetch Integration
+-------------------------------------------------------------------
+[0;32m✓[0m fetchPolicyList function defined
+[0;32m✓[0m fetchPolicyDetail function defined
+[0;32m✓[0m renderPolicyFileList function defined
+[0;32m✓[0m renderPolicyDetail function defined
+[0;32m✓[0m Fetches /api/policies/list
+[0;32m✓[0m Fetches /api/policies/detail
+
+Section 7: Runtime Checks (optional)
+-------------------------------------------------------------------
+UI server reachable at http://localhost:3000, running runtime checks...
+[0;32m✓[0m API list returns schema_version 1.0.0
+[0;32m✓[0m API list returns files array
+[0;32m✓[0m API list returns total_count
+[0;32m✓[0m API list returns fetched_at timestamp
+[0;32m✓[0m API detail returns filename
+[0;32m✓[0m API detail returns content
+[0;32m✓[0m API detail returns sha256
+[0;32m✓[0m API detail returns policy_version
+[0;32m✓[0m API detail blocks non-allowlisted files
+[0;32m✓[0m API detail returns allowed_files hint
+
+Section 8: Phase 13 Compatibility
+-------------------------------------------------------------------
+[0;32m✓[0m Phase 13 anchor policies-state-loading preserved
+[0;32m✓[0m Phase 13 anchor policies-state-error preserved
+[0;32m✓[0m Phase 13 anchor policies-state-ready preserved
+[0;32m✓[0m Phase 13 anchor policies-version preserved
+[0;32m✓[0m Phase 13 anchor policies-bundle-sha preserved
+[0;32m✓[0m Phase 13 anchor policies-rules-count preserved
+[0;32m✓[0m Phase 13 anchor policies-compile-state preserved
+[0;32m✓[0m Phase 13 /api/policies/status route preserved
+
+═══════════════════════════════════════════════════════════════════
+GATE_SUMMARY gate=ph14-policies-dealer-view passed=46 failed=0
+
+[0;32m✅ GATE PASSED: All 46 checks passed[0m

@@ -417,6 +417,18 @@ jobs:
           ./scripts/ph12-alerts-ack-contract-gate.sh | tee /tmp/gate14.log
           echo "GATE_SUMMARY gate=ph12-alerts-ack status=PASS"
 
+      - name: Gate 15 — ph13 Policies Contract
+        run: |
+          chmod +x ./scripts/ph13-policies-contract-gate.sh
+          ./scripts/ph13-policies-contract-gate.sh | tee /tmp/gate15.log
+          echo "GATE_SUMMARY gate=ph13-policies status=PASS"
+
+      - name: Gate 16 — ph14 Policies Dealer View Contract
+        run: |
+          chmod +x ./scripts/ph14-policies-dealer-view-contract-gate.sh
+          ./scripts/ph14-policies-dealer-view-contract-gate.sh | tee /tmp/gate16.log
+          echo "GATE_SUMMARY gate=ph14-policies-dealer-view status=PASS"
+
       - name: Smoke — Provenance Endpoint Runtime
         run: |
           chmod +x ./scripts/ph9-provenance-smoke.sh

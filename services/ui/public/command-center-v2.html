@@ -356,6 +356,14 @@
           <span>Infra</span>
           <span class="item-badge" id="infra-badge" style="display: none;"></span>
         </button>
+
+        <button class="shell-sidebar-item" id="tab-policies" data-tab="policies" title="Policy Status">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Policies</span>
+          <span class="item-badge" id="policies-badge" style="display: none;"></span>
+        </button>
       </div>
     </nav>
 
@@ -407,6 +415,13 @@
             <iframe src="/infrastructure?embed=1" title="Infrastructure Status" loading="lazy"></iframe>
           </div>
         </section>
+
+        <!-- Policies Tab -->
+        <section class="tab-panel" id="panel-policies">
+          <div class="embed-container" id="embed-policies">
+            <iframe src="/policies?embed=1" title="Policy Status" loading="lazy"></iframe>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -445,7 +460,7 @@
       // Handle initial hash
       function handleInitialHash() {
         const hash = window.location.hash.replace('#', '');
-        const validTabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo', 'infra'];
+        const validTabs = ['dashboard', 'orders', 'lps', 'alerts', 'demo', 'infra', 'policies'];
         if (hash && validTabs.includes(hash)) {
           switchTab(hash);
         }

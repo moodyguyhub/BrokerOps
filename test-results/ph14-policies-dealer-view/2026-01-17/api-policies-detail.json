@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "filename": "order.rego",
+  "package": "broker.risk.order",
+  "policy_version": "policy.v0.2",
+  "line_count": 49,
+  "sha256": "7923a793619a2374639a3b2da4f2ad21d1060467db4dc66301e826c7a6ae799e",
+  "content": "# Broker Risk Policy v0.2\n# Policy ID: broker.risk.order\n# Owner: Compliance Team\n\npackage broker.risk.order\n\nimport rego.v1\n\ndefault decision := {\"allow\": false, \"reason_code\": \"POLICY_ERROR\", \"rule_id\": \"fallback\"}\n\n# Metadata for audit trail\npolicy_version := \"policy.v0.2\"\n\n# Rule: Block orders exceeding quantity limit\ndecision := {\"allow\": false, \"reason_code\": \"QTY_LIMIT_EXCEEDED\", \"rule_id\": \"qty_limit\"} if {\ninput.qty > 1000\n}\n\n# Rule: Block restricted symbols with high quantity\ndecision := {\"allow\": false, \"reason_code\": \"SYMBOL_RESTRICTION\", \"rule_id\": \"symbol_gme\"} if {\nupper(input.symbol) == \"GME\"\ninput.qty > 10\n}\n\n# Rule: Block penny stocks over threshold\ndecision := {\"allow\": false, \"reason_code\": \"PENNY_STOCK_RESTRICTION\", \"rule_id\": \"penny_stock\"} if {\ninput.price != null\ninput.price < 1.0\ninput.qty > 100\n}\n\n# Rule: Allow if no blocking rules match\ndecision := {\"allow\": true, \"reason_code\": \"OK\", \"rule_id\": \"allow_default\"} if {\ninput.qty <= 1000\nnot restricted_symbol\nnot penny_stock_violation\n}\n\nrestricted_symbol if {\nupper(input.symbol) == \"GME\"\ninput.qty > 10\n}\n\npenny_stock_violation if {\ninput.price != null\ninput.price < 1.0\ninput.qty > 100\n}\n",
+  "fetched_at": "2026-01-17T20:33:28.505Z"
+}

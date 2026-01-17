@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0.0",
+  "error": "File not in allowlist: EVIL.rego",
+  "allowed_files": [
+    "order.rego"
+  ]
+}
