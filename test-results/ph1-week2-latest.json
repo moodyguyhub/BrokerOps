@@ -1,0 +1,21 @@
+{
+  "suite": "PH1-Week2-LP-Snapshots-Acceptance",
+  "timestamp": "2026-01-16T21:41:21+02:00",
+  "output_dir": "/home/mahmood-asadi/BrokerOps/test-results/ph1-week2-2026-01-16-214019",
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "success": true
+  },
+  "tests": [
+    {"test": "Audit-writer health", "status": "PASS", "message": "Service responding"},{"test": "Order-API health", "status": "PASS", "message": "Service responding"},{"test": "LP Simulator health", "status": "PASS", "message": "Service responding"},{"test": "LP Snapshot loop running", "status": "PASS", "message": "enabled=true, running=true"},{"test": "Manual snapshot emission", "status": "PASS", "message": "Emitted 3 snapshots"},{"test": "LP accounts exist", "status": "PASS", "message": "Found 3 LP accounts in database"},{"test": "Order-API LP accounts endpoint", "status": "PASS", "message": "Returns 3 accounts"},{"test": "LP snapshot accumulation", "status": "PASS", "message": "36 snapshots in 60s (≥30 required)"},{"test": "LP-B snapshot count", "status": "PASS", "message": "12 snapshots for LP-B in 60s (≥10 required)"},{"test": "LP-B history endpoint", "status": "PASS", "message": "Returns 10 history records"},{"test": "Rejections 1h window filter", "status": "PASS", "message": "Window=1h, count=4"},{"test": "Rejections 30m window filter", "status": "PASS", "message": "Window=30m"},{"test": "Rejections rollup with window", "status": "PASS", "message": "rollup=reason, window=1h"}
+  ],
+  "environment": {
+    "audit_writer_url": "http://localhost:7003",
+    "order_api_url": "http://localhost:7001",
+    "lp_simulator_url": "http://localhost:7010",
+    "postgres_host": "localhost",
+    "postgres_port": "5434"
+  }
+}

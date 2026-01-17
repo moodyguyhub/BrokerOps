@@ -1,0 +1,26 @@
+{
+  "overall_status": "PASS",
+  "message": "All Week 1 invariants verified",
+  "timestamps": {
+    "started_at": "2026-01-16T19:22:32Z",
+    "finished_at": "2026-01-16T19:22:34Z"
+  },
+  "endpoints": {
+    "simulator": "http://localhost:7010",
+    "audit_writer": "http://localhost:7003",
+    "order_api": "http://localhost:7001"
+  },
+  "invariants": {
+    "orders_count": 4,
+    "lifecycle_events_count": 2,
+    "lp_accounts_count": 2,
+    "rejections_count": 2,
+    "sample_order_id": "w1-reject-1768591352"
+  },
+  "week1_criteria": {
+    "orders_populated": true,
+    "lifecycle_events_populated": true,
+    "lp_accounts_seeded": true,
+    "end_to_end_working": true
+  }
+}

@@ -1,238 +1,203 @@
 #!/usr/bin/env bash
-set -euo pipefail
+#
+# TRUVESTA DEMO — Complete Demo Flow
+# One command: up → scenarios → evidence pack → down
+#
+# Usage:
+#   ./scripts/demo.sh          # Full demo flow (interactive)
+#   ./scripts/demo.sh --auto   # Non-interactive (auto-cleanup)
+#   ./scripts/demo.sh --up     # Start services only
+#   ./scripts/demo.sh --down   # Stop services only
+#
 
-# BrokerOps Demo Script
-# One command to prove the product thesis:
-# "Given a traceId, we can explain exactly why something happened"
+set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-cd "$ROOT_DIR"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-log() { echo -e "${BLUE}[DEMO]${NC} $1"; }
-success() { echo -e "${GREEN}[✓]${NC} $1"; }
-warn() { echo -e "${YELLOW}[!]${NC} $1"; }
-error() { echo -e "${RED}[✗]${NC} $1"; }
+# Banner
+print_banner() {
+  echo ""
+  echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${CYAN}║${NC}                                                                          ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}████████╗██████╗ ██╗   ██╗██╗   ██╗███████╗███████╗████████╗ █████╗${NC}       ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔════╝██╔════╝╚══██╔══╝██╔══██╗${NC}      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}   ██║   ██████╔╝██║   ██║██║   ██║█████╗  ███████╗   ██║   ███████║${NC}      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}   ██║   ██╔══██╗██║   ██║╚██╗ ██╔╝██╔══╝  ╚════██║   ██║   ██╔══██║${NC}      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}   ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ███████╗███████║   ██║   ██║  ██║${NC}      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}  ${BOLD}   ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝${NC}      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}                                                                          ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}      ${YELLOW}Decision authority here; execution remains platform-owned.${NC}         ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}                                                                          ${CYAN}║${NC}"
+  echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+  echo ""
+}
 
+# Header
 header() {
   echo ""
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-  echo -e "${BLUE}  $1${NC}"
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+  echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${BOLD}  $1${NC}"
+  echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
 }
 
-cleanup() {
-  log "Cleaning up background processes..."
-  pkill -f "node services/" 2>/dev/null || true
-}
+# Parse arguments
+AUTO_MODE=false
+UP_ONLY=false
+DOWN_ONLY=false
 
-trap cleanup EXIT
-
-# ============================================================================
-header "BrokerOps MVP Demo"
-# ============================================================================
-
-log "Starting infrastructure (Postgres + OPA)..."
-docker compose up -d --wait 2>/dev/null || docker compose up -d
-
-sleep 2
-
-log "Applying database migrations..."
-for migration in infra/sql/*.sql infra/db/migrations/*.sql; do
-  if [ -f "$migration" ]; then
-    log "  Applying $migration..."
-    docker exec -i broker-postgres psql -U broker -d broker < "$migration" 2>/dev/null || true
-  fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --auto)
+      AUTO_MODE=true
+      shift
+      ;;
+    --up)
+      UP_ONLY=true
+      shift
+      ;;
+    --down)
+      DOWN_ONLY=true
+      shift
+      ;;
+    -h|--help)
+      echo "TRUVESTA Demo Script"
+      echo ""
+      echo "Usage: ./scripts/demo.sh [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  --up      Start services only (no scenarios)"
+      echo "  --down    Stop services only"
+      echo "  --auto    Non-interactive mode (auto-cleanup after demo)"
+      echo "  -h,--help Show this help message"
+      echo ""
+      echo "Examples:"
+      echo "  ./scripts/demo.sh          # Interactive full demo"
+      echo "  ./scripts/demo.sh --up     # Just start services"
+      echo "  ./scripts/demo.sh --auto   # Full demo, auto-cleanup"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
 done
 
-log "Building all services..."
-pnpm -r build 2>/dev/null
+cd "$PROJECT_DIR"
 
-log "Starting services..."
-pkill -f "node services/" 2>/dev/null || true
-sleep 1
-
-node services/risk-gate/dist/index.js &
-node services/audit-writer/dist/index.js &
-node services/order-api/dist/index.js &
-node services/reconstruction-api/dist/index.js &
-node services/economics/dist/index.js &
-node services/webhooks/dist/index.js &
-node services/ui/server.js &
-
-sleep 2
-
-# Health checks
-log "Checking service health..."
-curl -sf http://localhost:7001/health > /dev/null && success "order-api :7001" || error "order-api"
-curl -sf http://localhost:7002/health > /dev/null && success "risk-gate :7002" || error "risk-gate"
-curl -sf http://localhost:7003/health > /dev/null && success "audit-writer :7003" || error "audit-writer"
-curl -sf http://localhost:7004/health > /dev/null && success "reconstruction-api :7004" || error "reconstruction-api"
-curl -sf http://localhost:7005/health > /dev/null && success "economics :7005" || error "economics"
-curl -sf http://localhost:7006/health > /dev/null && success "webhooks :7006" || error "webhooks"
-curl -sf http://localhost:3000/health > /dev/null && success "ui :3000" || error "ui"
-curl -sf http://localhost:8181/health > /dev/null && success "OPA :8181" || error "OPA"
-
-# ============================================================================
-header "Scenario: Blocked Order → Dual-Control Override"
-# ============================================================================
-
-log "Step 1: Submit order (GME, qty=100) — should be BLOCKED by policy"
-RESPONSE=$(curl -s -X POST http://localhost:7001/orders \
-  -H "content-type: application/json" \
-  -d '{"clientOrderId":"demo-order","symbol":"GME","side":"BUY","qty":100}')
-
-TRACE_ID=$(echo "$RESPONSE" | jq -r '.traceId')
-STATUS=$(echo "$RESPONSE" | jq -r '.status')
-REASON=$(echo "$RESPONSE" | jq -r '.reasonCode')
-RULE=$(echo "$RESPONSE" | jq -r '.ruleId')
-
-if [ "$STATUS" = "BLOCKED" ]; then
-  success "Order BLOCKED"
-  echo "    traceId: $TRACE_ID"
-  echo "    reason: $REASON"
-  echo "    rule: $RULE"
-else
-  error "Expected BLOCKED, got $STATUS"
-  exit 1
+# Down only mode
+if [ "$DOWN_ONLY" = true ]; then
+  echo -e "${YELLOW}Stopping demo environment...${NC}"
+  ./scripts/demo-down.sh
+  exit 0
 fi
 
-echo ""
-log "Step 2: Operator Alice requests override"
-OVERRIDE_REQ=$(curl -s -X POST "http://localhost:7001/override/$TRACE_ID/request" \
-  -H "content-type: application/json" \
-  -d '{"operatorId":"ops-alice","reason":"Client is verified institutional, exception approved by compliance","newDecision":"ALLOW"}')
+# Print banner
+print_banner
 
-REQ_STATUS=$(echo "$OVERRIDE_REQ" | jq -r '.status')
-if [ "$REQ_STATUS" = "OVERRIDE_REQUESTED" ]; then
-  success "Override requested by ops-alice"
-else
-  error "Override request failed: $REQ_STATUS"
-  exit 1
-fi
+# Step 1: Start services
+header "STEP 1/3: Starting Demo Environment"
+./scripts/demo-up.sh
 
-echo ""
-log "Step 3: Operator Alice tries to self-approve (should FAIL)"
-SELF_APPROVE=$(curl -s -X POST "http://localhost:7001/override/$TRACE_ID/approve" \
-  -H "content-type: application/json" \
-  -d '{"operatorId":"ops-alice","comment":"Self approval attempt"}')
-
-ERROR=$(echo "$SELF_APPROVE" | jq -r '.error')
-if [ "$ERROR" = "DUAL_CONTROL_VIOLATION" ]; then
-  success "Dual-control enforced — self-approval blocked"
-else
-  error "Dual-control failed: $ERROR"
-  exit 1
-fi
-
-echo ""
-log "Step 4: Operator Bob approves (different operator)"
-APPROVE=$(curl -s -X POST "http://localhost:7001/override/$TRACE_ID/approve" \
-  -H "content-type: application/json" \
-  -d '{"operatorId":"ops-bob","comment":"Reviewed and approved per compliance exception process"}')
-
-APPROVE_STATUS=$(echo "$APPROVE" | jq -r '.status')
-DUAL_VERIFIED=$(echo "$APPROVE" | jq -r '.dualControlVerified')
-if [ "$APPROVE_STATUS" = "OVERRIDE_APPROVED" ] && [ "$DUAL_VERIFIED" = "true" ]; then
-  success "Override approved by ops-bob (dual-control verified)"
-else
-  error "Approval failed: $APPROVE_STATUS"
-  exit 1
+if [ "$UP_ONLY" = true ]; then
+  exit 0
 fi
 
 # ============================================================================
-header "Step 5: Record Economic Impact"
+# PREFLIGHT: Verify order_digest is present in token (catch old builds early)
 # ============================================================================
-
-log "Recording economic event: blocked trade would have generated \$12.50 revenue"
-ECON_BLOCKED=$(curl -s -X POST http://localhost:7005/economics/event \
-  -H "content-type: application/json" \
-  -d "{\"traceId\":\"$TRACE_ID\",\"type\":\"TRADE_BLOCKED\",\"estimatedLostRevenue\":12.50,\"currency\":\"USD\",\"source\":\"demo\",\"policyId\":\"symbol_gme\"}")
-success "Economic event recorded (TRADE_BLOCKED, lost \$12.50)"
-
-log "Recording economic event: override approved, trade executed"
-ECON_OVERRIDE=$(curl -s -X POST http://localhost:7005/economics/event \
-  -H "content-type: application/json" \
-  -d "{\"traceId\":\"$TRACE_ID\",\"type\":\"OVERRIDE_APPROVED\",\"grossRevenue\":12.50,\"fees\":1.20,\"costs\":0.80,\"currency\":\"USD\",\"source\":\"demo\"}")
-success "Economic event recorded (OVERRIDE_APPROVED, +\$12.50 revenue)"
-
 echo ""
-log "Fetching economics summary..."
-ECON_SUMMARY=$(curl -s http://localhost:7005/economics/summary)
-echo "$ECON_SUMMARY" | jq '.'
+echo -e "${YELLOW}Running preflight check...${NC}"
 
-# ============================================================================
-header "Trace Reconstruction (The Product Thesis)"
-# ============================================================================
+PREFLIGHT_RESPONSE=$(curl -sf -X POST http://localhost:7001/v1/authorize \
+  -H "Content-Type: application/json" \
+  -d '{"order":{"client_order_id":"preflight-check","symbol":"TEST","side":"BUY","qty":1},"context":{"client_id":"preflight"}}' 2>/dev/null || echo '{}')
 
-log "Fetching trace bundle for $TRACE_ID..."
-BUNDLE=$(curl -s "http://localhost:7004/trace/$TRACE_ID/bundle")
+if command -v jq &> /dev/null; then
+  ORDER_DIGEST=$(echo "$PREFLIGHT_RESPONSE" | jq -r '.decision_token.payload.order_digest // empty' 2>/dev/null)
+  if [ -z "$ORDER_DIGEST" ] || [ "$ORDER_DIGEST" = "null" ]; then
+    echo ""
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  PREFLIGHT FAILED: Token missing order_digest (old build detected)       ║${NC}"
+    echo -e "${RED}╠══════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${RED}║  Fix: Rebuild and restart services                                       ║${NC}"
+    echo -e "${RED}║       cd packages/common && pnpm tsc --build                             ║${NC}"
+    echo -e "${RED}║       cd services/order-api && pnpm tsc --build                          ║${NC}"
+    echo -e "${RED}║       ./scripts/demo-down.sh && ./scripts/demo-up.sh                     ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    ./scripts/demo-down.sh
+    exit 1
+  fi
+  echo -e "${GREEN}✓${NC} Preflight passed: order_digest present"
+else
+  echo -e "${YELLOW}!${NC} jq not installed - skipping preflight (evidence pack will still validate)"
+fi
 
+# Pause before scenarios
 echo ""
-echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  TRACE BUNDLE SUMMARY${NC}"
-echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-echo "$BUNDLE" | jq '.summary'
+echo -e "${YELLOW}Services ready. Starting demo scenarios in 3 seconds...${NC}"
+sleep 3
 
-ECONOMIC_IMPACT=$(echo "$BUNDLE" | jq '.summary.economicImpact')
-if [ "$ECONOMIC_IMPACT" != "null" ]; then
+# Step 2: Run scenarios
+header "STEP 2/3: Running Demo Scenarios"
+./scripts/demo-scenarios.sh
+
+# Pause before evidence pack
+echo ""
+echo -e "${YELLOW}Scenarios complete. Generating evidence pack in 3 seconds...${NC}"
+sleep 3
+
+# Step 3: Generate evidence pack
+header "STEP 3/3: Generating Evidence Pack"
+./scripts/demo-evidence-pack.sh
+
+# Summary
+header "DEMO COMPLETE"
+
+echo -e "  ${GREEN}✓${NC} Infrastructure: PostgreSQL + OPA"
+echo -e "  ${GREEN}✓${NC} Services: 7 microservices running"
+echo -e "  ${GREEN}✓${NC} Scenarios: 4 value demonstrations executed"
+echo -e "  ${GREEN}✓${NC} Evidence: Pack generated with SHA256 checksums"
+echo ""
+echo -e "  ${BOLD}Live URLs:${NC}"
+echo ""
+echo -e "    ${CYAN}http://localhost:3000/command-center.html${NC}  ← Command Center"
+echo -e "    ${CYAN}http://localhost:3000/truvesta.html${NC}        ← Truvesta Dashboard"
+echo -e "    ${CYAN}http://localhost:7001/v1/authorize${NC}         ← Authorization API"
+echo ""
+echo -e "  ${BOLD}Evidence Pack:${NC}"
+echo -e "    Location: ${CYAN}./evidence/demo-pack-*/CHECKSUMS.sha256${NC}"
+echo ""
+echo -e "  ${BOLD}Run Tests:${NC}"
+echo -e "    ${CYAN}pnpm --filter @broker/tests test${NC}           ← Full test suite"
+echo ""
+
+if [ "$AUTO_MODE" = true ]; then
+  echo -e "${YELLOW}Auto mode: Shutting down in 5 seconds...${NC}"
+  sleep 5
+  ./scripts/demo-down.sh
+else
+  echo -e "  ${BOLD}To stop services:${NC} ${CYAN}./scripts/demo-down.sh${NC}"
   echo ""
-  echo -e "${YELLOW}Economic Impact attached to trace:${NC}"
-  echo "$ECONOMIC_IMPACT" | jq '.'
+  echo -e "  ${YELLOW}Press Enter to stop services, or Ctrl+C to keep running...${NC}"
+  read -r
+  ./scripts/demo-down.sh
 fi
 
 echo ""
-echo -e "${BLUE}Hash Chain (integrity verified):${NC}"
-echo "$BUNDLE" | jq '.hashChain[] | "\(.eventType) → \(.hash[0:12])..."'
-
-INTEGRITY=$(echo "$BUNDLE" | jq -r '.integrityVerified')
-HASH_VALID=$(echo "$BUNDLE" | jq -r '.summary.hashChainValid')
-
+echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║                       Demo complete. Thank you!                          ║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-if [ "$INTEGRITY" = "true" ] && [ "$HASH_VALID" = "true" ]; then
-  success "Hash chain integrity: VERIFIED"
-else
-  error "Hash chain integrity: FAILED"
-fi
-
-# ============================================================================
-header "Demo Complete"
-# ============================================================================
-
-echo -e "${GREEN}Product thesis proven:${NC}"
-echo ""
-echo "  Given traceId: $TRACE_ID"
-echo "  We can explain:"
-echo "    ✓ What was requested (GME 100 shares)"
-echo "    ✓ Why it was blocked (SYMBOL_RESTRICTION, rule: symbol_gme)"
-echo "    ✓ Who requested override (ops-alice)"
-echo "    ✓ Who approved it (ops-bob)"
-echo "    ✓ What it cost/earned (economic impact attached)"
-echo "    ✓ That the audit trail is tamper-evident (hash chain verified)"
-echo ""
-echo -e "${YELLOW}This is governance as code + decision economics.${NC}"
-echo ""
-
-# ============================================================================
-header "UI Dashboard Available"
-# ============================================================================
-
-echo -e "${GREEN}Open in browser:${NC}  http://localhost:3000"
-echo ""
-echo "  Dashboard features:"
-echo "    • Recent traces list with status badges"
-echo "    • Trace bundle viewer with hash chain"
-echo "    • Webhook delivery log"
-echo ""
-
-# Keep services running for exploration
-log "Services running. Press Ctrl+C to stop."
-wait

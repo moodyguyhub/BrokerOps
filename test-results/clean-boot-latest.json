@@ -1,0 +1,27 @@
+{
+  "suite": "Clean-Boot-Verification",
+  "timestamp": "2026-01-16T21:58:43+02:00",
+  "output_dir": "/home/mahmood-asadi/BrokerOps/test-results/clean-boot-2026-01-16-215837",
+  "success": true,
+  "phases": {
+    "postgres_startup": "SUCCESS",
+    "migrations": "SUCCESS",
+    "table_verification": "SUCCESS",
+    "seed_data": "true"
+  },
+  "migrations": [
+    {"file": "001_init.sql", "status": "SUCCESS"},{"file": "002_shadow_ledger.sql", "status": "SUCCESS"},{"file": "004_p2_lifecycle.sql", "status": "SUCCESS"},{"file": "005_ph1_lp_events.sql", "status": "SUCCESS"},{"file": "006_ph1_read_models.sql", "status": "SUCCESS"},{"file": "007_ph1_alerts.sql", "status": "SUCCESS"}
+  ],
+  "tables": [
+    {"table": "audit_events", "exists": true},{"table": "lp_accounts", "exists": true},{"table": "lp_snapshots", "exists": true},{"table": "orders", "exists": true},{"table": "order_lifecycle_events", "exists": true},{"table": "rejections", "exists": true},{"table": "alert_settings", "exists": true},{"table": "alerts", "exists": true},{"table": "alert_acks", "exists": true},{"table": "alert_cooldowns", "exists": true},{"table": "dashboard_stats", "exists": true},{"table": "notification_log", "exists": true}
+  ],
+  "seed_data": {
+    "alert_settings_count": 6,
+    "dashboard_stats_count": 11
+  },
+  "postgres": {
+    "container": "broker-postgres-clean-test",
+    "port": "5435",
+    "database": "broker"
+  }
+}

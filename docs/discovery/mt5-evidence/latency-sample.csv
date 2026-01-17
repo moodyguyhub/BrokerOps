@@ -1,0 +1,2 @@
+timestamp_utc,endpoint,latency_ms
+2026-01-16T16:36:46Z,http://localhost:7001/v1/authorize,31

@@ -1,0 +1,31 @@
+{
+  "version": "p0-perf-v1",
+  "timestamp": "2026-01-16T05:23:04.319Z",
+  "config": {
+    "total_requests": 1000,
+    "concurrency": 50
+  },
+  "results": {
+    "completed": 1000,
+    "errors": 0,
+    "duration_sec": "1.87",
+    "requests_per_sec": "533.90",
+    "latency_ms": {
+      "p50": "85.19",
+      "p95": "126.86",
+      "p99": "189.76",
+      "min": "68.18",
+      "max": "245.31"
+    }
+  },
+  "slo_evaluation": {
+    "p99_target_ms": 10,
+    "p99_actual_ms": "189.76",
+    "p99_met": false,
+    "topology_note": "Same-host (localhost)"
+  },
+  "environment": {
+    "node_version": "v22.21.0",
+    "platform": "linux"
+  }
+}

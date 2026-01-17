@@ -1,0 +1,21 @@
+{
+  "suite": "PH1-Week3-Alerts-Dashboard-Acceptance",
+  "timestamp": "2026-01-16T21:51:28+02:00",
+  "output_dir": "/home/mahmood-asadi/BrokerOps/test-results/ph1-week3-2026-01-16-215120",
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "success": true
+  },
+  "tests": [
+    {"test": "audit-writer health", "status": "PASS", "message": "Service responding"},{"test": "order-api health", "status": "PASS", "message": "Service responding"},{"test": "lp-simulator health", "status": "PASS", "message": "Service responding"},{"test": "Alert settings exist", "status": "PASS", "message": "Found 6 enabled alert settings"},{"test": "Alert settings API", "status": "PASS", "message": "Returns 6 settings"},{"test": "Low margin event emitted", "status": "PASS", "message": "LP snapshot with margin_level=45% sent"},{"test": "Margin alert created", "status": "PASS", "message": "MARGIN_CRITICAL alert triggered for LP-TEST-MARGIN"},{"test": "Cooldown enforced", "status": "PASS", "message": "Second event did not create duplicate alert"},{"test": "Alert acknowledged", "status": "PASS", "message": "ACK action succeeded"},{"test": "Alert status updated", "status": "PASS", "message": "Status changed to ACKNOWLEDGED"},{"test": "Ack audit trail", "status": "PASS", "message": "Found 1 acknowledgment record(s)"},{"test": "Rejection spike alert", "status": "PASS", "message": "Created 1 rejection alert(s)"},{"test": "Rejection alerts via API", "status": "PASS", "message": "Found 1 rejection alert(s)"},{"test": "Dashboard KPI structure", "status": "PASS", "message": "All sections present (orders, rejections, lp_health, alerts)"},{"test": "KPI orders match DB", "status": "PASS", "message": "rejected=10 matches DB"},{"test": "KPI rejections match DB", "status": "PASS", "message": "total=10 matches DB"},{"test": "KPI alerts match DB", "status": "PASS", "message": "open=3 matches DB"},{"test": "Dashboard timeline", "status": "PASS", "message": "Returns 4 time buckets"}
+  ],
+  "environment": {
+    "audit_writer_url": "http://localhost:7003",
+    "order_api_url": "http://localhost:7001",
+    "lp_simulator_url": "http://localhost:7010",
+    "postgres_host": "localhost",
+    "postgres_port": "5434"
+  }
+}

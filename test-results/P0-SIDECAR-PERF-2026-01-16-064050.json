@@ -1,0 +1,82 @@
+{
+  "artifact_type": "P0-SIDECAR-PERF",
+  "timestamp": "2026-01-16T06:40:50.000Z",
+  "config": {
+    "url": "http://localhost:8080/v1/authorize",
+    "warmupRequests": 1000,
+    "durationMs": 10000,
+    "concurrency": 10
+  },
+  "results": {
+    "latency_ms": {
+      "count": 53556,
+      "min": 0.16,
+      "max": 22.83,
+      "mean": 1.03,
+      "p50": 0.59,
+      "p95": 2.86,
+      "p99": 4.25,
+      "stddev": 1.12
+    },
+    "latency_us": {
+      "count": 53556,
+      "min": 160,
+      "max": 22830,
+      "mean": 1030,
+      "p50": 588,
+      "p95": 2857,
+      "p99": 4250,
+      "stddev": 1120
+    },
+    "throughput_rps": 5355.06,
+    "total_requests": 53556,
+    "errors": 0
+  },
+  "timing_breakdown": {
+    "policy_us": {
+      "count": 53556,
+      "min": 0,
+      "max": 42,
+      "mean": 0.2,
+      "p50": 0,
+      "p95": 1,
+      "p99": 2,
+      "stddev": 0.5
+    },
+    "state_us": {
+      "count": 53556,
+      "min": 0,
+      "max": 127,
+      "mean": 0.4,
+      "p50": 0,
+      "p95": 1,
+      "p99": 2,
+      "stddev": 1.2
+    },
+    "sign_us": {
+      "count": 53556,
+      "min": 3,
+      "max": 892,
+      "mean": 7.1,
+      "p50": 5,
+      "p95": 15,
+      "p99": 27,
+      "stddev": 8.3
+    }
+  },
+  "hypothesis_validation": {
+    "p50_target_ms": 2,
+    "p95_target_ms": 5,
+    "p99_target_ms": 10,
+    "p50_met": true,
+    "p95_met": true,
+    "p99_met": true,
+    "verdict": "VALIDATED"
+  },
+  "comparison_to_cloud": {
+    "cloud_path_p99_ms": 252.45,
+    "sidecar_p99_ms": 4.25,
+    "improvement_factor": 59.4,
+    "note": "Sidecar achieves 59x better p99 latency than cloud path"
+  }
+}

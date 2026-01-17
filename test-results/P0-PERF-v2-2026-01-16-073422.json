@@ -1,0 +1,78 @@
+{
+  "version": "p0-perf-v2",
+  "timestamp": "2026-01-16T05:34:24.380Z",
+  "config": {
+    "total_requests": 1000,
+    "concurrency": 50
+  },
+  "results": {
+    "completed": 1000,
+    "errors": 0,
+    "duration_sec": "2.18",
+    "requests_per_sec": "459.14",
+    "latency_ms": {
+      "p50": "99.21",
+      "p95": "214.78",
+      "p99": "252.45",
+      "min": "74.69",
+      "max": "269.34"
+    }
+  },
+  "segment_percentiles_ms": {
+    "parse_validate": {
+      "p50": "0.03",
+      "p95": "0.04",
+      "p99": "0.06"
+    },
+    "audit_request": {
+      "p50": "12.67",
+      "p95": "20.42",
+      "p99": "74.02"
+    },
+    "policy_decision": {
+      "p50": "25.47",
+      "p95": "48.46",
+      "p99": "78.86"
+    },
+    "audit_risk": {
+      "p50": "38.26",
+      "p95": "92.27",
+      "p99": "133.59"
+    },
+    "economics": {
+      "p50": "38.26",
+      "p95": "92.35",
+      "p99": "133.61"
+    },
+    "token_sign": {
+      "p50": "38.31",
+      "p95": "93.14",
+      "p99": "133.74"
+    },
+    "audit_decision": {
+      "p50": "50.99",
+      "p95": "141.19",
+      "p99": "170.93"
+    },
+    "webhook": {
+      "p50": "88.26",
+      "p95": "186.42",
+      "p99": "209.20"
+    },
+    "total": {
+      "p50": "88.27",
+      "p95": "186.42",
+      "p99": "209.20"
+    }
+  },
+  "slo_evaluation": {
+    "p99_target_ms": 50,
+    "p99_actual_ms": "252.45",
+    "p99_met": false,
+    "topology_note": "Same-host (localhost)"
+  },
+  "environment": {
+    "node_version": "v22.21.0",
+    "platform": "linux"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "suite": "PH1-Week4-UI-Integration",
+  "timestamp": "2026-01-16T22:14:32+02:00",
+  "success": true,
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0
+  },
+  "tests": [
+    {"name": "order-api health", "status": "PASS", "message": "healthy"},{"name": "ui health", "status": "PASS", "message": "healthy"},{"name": "database connection", "status": "PASS", "message": "connected"},{"name": "demo scenarios list", "status": "PASS", "message": "found 5 scenarios"},{"name": "trigger margin-warning", "status": "PASS", "message": "scenario triggered"},{"name": "margin alert created", "status": "PASS", "message": "alert count: 2 → 5"},{"name": "alert acknowledgement", "status": "PASS", "message": "ack recorded"},{"name": "trigger rejection-spike", "status": "PASS", "message": "scenario triggered"},{"name": "rejection spike alert", "status": "PASS", "message": "found via API"},{"name": "KPI orders match DB", "status": "PASS", "message": "API: 20, DB: 20"},{"name": "KPI alerts match DB", "status": "PASS", "message": "API: 5, DB: 5"},{"name": "UI dashboard accessible", "status": "PASS", "message": "page loads"},{"name": "UI health includes apiBase", "status": "PASS", "message": "config exposed"},{"name": "UI proxy to order-api", "status": "PASS", "message": "proxy works"},{"name": "LP accounts endpoint", "status": "PASS", "message": "found 4 accounts"}
+  ],
+  "environment": {
+    "order_api_url": "http://localhost:7001",
+    "ui_url": "http://localhost:3000",
+    "pghost": "localhost",
+    "pgport": "5434"
+  }
+}

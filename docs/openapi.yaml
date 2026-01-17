@@ -33,6 +33,12 @@ servers:
     description: Economics API (local dev)
 
 tags:
+  - name: Authorization
+    description: |
+      **P3 Gate Contract Endpoints**
+      
+      Pre-trade authorization with cryptographic decision tokens.
+      BrokerOps is decision authority; trading platform is execution authority.
   - name: Orders
     description: Order submission and decision flow
   - name: Overrides
@@ -48,7 +54,119 @@ tags:
 
 paths:
   # ============================================================================
-  # Orders
+  # Authorization Gate (P3 Contract)
+  # ============================================================================
+  /v1/authorize:
+    post:
+      tags: [Authorization]
+      summary: Pre-trade authorization gate
+      description: |
+        **Primary authorization endpoint for BrokerOps Gate Contract.**
+        
+        Evaluates an order against active policy and returns a signed Decision Token.
+        This is the canonical authorization interface for trading platforms.
+        
+        **Authority Boundary:**
+        - BrokerOps is the **decision authority** (AUTHORIZED/BLOCKED)
+        - Trading platform remains **execution authority**
+        - Decision Token is proof of authorization, not execution instruction
+        
+        **Latency SLO (topology-dependent):**
+        - Same-host/LAN: p99 < 50ms (revised per P0-PERF-2026-01-16 evidence)
+        - Cross-region: Consult deployment-specific SLO
+        
+        **HTTP Status Semantics:**
+        - Always returns HTTP 200 for valid requests
+        - The `status` field indicates decision: AUTHORIZED or BLOCKED
+        - HTTP 4xx reserved for invalid requests (schema errors)
+        - HTTP 503 reserved for gate unavailable (fail-closed)
+        
+        **Failure Mode (PD-5: FAIL-CLOSED):**
+        - If audit service unavailable: returns BLOCKED with reason_code=AUDIT_UNAVAILABLE
+        - Process does NOT crash; returns stable error shape
+        
+        **Response includes:**
+        - `decision_token`: Signed proof of authorization (HMAC-SHA256)
+        - `status`: AUTHORIZED or BLOCKED
+        - `advisory_routing_class` (optional): Non-binding classification hint
+        - `timing_ms`: Segment timing breakdown for performance analysis
+      operationId: authorizeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+            example:
+              order:
+                client_order_id: "ORD-2026-001"
+                symbol: "AAPL"
+                side: "BUY"
+                qty: 100
+                price: 185.50
+              context:
+                client_id: "CL-001"
+                account_type: "RETAIL"
+      responses:
+        '200':
+          description: Authorization decision issued
+          headers:
+            X-Decision-Latency-Ms:
+              description: Server-side decision latency in milliseconds
+              schema:
+                type: number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeResponse'
+              examples:
+                authorized:
+                  summary: Order authorized
+                  value:
+                    trace_id: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                    status: "AUTHORIZED"
+                    decision_token:
+                      version: "v1"
+                      payload:
+                        trace_id: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                        decision: "AUTHORIZED"
+                        reason_code: "OK"
+                        issued_at: "2026-01-15T10:00:00.000Z"
+                        expires_at: "2026-01-15T10:05:00.000Z"
+                      signature: "abc123..."
+                    advisory_routing_class: null
+                    gate_note: "Decision Token issued. Trading platform remains execution master."
+                blocked:
+                  summary: Order blocked by policy
+                  value:
+                    trace_id: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                    status: "BLOCKED"
+                    decision_token:
+                      version: "v1"
+                      payload:
+                        trace_id: "f4826a78-663e-4fb9-98a7-c3d42ac21517"
+                        decision: "BLOCKED"
+                        reason_code: "EXPOSURE_LIMIT_EXCEEDED"
+                        rule_ids: ["max_exposure"]
+                        issued_at: "2026-01-15T10:00:00.000Z"
+                        expires_at: "2026-01-15T10:05:00.000Z"
+                      signature: "def456..."
+                    advisory_routing_class: null
+        '400':
+          description: Invalid request schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Gate unavailable (fail-closed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GateUnavailableError'
+
+  # ============================================================================
+  # Orders (Legacy - maps to /v1/authorize internally)
   # ============================================================================
   /orders:
     post:
@@ -440,6 +558,111 @@ paths:
         '204':
           description: Webhook deleted
 
+  # ============================================================================
+  # Export Endpoints (Week 5 - Evidence Pack / Dispute Pack)
+  # ============================================================================
+  /api/export/evidence-pack:
+    get:
+      tags: [Traces]
+      summary: System-wide evidence bundle
+      description: |
+        Returns current system state snapshot for demo/audit purposes.
+        Includes orders, alerts, LP accounts, snapshots, and checksums.
+      operationId: getSystemEvidencePack
+      responses:
+        '200':
+          description: Evidence pack generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidencePackResponse'
+        '500':
+          description: Internal server error
+
+  /api/export/bundle:
+    get:
+      tags: [Traces]
+      summary: Alias for evidence-pack
+      description: Alias endpoint for evidence-pack (script compatibility)
+      operationId: getSystemBundle
+      responses:
+        '200':
+          description: Evidence pack generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidencePackResponse'
+
+  /api/orders/{orderId}/evidence-pack:
+    get:
+      tags: [Traces]
+      summary: Order-specific evidence pack
+      description: |
+        Returns complete audit trail for a specific order including:
+        - Order details
+        - Lifecycle events (hash-chained)
+        - Related audit events
+        - Related alerts
+        - Checksums for each component
+      operationId: getOrderEvidencePack
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order ID (trace_id)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order evidence pack generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEvidencePackResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/orders/{orderId}/dispute-pack:
+    get:
+      tags: [Traces]
+      summary: Dispute bundle for an order
+      description: |
+        Returns order + lifecycle + rejection details + related alerts.
+        Optimized for dispute resolution and regulatory inquiries.
+        
+        Includes:
+        - Order summary
+        - Full lifecycle event chain
+        - Rejection details (if applicable)
+        - Related alerts within 1 hour window
+        - LP context snapshot at order time
+        - Component checksums
+      operationId: getOrderDisputePack
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Order ID (trace_id)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dispute pack generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputePackResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
 components:
   parameters:
     traceId:
@@ -452,6 +675,222 @@ components:
         format: uuid
 
   schemas:
+    # --- Authorization Gate (P3) ---
+    AuthorizeRequest:
+      type: object
+      required: [order]
+      properties:
+        order:
+          type: object
+          required: [client_order_id, symbol, side, qty]
+          properties:
+            client_order_id:
+              type: string
+              minLength: 3
+              description: Client-provided order identifier (idempotency key)
+            symbol:
+              type: string
+              minLength: 1
+              description: Trading symbol (e.g., AAPL, GME)
+            side:
+              type: string
+              enum: [BUY, SELL]
+            qty:
+              type: integer
+              minimum: 1
+              description: Order quantity
+            price:
+              type: number
+              minimum: 0
+              description: Limit price (optional for market orders)
+        context:
+          type: object
+          description: Optional context for policy evaluation
+          properties:
+            client_id:
+              type: string
+              description: Client identifier for exposure tracking
+            account_type:
+              type: string
+              enum: [RETAIL, PROFESSIONAL, INSTITUTIONAL]
+            session_id:
+              type: string
+              description: Trading session identifier
+
+    AuthorizeResponse:
+      type: object
+      required: [trace_id, status, decision_token]
+      properties:
+        trace_id:
+          type: string
+          format: uuid
+          description: Unique trace ID linking to audit chain
+        status:
+          type: string
+          enum: [AUTHORIZED, BLOCKED]
+          description: |
+            Authorization decision.
+            - AUTHORIZED: Order may proceed to execution
+            - BLOCKED: Order should not be executed
+        decision_token:
+          $ref: '#/components/schemas/DecisionToken'
+        advisory_routing_class:
+          type: string
+          enum: [A_BOOK, B_BOOK, HYBRID]
+          nullable: true
+          description: |
+            **Non-binding** classification hint.
+            Trading platform MAY ignore this entirely.
+            Included for analytics/reporting only.
+        reason_code:
+          type: string
+          description: Human-readable reason code
+        rule_ids:
+          type: array
+          items:
+            type: string
+          description: Policy rules that contributed to decision
+        policy_version:
+          type: string
+          description: Version of policy used for decision
+        gate_note:
+          type: string
+          description: Informational note about gate contract semantics
+        timing_ms:
+          type: object
+          description: |
+            Segment timing breakdown for performance analysis (P0-PERF).
+            All values in milliseconds.
+          properties:
+            parse_validate:
+              type: number
+              description: Time to parse and validate request schema
+            audit_request:
+              type: number
+              description: Time to audit request event
+            policy_decision:
+              type: number
+              description: Time for risk-gate + OPA policy evaluation
+            audit_risk:
+              type: number
+              description: Time to audit risk evaluation
+            economics:
+              type: number
+              description: Time to compute snapshot economics
+            token_sign:
+              type: number
+              description: Time to sign decision token
+            audit_decision:
+              type: number
+              description: Time to audit final decision
+            webhook:
+              type: number
+              description: Time to emit webhook
+            total:
+              type: number
+              description: Total request latency
+
+    DecisionToken:
+      type: object
+      description: |
+        Cryptographic proof of authorization decision.
+        
+        **Verification procedure:**
+        1. Extract payload from token
+        2. Canonicalize: JSON.stringify(payload, Object.keys(payload).sort())
+        3. HMAC-SHA256(canonical, signing_key)
+        4. Compare to token.signature
+      required: [version, payload, signature]
+      properties:
+        version:
+          type: string
+          enum: [v1]
+          description: Token version for compatibility
+        payload:
+          $ref: '#/components/schemas/DecisionTokenPayload'
+        signature:
+          type: string
+          description: HMAC-SHA256 signature of canonical payload
+
+    DecisionTokenPayload:
+      type: object
+      required: [trace_id, decision, reason_code, issued_at, expires_at, nonce, subject, audience, order]
+      properties:
+        trace_id:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [AUTHORIZED, BLOCKED]
+        reason_code:
+          type: string
+        rule_ids:
+          type: array
+          items:
+            type: string
+        policy_snapshot_hash:
+          type: string
+          description: SHA-256 hash of policy used for decision
+        issued_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: Token validity window (default 5 minutes)
+        nonce:
+          type: string
+          description: Random nonce to prevent replay
+        subject:
+          type: string
+          description: Subject identifier (client/account)
+        audience:
+          type: string
+          description: Audience (trading platform)
+        order:
+          type: object
+          properties:
+            symbol:
+              type: string
+            side:
+              type: string
+            qty:
+              type: integer
+            price:
+              type: number
+            client_order_id:
+              type: string
+        projected_exposure:
+          type: number
+          description: Projected exposure at decision time
+        order_digest:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          description: |
+            SHA-256 digest of canonical order content.
+            Format: SHA256("{client_order_id}|{SYMBOL}|{SIDE}|{qty}|{price}")
+            Enables execution verification - if executed order differs
+            from authorized order, digest will not match.
+        order_digest_version:
+          type: string
+          enum: [v1]
+          description: Order digest algorithm version for forward compatibility
+
+    GateUnavailableError:
+      type: object
+      description: |
+        Fail-closed error when gate cannot make a decision.
+        Trading platform should NOT proceed with order.
+      properties:
+        error:
+          type: string
+          enum: [GATE_UNAVAILABLE, AUDIT_UNAVAILABLE, STATE_UNAVAILABLE, SIGNING_UNAVAILABLE]
+        message:
+          type: string
+        retry_after_ms:
+          type: integer
+          description: Suggested retry delay in milliseconds
+
     # --- Orders ---
     OrderRequest:
       type: object
@@ -865,3 +1304,185 @@ components:
           type: string
         message:
           type: string
+
+    # --- Export Endpoints (Week 5) ---
+    ApiErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    EvidencePackResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "evidence-pack"
+            version:
+              type: string
+              example: "1.0.0"
+            generated_at:
+              type: string
+              format: date-time
+            generator:
+              type: object
+              properties:
+                commit:
+                  type: string
+                built_at:
+                  type: string
+                service:
+                  type: string
+            summary:
+              type: object
+              properties:
+                orders_count:
+                  type: integer
+                alerts_count:
+                  type: integer
+                lp_accounts_count:
+                  type: integer
+                lp_snapshots_count:
+                  type: integer
+                audit_events_count:
+                  type: integer
+            bundle:
+              type: object
+              description: Raw data bundle containing orders, alerts, lp_accounts, etc.
+            checksums:
+              type: object
+              properties:
+                orders:
+                  type: string
+                alerts:
+                  type: string
+                lp_accounts:
+                  type: string
+                lp_snapshots:
+                  type: string
+                alert_settings:
+                  type: string
+                bundle:
+                  type: string
+        meta:
+          type: object
+          properties:
+            checksum:
+              type: string
+              description: First 16 chars of bundle checksum
+
+    OrderEvidencePackResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "order-evidence-pack"
+            version:
+              type: string
+            order_id:
+              type: string
+            generated_at:
+              type: string
+              format: date-time
+            summary:
+              type: object
+              properties:
+                order_status:
+                  type: string
+                lifecycle_event_count:
+                  type: integer
+                audit_event_count:
+                  type: integer
+                related_alert_count:
+                  type: integer
+            components:
+              type: object
+              properties:
+                order:
+                  type: object
+                lifecycle_events:
+                  type: array
+                  items:
+                    type: object
+                audit_events:
+                  type: array
+                  items:
+                    type: object
+                related_alerts:
+                  type: array
+                  items:
+                    type: object
+            checksums:
+              type: object
+
+    DisputePackResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "dispute-pack"
+            version:
+              type: string
+            order_id:
+              type: string
+            generated_at:
+              type: string
+              format: date-time
+            summary:
+              type: object
+              properties:
+                order_status:
+                  type: string
+                has_rejection:
+                  type: boolean
+                lifecycle_event_count:
+                  type: integer
+                related_alert_count:
+                  type: integer
+                has_lp_context:
+                  type: boolean
+            data:
+              type: object
+              properties:
+                order:
+                  type: object
+                lifecycle:
+                  type: array
+                  items:
+                    type: object
+                rejection:
+                  type: object
+                  nullable: true
+                alerts:
+                  type: array
+                  items:
+                    type: object
+                lp_context:
+                  type: object
+                  nullable: true
+            checksums:
+              type: object

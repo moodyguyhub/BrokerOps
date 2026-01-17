@@ -1,0 +1,7 @@
+[MT5] Terminal Config Snapshot
+timestamp_utc=2026-01-16T16:36:46Z
+mt5_terminal_path=UNAVAILABLE (no broker terminal on this host)
+ea_name=EA_HTTP_Bridge (prototype)
+ea_mode=ADVISORY_ONLY
+broker_connection=NOT_CONFIGURED
+notes=Local evidence pack; broker inputs required for execution-grade claims

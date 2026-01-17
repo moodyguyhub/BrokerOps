@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-01-16T19:02:51Z",
+  "verified_by": "copilot-aliveness-check",
+  "overall_status": "PASS",
+  "containers": [
+    {
+      "service": "audit-writer",
+      "state": "running",
+      "health": "healthy",
+      "status": "Up 39 minutes (healthy)"
+    },
+    {
+      "service": "lp-simulator",
+      "state": "running",
+      "health": "healthy",
+      "status": "Up 39 minutes (healthy)"
+    },
+    {
+      "service": "opa",
+      "state": "running",
+      "health": "",
+      "status": "Up 8 hours"
+    },
+    {
+      "service": "postgres",
+      "state": "running",
+      "health": "",
+      "status": "Up 8 hours"
+    },
+    {
+      "service": "reconstruction-api",
+      "state": "running",
+      "health": "healthy",
+      "status": "Up 39 minutes (healthy)"
+    }
+  ],
+  "health_checks": {
+    "simulator": {
+      "ok": true,
+      "service": "lp-simulator",
+      "version": "1.0.0"
+    },
+    "audit_writer": {
+      "ok": true
+    },
+    "reconstruction": {
+      "ok": true
+    }
+  },
+  "scenario_test": {
+    "trace_id": "aliveness-check-1768590171",
+    "scenario_success": true,
+    "final_status": "FILLED",
+    "events_emitted": 3
+  },
+  "trace_verification": {
+    "trace_id": "aliveness-check-1768590171",
+    "events_persisted": 3,
+    "integrity_verified": true
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "overall_status": "PASS",
+  "timestamps": {
+    "started_at": "2026-01-16T18:23:20Z",
+    "finished_at": "2026-01-16T18:23:27Z"
+  },
+  "endpoints_used": {
+    "simulator": "http://localhost:7010",
+    "audit_writer": "http://localhost:7003",
+    "reconstruction": "http://localhost:7004"
+  },
+  "evidence_path": "test-results/golden-path-2026-01-16-182320/tc006-evidence.json",
+  "determinism": "PASS",
+  "scenarios": [
+    {
+      "name": "full-fill",
+      "trace_id": "tc001-2026-01-16-182320",
+      "expected_terminal_status": "FILLED",
+      "actual_terminal_status": "FILLED"
+    },
+    {
+      "name": "rejection",
+      "trace_id": "tc002-2026-01-16-182320",
+      "expected_terminal_status": "REJECTED",
+      "actual_terminal_status": "REJECTED"
+    },
+    {
+      "name": "partial-fills",
+      "trace_id": "tc005-2026-01-16-182320",
+      "expected_terminal_status": "FILLED",
+      "actual_terminal_status": "FILLED"
+    },
+    {
+      "name": "golden-path-server-1",
+      "trace_id": "tc007-srv1-2026-01-16-182320",
+      "expected_terminal_status": "REJECTED",
+      "actual_terminal_status": "REJECTED",
+      "server_id": "srv-1",
+      "server_name": "Server 1"
+    },
+    {
+      "name": "golden-path-server-2",
+      "trace_id": "tc007-srv2-2026-01-16-182320",
+      "expected_terminal_status": "REJECTED",
+      "actual_terminal_status": "REJECTED",
+      "server_id": "srv-2",
+      "server_name": "Server 2"
+    }
+  ]
+}

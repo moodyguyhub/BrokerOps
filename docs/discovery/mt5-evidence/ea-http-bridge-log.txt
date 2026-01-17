@@ -1,0 +1,10 @@
+[G2] Preflight @ 2026-01-16T16:36:46Z
+order-api: http://localhost:7001
+sidecar: http://localhost:8080
+order-api health: OK
+sidecar health: UNREACHABLE
+[EA_HTTP] request_time_utc=2026-01-16T16:36:46Z
+{"trace_id":"1d3d1b03-b515-4124-bc01-fec2e2c0c5e3","status":"AUTHORIZED","decision_token":{"payload":{"trace_id":"1d3d1b03-b515-4124-bc01-fec2e2c0c5e3","decision":"AUTHORIZED","reason_code":"OK","rule_ids":["allow_default"],"policy_snapshot_hash":"4f53e1da809ae380","issued_at":"2026-01-16T16:36:46.490Z","expires_at":"2026-01-16T16:41:46.490Z","nonce":"a4680dcd8aa5f9c62b54d121a4765ebd","subject":"g2-local","audience":"trading-platform","order":{"symbol":"AAPL","side":"BUY","qty":1,"price":185.5,"client_order_id":"g2-ea-bridge-sample"},"projected_exposure":185.5,"order_digest":"d7dd08e4bbe6c2e76a513abca1d41ae31d4b4d664e9661ce0e2ece73a55d9efc","order_digest_version":"v1"},"signature":"ea76eef70072610806728a93c3707e44e782672ab2b1968d88c5cc3d0126db0b","version":"v1"},"decision_signature":"v1:1d3d1b03:ea76eef70072610806728a93c3707e44","reason_code":"OK","rule_ids":["allow_default"],"policy_version":"policy.v0.2","advisory_routing_class":null,"gate_note":"Decision Token issued. Trading platform remains execution master.","timing_ms":{"parse_validate":0.053363,"audit_request":12.241194,"policy_decision":14.849703,"audit_risk":17.568066,"economics":17.574975,"token_sign":17.695902,"audit_decision":22.002824,"webhook":23.554482,"total":23.556268}}
+---HTTP_CODE:200---
+[EA_HTTP] latency_ms=31
+[EA_HTTP] advisory_only=true

@@ -1,0 +1,33 @@
+{
+  "suite": "PH1-Demo-Choreography",
+  "version": "1.0.0",
+  "timestamp": "2026-01-16T22:31:47+02:00",
+  "run_id": "2026-01-16-223141",
+  "output_dir": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-16-223141",
+  "success": true,
+  "exit_code": 0,
+  "failure_reason": null,
+  "summary": {
+    "total_checks": 29,
+    "passed": 29,
+    "failed": 0
+  },
+  "phases": [
+    {"phase": "clean-boot", "status": "PASS", "duration_ms": 190},{"phase": "stack-health", "status": "PASS", "duration_ms": 49},{"phase": "demo-triggers", "status": "PASS", "duration_ms": 5926},{"phase": "ui-deltas", "status": "PASS", "duration_ms": 56},{"phase": "export", "status": "PASS", "duration_ms": 39}
+  ],
+  "checks": [
+    {"name": "migrations-present", "status": "PASS", "message": "6 migration files", "phase": "clean-boot"},{"name": "table-audit_events", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "table-orders", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "table-alerts", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "table-alert_settings", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "table-lp_accounts", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "table-lp_snapshots", "status": "PASS", "message": "exists", "phase": "clean-boot"},{"name": "seed-alert-settings", "status": "PASS", "message": "6 settings", "phase": "clean-boot"},{"name": "health-order-api", "status": "PASS", "message": "responding", "phase": "stack-health"},{"name": "health-audit-writer", "status": "PASS", "message": "responding", "phase": "stack-health"},{"name": "health-lp-simulator", "status": "PASS", "message": "responding", "phase": "stack-health"},{"name": "health-ui", "status": "PASS", "message": "responding", "phase": "stack-health"},{"name": "health-postgres", "status": "PASS", "message": "connected", "phase": "stack-health"},{"name": "demo-scenarios-endpoint", "status": "PASS", "message": "5 scenarios available", "phase": "demo-triggers"},{"name": "trigger-margin-warning", "status": "PASS", "message": "scenario executed", "phase": "demo-triggers"},{"name": "trigger-rejection-spike", "status": "PASS", "message": "scenario executed", "phase": "demo-triggers"},{"name": "delta-alerts-increased", "status": "PASS", "message": "+3 open alerts", "phase": "demo-triggers"},{"name": "delta-orders-increased", "status": "PASS", "message": "+5 orders", "phase": "demo-triggers"},{"name": "api-kpis-available", "status": "PASS", "message": "open_alerts=18", "phase": "ui-deltas"},{"name": "api-alerts-available", "status": "PASS", "message": "10 alerts returned", "phase": "ui-deltas"},{"name": "api-lp-accounts-available", "status": "PASS", "message": "4 LP accounts", "phase": "ui-deltas"},{"name": "ui-dashboard-loads", "status": "PASS", "message": "page renders", "phase": "ui-deltas"},{"name": "ui-anchor-kpi-orders", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-kpi-alerts", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-alerts-list", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-lp-list", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-demo-controls", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-proxy-works", "status": "PASS", "message": "proxy functional", "phase": "ui-deltas"},{"name": "export-endpoint", "status": "PASS", "message": "exported (sha256: 7cb240b68151997e...)", "phase": "export"}
+  ],
+  "environment": {
+    "order_api_url": "http://localhost:7001",
+    "ui_url": "http://localhost:3000",
+    "pghost": "localhost",
+    "pgport": "5434",
+    "skip_clean_boot": false,
+    "skip_stack_up": false
+  },
+  "artifacts": {
+    "log_file": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-16-223141/demo-choreography.log",
+    "export_dir": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-16-223141/exports"
+  }
+}
