@@ -66,15 +66,15 @@ jobs:
             -H "Content-Type: text/plain" \
             --data-binary @policies/order.rego
 
-      - name: Run policy tests
-        run: pnpm --filter @broker/tests test
-
       - name: Apply DB migrations
         run: |
           for migration in infra/db/migrations/*.sql; do
             echo "Applying: $migration"
             PGPASSWORD=broker psql -h localhost -p 5434 -U broker -d broker -f "$migration"
           done
+
+      - name: Run policy tests
+        run: pnpm --filter @broker/tests test
 
   policy-lint:
     runs-on: ubuntu-latest

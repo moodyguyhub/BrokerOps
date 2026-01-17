@@ -78,6 +78,16 @@ jobs:
           chmod +x ./scripts/ph1-demo-choreography.sh
           ./scripts/ph1-demo-choreography.sh --skip-clean-boot --skip-stack-up
 
+      - name: Dump demo choreography logs (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Listing demo-run artifacts"
+          ls -la test-results/demo-run-* || true
+          echo "Tail demo choreography logs"
+          tail -n 200 test-results/demo-run-*/demo-choreography.log || true
+
       - name: Generate tag proof
         if: always()
         shell: bash
