@@ -53,6 +53,13 @@ jobs:
           set -euo pipefail
           pnpm install
 
+      - name: Verify CI invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ci-invariants.sh
+          ./scripts/ci-invariants.sh
+
       - name: Validate OPA policies
         shell: bash
         run: |
@@ -121,6 +128,31 @@ jobs:
           echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
           echo "Triggered at: $(date -Iseconds)" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
           cat test-results/rc/${{ github.ref_name }}/tag-proof.txt
+
+      - name: Collect RC receipts to stable path
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          RC_DIR="test-results/rc/${{ github.ref_name }}"
+          mkdir -p "$RC_DIR"
+          # Copy latest receipts to stable RC path
+          cp test-results/clean-boot-latest.json "$RC_DIR/clean-boot-receipt.json" 2>/dev/null || true
+          cp test-results/ph1-demo-run-latest.json "$RC_DIR/ph1-demo-run.json" 2>/dev/null || true
+          # Copy from timestamped dirs if latest doesn't exist
+          find test-results -name 'clean-boot-receipt.json' -newer "$RC_DIR/tag-proof.txt" -exec cp {} "$RC_DIR/" \; 2>/dev/null || true
+          find test-results -name 'ph1-demo-run.json' -newer "$RC_DIR/tag-proof.txt" -exec cp {} "$RC_DIR/" \; 2>/dev/null || true
+          ls -la "$RC_DIR/"
+
+      - name: Generate artifact hashes
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          RC_DIR="test-results/rc/${{ github.ref_name }}"
+          echo "=== Generating SHA256 hashes ==="
+          find test-results -type f \( -name '*.json' -o -name '*.txt' -o -name '*.log' \) -print0 2>/dev/null | sort -z | xargs -0 sha256sum > "$RC_DIR/SHA256SUMS.txt" || true
+          cat "$RC_DIR/SHA256SUMS.txt"
 
       - name: Upload receipts
         if: always()

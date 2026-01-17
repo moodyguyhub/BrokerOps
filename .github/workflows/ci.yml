@@ -48,6 +48,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Verify CI invariants
+        run: |
+          chmod +x ./scripts/ci-invariants.sh
+          ./scripts/ci-invariants.sh
+
       - name: Build all packages
         run: pnpm -r build
 
@@ -157,6 +162,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Verify CI invariants (p2)
+        run: |
+          chmod +x ./scripts/ci-invariants.sh
+          ./scripts/ci-invariants.sh
 
       - name: Build all packages
         run: pnpm -r build
