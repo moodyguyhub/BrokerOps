@@ -293,7 +293,27 @@ gate_api_contract() {
   # Runtime smoke test for export routes (when backend is available)
   # First get a valid order ID
   if [[ "$HTTP_STATUS" == "200" ]]; then
-    ORDER_ID=$(curl -s "${UI_BASE_URL}/api/orders?limit=1" | grep -oP '"id"\s*:\s*"\K[^"]+' | head -1)
+    ORDER_ID=$(curl -s "${UI_BASE_URL}/api/orders?limit=1" | grep -oP '"id"\s*:\s*"\K[^"]+' 2>/dev/null | head -1 || true)
+    
+    # CI deterministic seed: if no orders exist and CI=true, create a minimal test order
+    if [[ -z "$ORDER_ID" && "$CI_MODE" == "true" ]]; then
+      log_test "No orders found in CI mode - seeding deterministic test order..."
+      SEED_ORDER_ID="gate5-test-order-$(date +%s)"
+      
+      # Insert minimal order matching schema from 006_ph1_read_models.sql
+      docker exec broker-postgres psql -U broker -d broker -c "
+        INSERT INTO orders (id, client_order_id, symbol, side, order_type, qty, price, status, lp_id, created_at, updated_at)
+        VALUES ('${SEED_ORDER_ID}', 'gate5-client-001', 'EURUSD', 'BUY', 'MARKET', 1000, 1.1234, 'FILLED', 'gate5-lp', NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING;
+      " >/dev/null 2>&1
+      
+      if [[ $? -eq 0 ]]; then
+        log_pass "Seeded test order: ${SEED_ORDER_ID}"
+        ORDER_ID="$SEED_ORDER_ID"
+      else
+        log_fail "Failed to seed test order (database not accessible)"
+      fi
+    fi
     
     if [[ -n "$ORDER_ID" ]]; then
       log_test "Checking /api/orders/${ORDER_ID}/evidence-pack runtime..."
@@ -337,8 +357,12 @@ gate_api_contract() {
         log_fail "dispute-pack returns HTTP $DISPUTE_STATUS"
       fi
     else
-      echo -e "${YELLOW}  ⚠ No orders found for runtime export test${NC}"
-      RESULTS+=("SKIP: export runtime (no orders)")
+      if [[ "$CI_MODE" == "true" ]]; then
+        log_fail "No orders found for runtime export test (required in CI mode)"
+      else
+        echo -e "${YELLOW}  ⚠ No orders found for runtime export test${NC}"
+        RESULTS+=("SKIP: export runtime (no orders)")
+      fi
     fi
   fi
 }
