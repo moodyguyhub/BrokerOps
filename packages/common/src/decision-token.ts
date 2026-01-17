@@ -6,9 +6,10 @@
  * 2. Audit trail linkage via trace_id
  * 3. Policy context for reproducibility
  * 4. Expiration to prevent stale authorization
+ * 5. Order binding via order_digest (prevents execution of modified orders)
  */
 
-import { createHmac, randomBytes } from "crypto";
+import { createHmac, createHash, randomBytes } from "crypto";
 
 // Token validity window (5 minutes default)
 const DEFAULT_EXPIRY_SECONDS = 300;
@@ -16,6 +17,68 @@ const DEFAULT_EXPIRY_SECONDS = 300;
 // In production, this would be loaded from secure key management (HSM/Vault)
 // For MVP, we use a deterministic key derived from environment
 const SIGNING_KEY = process.env.DECISION_TOKEN_KEY ?? "brokerops-dev-signing-key-v1";
+
+/**
+ * Order fields used for digest computation
+ * See docs/specs/ORDER_DIGEST.md for full specification
+ */
+export interface OrderDigestInput {
+  client_order_id: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  qty: number;
+  price?: number | null;
+}
+
+/**
+ * Compute canonical order digest (SHA-256)
+ * 
+ * Canonical format: {client_order_id}|{SYMBOL}|{SIDE}|{qty}|{price}
+ * - symbol: UPPERCASE
+ * - side: UPPERCASE  
+ * - qty: integer
+ * - price: 8 decimal places or "null" if absent
+ */
+export function computeOrderDigest(order: OrderDigestInput): string {
+  const normalizedSymbol = order.symbol.trim().toUpperCase();
+  const normalizedSide = order.side.toUpperCase();
+  const normalizedQty = Math.floor(order.qty);
+  const normalizedPrice = order.price != null 
+    ? order.price.toFixed(8) 
+    : "null";
+  
+  const canonical = [
+    order.client_order_id.trim(),
+    normalizedSymbol,
+    normalizedSide,
+    normalizedQty.toString(),
+    normalizedPrice
+  ].join("|");
+  
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Verify that an order matches a token's order_digest
+ * Returns true if the order is the same one that was authorized
+ */
+export function verifyOrderDigest(order: OrderDigestInput, expectedDigest: string): {
+  valid: boolean;
+  computedDigest: string;
+  reason?: string;
+} {
+  const computedDigest = computeOrderDigest(order);
+  
+  if (computedDigest === expectedDigest) {
+    return { valid: true, computedDigest };
+  }
+  
+  return { 
+    valid: false, 
+    computedDigest,
+    reason: "ORDER_DIGEST_MISMATCH" 
+  };
+}
 
 export interface DecisionTokenPayload {
   /** Unique trace identifier linking to audit chain */
@@ -48,6 +111,14 @@ export interface DecisionTokenPayload {
   };
   /** Projected exposure at decision time */
   projected_exposure?: number;
+  /** 
+   * SHA-256 hash of canonical order content.
+   * Execution platform MUST verify this matches the order being executed.
+   * See docs/specs/ORDER_DIGEST.md
+   */
+  order_digest: string;
+  /** Version of the order digest algorithm */
+  order_digest_version: "v1";
 }
 
 export interface DecisionToken {
@@ -104,6 +175,15 @@ export function issueDecisionToken(params: {
   const tokenDecision: "AUTHORIZED" | "BLOCKED" = 
     params.decision === "ALLOW" ? "AUTHORIZED" : "BLOCKED";
   
+  // Compute order digest for execution binding
+  const orderDigest = computeOrderDigest({
+    client_order_id: params.order.clientOrderId,
+    symbol: params.order.symbol,
+    side: params.order.side,
+    qty: params.order.qty,
+    price: params.order.price
+  });
+  
   const payload: DecisionTokenPayload = {
     trace_id: params.traceId,
     decision: tokenDecision,
@@ -125,7 +205,9 @@ export function issueDecisionToken(params: {
       price: params.order.price,
       client_order_id: params.order.clientOrderId
     },
-    projected_exposure: params.projectedExposure
+    projected_exposure: params.projectedExposure,
+    order_digest: orderDigest,
+    order_digest_version: "v1"
   };
   
   return {

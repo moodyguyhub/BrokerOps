@@ -6,8 +6,11 @@ export {
   issueDecisionToken,
   verifyDecisionToken,
   getCompactSignature,
+  computeOrderDigest,
+  verifyOrderDigest,
   type DecisionToken,
-  type DecisionTokenPayload
+  type DecisionTokenPayload,
+  type OrderDigestInput
 } from "./decision-token.js";
 
 // Re-export Shadow Ledger utilities
@@ -95,6 +98,56 @@ export {
   type ExtendedEconomics
 } from "./lifecycle-events.js";
 
+// Re-export LP Order Events (Phase 1)
+export {
+  // Constants
+  LP_ORDER_EVENT_VERSION,
+  TAXONOMY_VERSION,
+  NORMALIZED_STATUSES,
+  TERMINAL_STATUSES,
+  REASON_CLASSES,
+  REASON_CODES,
+  SOURCE_KINDS,
+  LP_ORDER_EVENT_TYPES,
+  // Schemas
+  LpOrderEventSchema,
+  SourceSchema,
+  CorrelationSchema,
+  ReasonNormalizationSchema,
+  NormalizationSchema,
+  IntegritySchema,
+  OrderPayloadSchema,
+  LpAccountSnapshotPayloadSchema,
+  // Functions
+  isValidTransition,
+  isTerminalStatus,
+  canonicalizeJson,
+  computePayloadHash,
+  computeChainHash,
+  sortEventsForTimeline,
+  reconstructTimeline,
+  mapRejectionReason,
+  createLpOrderEvent,
+  // Types
+  type NormalizedStatus,
+  type ReasonClass,
+  type ReasonCode,
+  type SourceKind,
+  type LpOrderEventType,
+  type LpOrderEvent,
+  type Source,
+  type Correlation,
+  type ReasonNormalization,
+  type Normalization,
+  type Integrity,
+  type OrderPayload,
+  type LpAccountSnapshotPayload,
+  type TransitionValidation,
+  type TransitionViolation,
+  type Timeline,
+  type FillSummary
+} from "./lp-order-events.js";
+
 export const TraceId = z.string().min(8);
 
 export function newTraceId(): string {
@@ -128,6 +181,27 @@ export type AuditEvent = {
 // --- Webhook Helper ---
 
 const WEBHOOK_SERVICE_URL = process.env.WEBHOOK_SERVICE_URL ?? "http://localhost:7006";
+
+// Re-export IDataSource interface (PH1-W1-003)
+export {
+  type IDataSource,
+  type DataSourceType,
+  type Order,
+  type OrderLifecycleEvent,
+  type LpAccount,
+  type LpSnapshot,
+  type Rejection,
+  type OrdersQuery,
+  type LpHistoryQuery,
+  type RejectionsQuery,
+  type RejectionRollup,
+  type PaginatedResult,
+  type OrderStatus,
+  type LpStatus,
+  OrderStatusSchema,
+  LpStatusSchema,
+  createDataSource
+} from "./data-source.js";
 
 export type WebhookEventType = 
   | "trace.completed"
