@@ -99,6 +99,23 @@ gate_static_files() {
     log_fail "Missing DOM anchors: ${missing_anchors[*]}"
   fi
   
+  # Gate hardening: Non-blank invariant anchors (loading/empty/error states)
+  log_test "Checking lp-accounts.html has non-blank invariant anchors..."
+  local state_anchors=("lp-loading" "lp-empty-state" "lp-error-banner")
+  local missing_states=()
+  
+  for anchor_id in "${state_anchors[@]}"; do
+    if ! grep -qE "id=[\"']${anchor_id}[\"']" "$LP_FILE"; then
+      missing_states+=("$anchor_id")
+    fi
+  done
+  
+  if [[ ${#missing_states[@]} -eq 0 ]]; then
+    log_pass "Non-blank invariant anchors present: ${state_anchors[*]}"
+  else
+    log_fail "Missing non-blank invariant anchors: ${missing_states[*]} (blank screen bug risk)"
+  fi
+  
   # Check lp-accounts.html has embed mode support
   log_test "Checking lp-accounts.html has embed mode support..."
   if grep -q 'body.embed-mode' "$LP_FILE"; then

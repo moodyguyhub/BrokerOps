@@ -453,6 +453,11 @@ app.get("/lp-accounts", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "lp-accounts.html"));
 });
 
+// Phase 5: Alerts page
+app.get("/alerts", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "alerts.html"));
+});
+
 // SPA fallback
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

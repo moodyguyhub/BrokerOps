@@ -1,0 +1,65 @@
+
+[0;36m╔════════════════════════════════════════════════════════════════╗[0m
+[0;36m║         Phase 5 Alerts Contract Gate (Gate 7)                  ║[0m
+[0;36m╚════════════════════════════════════════════════════════════════╝[0m
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 1: Static File Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking alerts.html exists...
+  [0;32m✓ PASS[0m: alerts.html exists
+[1;33m► [0mChecking alerts.html links shared ui.css...
+  [0;32m✓ PASS[0m: alerts.html links shared ui.css
+[1;33m► [0mChecking alerts.html links global-context.js...
+  [0;32m✓ PASS[0m: alerts.html links global-context.js
+[1;33m► [0mChecking alerts.html has required DOM anchors...
+  [0;32m✓ PASS[0m: All required DOM anchors present: alerts-filters alerts-table alerts-detail alerts-ack-panel alerts-ack-note alerts-ack-submit
+[1;33m► [0mChecking global-context.js exists...
+  [0;32m✓ PASS[0m: global-context.js exists
+[1;33m► [0mChecking alerts.html has no literal 'undefined' in templates...
+  [0;32m✓ PASS[0m: No literal 'undefined' found in alerts.html templates
+[1;33m► [0mChecking alerts.html has normalizeAlert function...
+  [0;32m✓ PASS[0m: alerts.html has normalizeAlert schema normalizer
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 2: Runtime Verification[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking UI server availability...
+  [0;32m✓ PASS[0m: UI server is running
+[1;33m► [0mChecking GET /alerts returns HTTP 200...
+  [0;32m✓ PASS[0m: GET /alerts returns HTTP 200
+[1;33m► [0mChecking /alerts?embed=1 response contains required anchors...
+  [0;32m✓ PASS[0m: Runtime response contains all required DOM anchors
+[1;33m► [0mChecking GET /api/alerts returns valid JSON...
+  [0;32m✓ PASS[0m: GET /api/alerts returns valid JSON
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 3: Command Center Integration[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+[1;33m► [0mChecking command-center-v2 has alerts tab...
+  [0;32m✓ PASS[0m: command-center-v2 has alerts tab
+[1;33m► [0mChecking command-center-v2 has alerts panel...
+  [0;32m✓ PASS[0m: command-center-v2 has alerts panel
+
+[0;36m════════════════════════════════════════════════════════════════[0m
+[0;36m  GATE 7 SUMMARY: Alerts Contract[0m
+[0;36m════════════════════════════════════════════════════════════════[0m
+
+Results:
+  [0;32m✓[0m alerts.html exists
+  [0;32m✓[0m alerts.html links shared ui.css
+  [0;32m✓[0m alerts.html links global-context.js
+  [0;32m✓[0m All required DOM anchors present: alerts-filters alerts-table alerts-detail alerts-ack-panel alerts-ack-note alerts-ack-submit
+  [0;32m✓[0m global-context.js exists
+  [0;32m✓[0m No literal 'undefined' found in alerts.html templates
+  [0;32m✓[0m alerts.html has normalizeAlert schema normalizer
+  [0;32m✓[0m UI server is running
+  [0;32m✓[0m GET /alerts returns HTTP 200
+  [0;32m✓[0m Runtime response contains all required DOM anchors
+  [0;32m✓[0m GET /api/alerts returns valid JSON
+  [0;32m✓[0m command-center-v2 has alerts tab
+  [0;32m✓[0m command-center-v2 has alerts panel
+
+Total: [0;32m13 passed[0m, [0;31m0 failed[0m
+
+[0;32mGATE 7 PASSED[0m
