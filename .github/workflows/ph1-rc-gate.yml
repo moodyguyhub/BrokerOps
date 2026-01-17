@@ -111,6 +111,13 @@ jobs:
           chmod +x ./scripts/ph1-ui-shell-gate.sh
           ./scripts/ph1-ui-shell-gate.sh
 
+      - name: Gate 4 — Dashboard Embed Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/ph2-embed-contract-gate.sh
+          ./scripts/ph2-embed-contract-gate.sh
+
       - name: Dump demo choreography logs (on failure)
         if: failure()
         shell: bash

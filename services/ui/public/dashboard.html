@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- Shared UI design system -->
+  <link rel="stylesheet" href="/assets/ui.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
     :root {
@@ -521,9 +523,45 @@
       font-size: 0.75rem;
       color: var(--slate-400);
     }
+
+    /* ============================================
+       Embed Mode (for iframe in command-center-v2)
+       ============================================ */
+    body.embed-mode .header {
+      display: none;
+    }
+
+    body.embed-mode .container {
+      padding: 16px;
+    }
+
+    body.embed-mode .demo-controls {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+    }
+
+    body.embed-mode .kpi-grid {
+      margin-bottom: 16px;
+    }
   </style>
+  <script>
+    // Detect embed mode from URL query param or hash
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const isEmbed = params.get('embed') === '1' || window.location.hash === '#embed';
+      if (isEmbed) {
+        document.documentElement.classList.add('embed-mode');
+      }
+    })();
+  </script>
 </head>
 <body>
+  <script>
+    // Apply embed mode class immediately before render
+    if (document.documentElement.classList.contains('embed-mode')) {
+      document.body.classList.add('embed-mode');
+    }
+  </script>
   <div class="container">
     <!-- Header -->
     <header class="header">
