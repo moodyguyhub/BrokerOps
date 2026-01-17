@@ -1,8 +1,9 @@
 # Phase 1 RC Gate Debugging Postmortem
 
 **Date:** 2026-01-17  
-**Current Verified Baseline:** `ph1-rc29`  
-**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095935770  
+**Current Verified Baseline:** `ph1-rc33`  
+**RC Gate Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21097918128  
+**Receipts:** `ph1-rc-gate-receipts-ph1-rc33` contains `test-results/ph9-provenance-smoke.json`  
 **Main CI Run:** https://github.com/moodyguyhub/BrokerOps/actions/runs/21095929594  
 **Commit:** [`b9d1dda`](https://github.com/moodyguyhub/BrokerOps/commit/b9d1dda6bc87e73e19b928a35350386e0a0e4011)  
 
