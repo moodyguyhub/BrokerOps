@@ -53,12 +53,19 @@ jobs:
           chmod +x ./scripts/clean-boot-verification.sh
           ./scripts/clean-boot-verification.sh
 
+      - name: Start stack for demo choreography
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/demo-up.sh
+          ./scripts/demo-up.sh
+
       - name: Gate 2 — Demo choreography
         shell: bash
         run: |
           set -euo pipefail
           chmod +x ./scripts/ph1-demo-choreography.sh
-          ./scripts/ph1-demo-choreography.sh
+          ./scripts/ph1-demo-choreography.sh --skip-clean-boot --skip-stack-up
 
       - name: Generate tag proof
         if: always()
