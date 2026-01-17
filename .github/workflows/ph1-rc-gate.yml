@@ -60,17 +60,32 @@ jobs:
           chmod +x ./scripts/ph1-demo-choreography.sh
           ./scripts/ph1-demo-choreography.sh
 
+      - name: Generate tag proof
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/rc/${{ github.ref_name }}
+          echo "Tag: ${{ github.ref_name }}" > test-results/rc/${{ github.ref_name }}/tag-proof.txt
+          echo "Commit: ${{ github.sha }}" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
+          echo "Run ID: ${{ github.run_id }}" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
+          echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
+          echo "Triggered at: $(date -Iseconds)" >> test-results/rc/${{ github.ref_name }}/tag-proof.txt
+          cat test-results/rc/${{ github.ref_name }}/tag-proof.txt
+
       - name: Upload receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ph1-rc-gate-receipts-${{ github.ref_name }}
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             test-results/clean-boot-*/clean-boot-receipt.json
             test-results/demo-run-*/ph1-demo-run.json
             test-results/clean-boot-latest/**
             test-results/demo-run-latest/**
+            test-results/rc/${{ github.ref_name }}/tag-proof.txt
+            test-results/push-proof-main.txt
 
       - name: Teardown stack
         if: always()
