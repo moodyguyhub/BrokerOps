@@ -1,0 +1,33 @@
+{
+  "suite": "PH1-Demo-Choreography",
+  "version": "1.0.0",
+  "timestamp": "2026-01-17T09:44:06+02:00",
+  "run_id": "2026-01-17-094400",
+  "output_dir": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-17-094400",
+  "success": true,
+  "exit_code": 0,
+  "failure_reason": null,
+  "summary": {
+    "total_checks": 18,
+    "passed": 18,
+    "failed": 0
+  },
+  "phases": [
+    {"phase": "clean-boot", "status": "PASS", "duration_ms": 0},{"phase": "stack-health", "status": "PASS", "duration_ms": 0},{"phase": "demo-triggers", "status": "PASS", "duration_ms": 5978},{"phase": "ui-deltas", "status": "PASS", "duration_ms": 95},{"phase": "export", "status": "PASS", "duration_ms": 33}
+  ],
+  "checks": [
+    {"name": "clean-boot", "status": "PASS", "message": "skipped", "phase": "clean-boot"},{"name": "stack-health", "status": "PASS", "message": "skipped", "phase": "stack-health"},{"name": "demo-scenarios-endpoint", "status": "PASS", "message": "5 scenarios available", "phase": "demo-triggers"},{"name": "trigger-margin-warning", "status": "PASS", "message": "scenario executed", "phase": "demo-triggers"},{"name": "trigger-rejection-spike", "status": "PASS", "message": "scenario executed", "phase": "demo-triggers"},{"name": "delta-alerts-increased", "status": "PASS", "message": "+3 open alerts", "phase": "demo-triggers"},{"name": "delta-orders-increased", "status": "PASS", "message": "+5 orders", "phase": "demo-triggers"},{"name": "api-kpis-available", "status": "PASS", "message": "open_alerts=21", "phase": "ui-deltas"},{"name": "api-alerts-available", "status": "PASS", "message": "10 alerts returned", "phase": "ui-deltas"},{"name": "api-lp-accounts-available", "status": "PASS", "message": "4 LP accounts", "phase": "ui-deltas"},{"name": "ui-dashboard-loads", "status": "PASS", "message": "page renders", "phase": "ui-deltas"},{"name": "ui-anchor-kpi-orders", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-kpi-alerts", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-alerts-list", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-lp-list", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-anchor-demo-controls", "status": "PASS", "message": "present", "phase": "ui-deltas"},{"name": "ui-proxy-works", "status": "PASS", "message": "proxy functional", "phase": "ui-deltas"},{"name": "export-endpoint", "status": "PASS", "message": "exported (sha256: f04d929bdb0256bb...)", "phase": "export"}
+  ],
+  "environment": {
+    "order_api_url": "http://localhost:7001",
+    "ui_url": "http://localhost:3000",
+    "pghost": "localhost",
+    "pgport": "5434",
+    "skip_clean_boot": true,
+    "skip_stack_up": true
+  },
+  "artifacts": {
+    "log_file": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-17-094400/demo-choreography.log",
+    "export_dir": "/home/mahmood-asadi/BrokerOps/test-results/demo-run-2026-01-17-094400/exports"
+  }
+}
