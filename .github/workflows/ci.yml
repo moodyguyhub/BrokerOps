@@ -405,6 +405,12 @@ jobs:
           ./scripts/ph10-infrastructure-contract-gate.sh | tee /tmp/gate12.log
           echo "GATE_SUMMARY gate=ph10-infrastructure status=PASS"
 
+      - name: Gate 13 — Infrastructure SSE Contract
+        run: |
+          chmod +x ./scripts/ph11-infra-sse-contract-gate.sh
+          ./scripts/ph11-infra-sse-contract-gate.sh | tee /tmp/gate13.log
+          echo "GATE_SUMMARY gate=ph11-infra-sse status=PASS"
+
       - name: Smoke — Provenance Endpoint Runtime
         run: |
           chmod +x ./scripts/ph9-provenance-smoke.sh

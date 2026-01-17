@@ -333,6 +333,119 @@ app.get("/api/infrastructure/status", async (req, res) => {
   });
 });
 
+// Helper to build infrastructure status payload (shared by REST and SSE)
+async function buildInfrastructurePayload() {
+  const timestamp = new Date().toISOString();
+  
+  const servicePromises = Object.entries(INFRA_TARGETS).map(([key, target]) => 
+    checkServiceHealth(key, target)
+  );
+  
+  const services = await Promise.all(servicePromises);
+  
+  let aggregateStatus = "ok";
+  for (const svc of services) {
+    if (svc.status === "down") {
+      aggregateStatus = "error";
+      break;
+    }
+    if (svc.status === "degraded") {
+      aggregateStatus = "warn";
+    }
+  }
+  
+  const upServices = services.filter(s => s.status === "up" || s.status === "degraded");
+  const avgLatency = upServices.length > 0 
+    ? Math.round(upServices.reduce((sum, s) => sum + s.latency_ms, 0) / upServices.length)
+    : 0;
+
+  return {
+    success: true,
+    schema_version: 1,
+    status: aggregateStatus,
+    timestamp,
+    data: {
+      services,
+      sidecars: [],
+      metrics: {
+        avg_latency_ms: avgLatency,
+        active_services: upServices.length,
+        total_services: services.length
+      }
+    }
+  };
+}
+
+// ============================================================================
+// Phase 11A: Infrastructure SSE Stream
+// ============================================================================
+const SSE_PUSH_INTERVAL = 2000; // Push every 2 seconds
+const sseClients = new Set();
+
+app.get("/api/infrastructure/stream", (req, res) => {
+  // SSE headers
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no" // Disable nginx buffering
+  });
+  res.flushHeaders();
+
+  // Send initial connection event
+  res.write("event: connected\ndata: {\"message\":\"SSE stream connected\"}\n\n");
+
+  // Track this client
+  const clientId = Date.now() + Math.random().toString(36).substring(2, 9);
+  const client = { id: clientId, res };
+  sseClients.add(client);
+
+  // Send immediate status on connect
+  buildInfrastructurePayload().then(payload => {
+    res.write(`event: infra\ndata: ${JSON.stringify(payload)}\n\n`);
+  }).catch(() => {});
+
+  // Heartbeat every 5 seconds (keep-alive)
+  const heartbeatTimer = setInterval(() => {
+    res.write(`:heartbeat ${new Date().toISOString()}\n\n`);
+  }, 5000);
+
+  // Cleanup on disconnect
+  req.on("close", () => {
+    clearInterval(heartbeatTimer);
+    sseClients.delete(client);
+  });
+});
+
+// Push infrastructure updates to all SSE clients
+let ssePushTimer = null;
+
+function startSSEBroadcast() {
+  if (ssePushTimer) return;
+  
+  ssePushTimer = setInterval(async () => {
+    if (sseClients.size === 0) return;
+    
+    try {
+      const payload = await buildInfrastructurePayload();
+      const data = `event: infra\ndata: ${JSON.stringify(payload)}\n\n`;
+      
+      for (const client of sseClients) {
+        try {
+          client.res.write(data);
+        } catch (err) {
+          sseClients.delete(client);
+        }
+      }
+    } catch (err) {
+      console.error("SSE broadcast error:", err.message);
+    }
+  }, SSE_PUSH_INTERVAL);
+}
+
+// Start SSE broadcast on server startup
+startSSEBroadcast();
+
 // ============================================================================
 // Week 4 API Proxies - Dashboard, Alerts, LP Accounts, Orders
 // ============================================================================

@@ -523,15 +523,19 @@
       'use strict';
 
       // Constants
-      const POLL_INTERVAL = 10000; // 10 seconds
+      const POLL_INTERVAL = 10000; // 10 seconds (fallback only)
       const STALE_THRESHOLD = 5000; // 5 seconds
       const HYSTERESIS_THRESHOLD = 3; // 3 consecutive checks before showing warn
+      const SSE_RECONNECT_DELAY = 3000; // 3 seconds before SSE reconnect attempt
 
       // State
       let currentState = 'loading'; // loading, ready, error
       let warnCounter = 0; // Hysteresis counter for warn state
       let lastFetchTime = null;
       let pollTimer = null;
+      let eventSource = null;
+      let sseConnected = false;
+      let sseReconnectTimer = null;
 
       // Check for embed mode
       const isEmbed = new URLSearchParams(window.location.search).get('embed') === '1';
@@ -761,29 +765,121 @@
         }
       }
 
+      // ========================================================================
+      // Phase 11A: SSE (Server-Sent Events) with Polling Fallback
+      // ========================================================================
+      
+      function handleInfraData(data) {
+        lastFetchTime = Date.now();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Unknown error');
+        }
+
+        setState('ready');
+        updateBanner(data.status, data.timestamp);
+        updateMetrics(data.data.metrics, data.status);
+        renderServices(data.data.services);
+        updateServicesBadge(data.data.services);
+        renderSidecars(data.data.sidecars);
+
+        // Notify parent window if in iframe (for shell badge updates)
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: 'infra-status',
+            status: data.status,
+            metrics: data.data.metrics
+          }, '*');
+        }
+      }
+
+      function connectSSE() {
+        if (eventSource) {
+          eventSource.close();
+        }
+
+        try {
+          eventSource = new EventSource('/api/infrastructure/stream');
+
+          eventSource.addEventListener('connected', (e) => {
+            console.log('[SSE] Connected to infrastructure stream');
+            sseConnected = true;
+            // Stop polling when SSE is active
+            stopPolling();
+          });
+
+          eventSource.addEventListener('infra', (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              handleInfraData(data);
+            } catch (err) {
+              console.error('[SSE] Parse error:', err);
+            }
+          });
+
+          eventSource.onerror = (err) => {
+            console.warn('[SSE] Connection error, falling back to polling');
+            sseConnected = false;
+            eventSource.close();
+            eventSource = null;
+            
+            // Fallback to polling
+            if (!pollTimer) {
+              startPolling();
+            }
+            
+            // Schedule SSE reconnect attempt
+            if (sseReconnectTimer) clearTimeout(sseReconnectTimer);
+            sseReconnectTimer = setTimeout(() => {
+              console.log('[SSE] Attempting reconnect...');
+              connectSSE();
+            }, SSE_RECONNECT_DELAY);
+          };
+
+        } catch (err) {
+          console.error('[SSE] Failed to create EventSource:', err);
+          // Fallback to polling
+          startPolling();
+        }
+      }
+
+      function disconnectSSE() {
+        if (sseReconnectTimer) {
+          clearTimeout(sseReconnectTimer);
+          sseReconnectTimer = null;
+        }
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        sseConnected = false;
+      }
+
       // Event handlers
       retryBtn.addEventListener('click', () => {
         setState('loading');
         fetchStatus();
+        connectSSE();
       });
 
       if (manualRefreshBtn) {
         manualRefreshBtn.addEventListener('click', fetchStatus);
       }
 
-      // Visibility API - pause polling when tab is hidden
+      // Visibility API - pause SSE/polling when tab is hidden
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
+          disconnectSSE();
           stopPolling();
         } else {
           fetchStatus();
-          startPolling();
+          connectSSE();
         }
       });
 
-      // Initial load
+      // Initial load: fetch immediately, then connect SSE
       fetchStatus();
-      startPolling();
+      connectSSE();
 
     })();
   </script>
