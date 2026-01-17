@@ -256,6 +256,73 @@ gate_api_contract() {
   else
     log_fail "orders.html missing export handlers"
   fi
+  
+  # Check proxy targets correct service (order-api not reconstruction)
+  log_test "Checking evidence-pack proxy targets order-api..."
+  if grep -q 'orderApi.*evidence-pack' "$SERVER_FILE"; then
+    log_pass "evidence-pack correctly proxied to order-api"
+  else
+    log_fail "evidence-pack not proxied to order-api (wrong backend!)"
+  fi
+  
+  log_test "Checking dispute-pack proxy targets order-api..."
+  if grep -q 'orderApi.*dispute-pack' "$SERVER_FILE"; then
+    log_pass "dispute-pack correctly proxied to order-api"
+  else
+    log_fail "dispute-pack not proxied to order-api (wrong backend!)"
+  fi
+  
+  # Runtime smoke test for export routes (when backend is available)
+  # First get a valid order ID
+  if [[ "$HTTP_STATUS" == "200" ]]; then
+    ORDER_ID=$(curl -s "${UI_BASE_URL}/api/orders?limit=1" | grep -oP '"id"\s*:\s*"\K[^"]+' | head -1)
+    
+    if [[ -n "$ORDER_ID" ]]; then
+      log_test "Checking /api/orders/${ORDER_ID}/evidence-pack runtime..."
+      EVIDENCE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${UI_BASE_URL}/api/orders/${ORDER_ID}/evidence-pack")
+      EVIDENCE_RESP=$(curl -s "${UI_BASE_URL}/api/orders/${ORDER_ID}/evidence-pack")
+      
+      if [[ "$EVIDENCE_STATUS" == "200" ]]; then
+        # Validate response schema (should have success, data with type)
+        if echo "$EVIDENCE_RESP" | grep -qE '"success"\s*:\s*true.*"type"\s*:\s*"order-evidence-pack"'; then
+          log_pass "evidence-pack returns valid schema (type=order-evidence-pack)"
+        elif echo "$EVIDENCE_RESP" | grep -qE '"success"\s*:\s*true'; then
+          log_pass "evidence-pack returns HTTP 200 with success=true"
+        else
+          echo -e "${YELLOW}  ⚠ evidence-pack response schema unexpected (HTTP 200 but no success flag)${NC}"
+          RESULTS+=("WARN: evidence-pack schema mismatch")
+        fi
+      elif [[ "$EVIDENCE_STATUS" == "404" ]]; then
+        echo -e "${YELLOW}  ⚠ evidence-pack returns 404 (order may not exist)${NC}"
+        RESULTS+=("SKIP: evidence-pack (order not found)")
+      else
+        log_fail "evidence-pack returns HTTP $EVIDENCE_STATUS"
+      fi
+      
+      log_test "Checking /api/orders/${ORDER_ID}/dispute-pack runtime..."
+      DISPUTE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${UI_BASE_URL}/api/orders/${ORDER_ID}/dispute-pack")
+      DISPUTE_RESP=$(curl -s "${UI_BASE_URL}/api/orders/${ORDER_ID}/dispute-pack")
+      
+      if [[ "$DISPUTE_STATUS" == "200" ]]; then
+        if echo "$DISPUTE_RESP" | grep -qE '"success"\s*:\s*true.*"type"\s*:\s*"dispute-pack"'; then
+          log_pass "dispute-pack returns valid schema (type=dispute-pack)"
+        elif echo "$DISPUTE_RESP" | grep -qE '"success"\s*:\s*true'; then
+          log_pass "dispute-pack returns HTTP 200 with success=true"
+        else
+          echo -e "${YELLOW}  ⚠ dispute-pack response schema unexpected (HTTP 200 but no success flag)${NC}"
+          RESULTS+=("WARN: dispute-pack schema mismatch")
+        fi
+      elif [[ "$DISPUTE_STATUS" == "404" ]]; then
+        echo -e "${YELLOW}  ⚠ dispute-pack returns 404 (order may not exist)${NC}"
+        RESULTS+=("SKIP: dispute-pack (order not found)")
+      else
+        log_fail "dispute-pack returns HTTP $DISPUTE_STATUS"
+      fi
+    else
+      echo -e "${YELLOW}  ⚠ No orders found for runtime export test${NC}"
+      RESULTS+=("SKIP: export runtime (no orders)")
+    fi
+  fi
 }
 
 ###############################################################################

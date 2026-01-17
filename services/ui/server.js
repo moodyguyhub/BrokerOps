@@ -345,10 +345,10 @@ app.get("/api/orders/:id/lifecycle", async (req, res) => {
   }
 });
 
-// Evidence and Dispute Pack exports (proxied to reconstruction API)
+// Evidence and Dispute Pack exports (proxied to order-api)
 app.get("/api/orders/:id/evidence-pack", async (req, res) => {
   try {
-    const resp = await fetch(`${API_URLS.reconstruction}/orders/${req.params.id}/evidence-pack`);
+    const resp = await fetch(`${API_URLS.orderApi}/api/orders/${req.params.id}/evidence-pack`);
     if (!resp.ok) {
       return res.status(resp.status).json({ success: false, error: "Failed to generate evidence pack" });
     }
@@ -364,7 +364,7 @@ app.get("/api/orders/:id/evidence-pack", async (req, res) => {
 
 app.get("/api/orders/:id/dispute-pack", async (req, res) => {
   try {
-    const resp = await fetch(`${API_URLS.reconstruction}/orders/${req.params.id}/dispute-pack`);
+    const resp = await fetch(`${API_URLS.orderApi}/api/orders/${req.params.id}/dispute-pack`);
     if (!resp.ok) {
       return res.status(resp.status).json({ success: false, error: "Failed to generate dispute pack" });
     }
